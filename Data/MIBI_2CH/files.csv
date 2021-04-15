@@ -1,0 +1,5 @@
+,prefix,input_dir,input_file,group
+0,image0,/data/natalia/intern20/PaperData/MIBI_2channel/,image0.npz,train
+1,image1,/data/natalia/intern20/PaperData/MIBI_2channel/,image1.npz,train
+2,image2,/data/natalia/intern20/PaperData/MIBI_2channel/,image2.npz,test
+3,image3,/data/natalia/intern20/PaperData/MIBI_2channel/,image3.npz,train
