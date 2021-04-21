@@ -40,15 +40,23 @@ sys.path.append("../")
 
 
 dataset = 'MIBI2CH'
+
+# dataset = 'Vectra_2CH'
+scribbles_list = ['150','200']
 scribbles_list = ['150']
+
 
 saveout = True
 
 file_bash_name = dataset+'_bash.sh'
 
-# model_name_prefix = 'MS_rec01_2tasks_base64depth4relu_adam5e4_gclip1_'
-model_name_prefix = 'MS_2tasks3train_base64depth4relu_adam5e4_gclip1_'
 
+# model_name_prefix = 'MS_2tasks_base64depth4relu_adam5e4_gclip10_nsave5_'
+model_name_prefix = 'MS_2tasks_base64depth4relu_adam5e4_gclip10_nsave6_'
+nsaves = 6
+train = True
+load = False
+reset_optim = True
 
 optim = 'adam' #RMSprop
 lr=5e-4
@@ -57,31 +65,45 @@ ubase = 64
 udepth = 4
 activation = 'relu'
 batchnorm = False
-load = False
 
-epochs=300
+
+epochs=400
 batch = 64
 if ubase == 128:
     batch = 32
 seed_list=[42,43,44]
+seed_list=[43]
 gpu = 0
-gradclip = 1
+gradclip = 10
 
 
+#
+# weights_dic = {'02505':[0.25, 0.25, 0.49, 0.01],
+#                '0500': [0.5, 0.5, 0.0, 0.0],
+#                '03503': [0.35, 0.35, 0.29, 0.01],
+#                '00509': [0.05, 0.05, 0.89, 0.01]} #wfore, wback, wrec, wreg
 
-weights_dic = {'02505':[0.25, 0.25, 0.49, 0.01],
-               '0500': [0.5, 0.5, 0.0, 0.0],
-               '03503': [0.35, 0.35, 0.29, 0.01],
-               '00509': [0.05, 0.05, 0.89, 0.01]} #wfore, wback, wrec, wreg
-# weights_dic = {'0500':[0.5, 0.5, 0.0, 0.0]} #wfore, wback, wrec, wreg
+# weights_dic = {'02505':[0.25, 0.25, 0.5],
+#                '03503':[0.35, 0.35, 0.3],
+#                '00509': [0.05, 0.05, 0.9]} #wfore, wback, wrec
 
+# weights_dic = {'02505':[0.25, 0.25, 0.49, 0.01],
+               # '04501': [0.45, 0.45, 0.09, 0.01],
+               # '00509': [0.05, 0.05, 0.89, 0.01]} #wfore, wback, wrec, wreg
+
+# weights_dic = {'02505':[0.25, 0.25, 0.49, 0.01],
+               # '04501': [0.45, 0.45, 0.09, 0.01]} #wfore, wback, wrec, wreg
+
+weights_dic = {'04501': [0.45, 0.45, 0.09, 0.01]} #wfore, wback, wrec, wreg
+
+# weights_dic = {'02505':[0.25, 0.25, 0.49, 0.01]} #wfore, wback, wrec, wreg
 losses_dic = {'segCErecL2':['CE','L2']}
 
 with open(file_bash_name,'w') as f:
+    for seed in seed_list:
+        for scribbles in scribbles_list:
+            basedir = '/data/natalia/models/' + dataset + '/s'+scribbles + '/MS/'
 
-    for scribbles in scribbles_list:
-        basedir = '/data/natalia/models/' + dataset + '/s'+scribbles + '/MS/'
-        for seed in seed_list:
             for loss_key in losses_dic.keys():
                 for weights_key in weights_dic.keys():
                     loss_list = losses_dic[loss_key]
@@ -93,9 +115,9 @@ with open(file_bash_name,'w') as f:
                     cmd = 'python main_ms.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={}'.format(basedir,dataset, model_name,saveout,scribbles)
                     # cmd = 'python main_denoiseg_OLD.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} --gpu={}'.format(basedir, dataset, model_name,saveout,scribbles,gpu)
 
-                    cmd = cmd + ' --optim_regw={} --optim="{}" --lr={} --gradclip={} --seed={}'.format(regweight, optim, lr, gradclip, seed)
+                    cmd = cmd + ' --optim_regw={} --optim="{}" --lr={} --gradclip={} --seed={} --train={}'.format(regweight, optim, lr, gradclip, seed,train)
                     cmd = cmd + ' --udepth="{}" --ubase="{}" --activation="{}" --batchnorm={}'.format(udepth,ubase,activation,batchnorm)
-                    cmd = cmd + ' --seg_loss="{}" --rec_loss="{}" '.format(loss_list[0], loss_list[1])
+                    cmd = cmd + ' --seg_loss="{}" --rec_loss="{}" --nsaves={} --reset_optim={}'.format(loss_list[0], loss_list[1],nsaves,reset_optim)
                     cmd = cmd + ' --wfore={} --wback={} --wrec={} --wreg={}'.format(weights_list[0], weights_list[1], weights_list[2], weights_list[3])
 
                     cmd = cmd + ' --epochs={} --batch={} --load={} > {}.txt'.format(epochs,batch,load,out_file_ext)

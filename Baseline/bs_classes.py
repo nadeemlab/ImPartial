@@ -2,14 +2,14 @@
 import argparse
 import sys
 sys.path.append("../")
+from general.utils import save_json,model_params_load,mkdir
+import pandas as pd
+import pickle
 import torch
 import numpy as np
-import pickle
 import matplotlib.pyplot as plt
-import pandas as pd
-from general.utils import model_params_load , mkdir, save_json
 
-class DenoisegConfig(argparse.Namespace):
+class Config(argparse.Namespace):
 
     def __init__(self,config_dic = None,**kwargs):
 
@@ -53,13 +53,11 @@ class DenoisegConfig(argparse.Namespace):
 
         ### Losses ###
         self.seg_loss = 'CE'
-        self.rec_loss = 'L2'
 
         # self.segclasses = ['0']  #list containing classes 'object types'
         self.classification_tasks = {'0': {'classes': 1, 'ncomponents': [1, 2]}}
-        self.weight_tasks = None #per segmentation class reconstruction weight
-        self.weight_rec_channels = None #per channel reconstruction weight
-        self.weight_objectives = {'seg_fore':0.25,'seg_back':0.25,'rec':0.5}
+        self.weight_tasks = None
+        self.weight_objectives = {'seg_fore':0.5,'seg_back':0.5}
 
         self.EPOCHS = 100
         self.LEARNING_RATE = 1e-4
@@ -87,18 +85,13 @@ class DenoisegConfig(argparse.Namespace):
             DEVICE = torch.device('cpu')
         self.DEVICE = DEVICE
 
-        self.n_output = self.n_channels
+        self.n_output = 0
         for key in self.classification_tasks.keys():
             ncomponents = np.sum(np.array(self.classification_tasks[key]['ncomponents']))
             nclasses = self.classification_tasks[key]['classes']
             self.n_output += ncomponents #components of the task
             if 'weight_classes' not in self.classification_tasks[key].keys():
                 self.classification_tasks[key]['weight_classes'] = [1/nclasses for _ in range(nclasses)]
-
-        if self.weight_rec_channels is None:
-            self.weight_rec_channels = {}
-            for ch in range(self.n_channels):
-                self.weight_rec_channels[ch] = 1/self.n_channels
 
         if self.weight_tasks is None:
             self.weight_tasks = {}
@@ -109,7 +102,8 @@ class DenoisegConfig(argparse.Namespace):
             self.val_model_saves_list.append('model_val_best_save' + str(i) + '.pth')
             self.train_model_saves_list.append('model_train_best_save' + str(i) + '.pth')
 
-    # def is_valid(self, return_invalid=False):
+
+                    # def is_valid(self, return_invalid=False):
         # Todo! I have to update this properly
         # ok = {}
         #
@@ -158,8 +152,7 @@ class DenoisegConfig(argparse.Namespace):
 
 
 
-
-class DenoisegModel:
+class BaselineModel:
     def __init__(self, config):
         self.config = config
 
@@ -193,7 +186,7 @@ class DenoisegModel:
             model_params_load(load_file, self.model, self.optimizer,self.config.DEVICE)
 
     def data_performance_evaluation(self,pd_files,saveout = False, plot = False, model_ensemble_load_files = []):
-        from Denoiseg.Denoiseg_functions import get_denoiseg_outputs
+        from Baseline.bs_functions import get_outputs
         from general.evaluation import get_performance
         from dataprocessing.dataloaders import Normalize, ToTensor, ImageSegDataset
         from torchvision import transforms
@@ -220,7 +213,7 @@ class DenoisegModel:
             if len(model_ensemble_load_files) < 1:
                 self.model.eval()
                 out = self.model(Xinput)
-                output = get_denoiseg_outputs(out, self.config)  # output has keys: class_segmentation, factors
+                output = get_outputs(out, self.config)  # output has keys: class_segmentation, factors
             else:
                 ix_model = 0
                 for model_save in model_ensemble_load_files:
@@ -228,7 +221,7 @@ class DenoisegModel:
                     model_params_load(model_ensemble_load_files, self.model, self.optimizer, self.config.DEVICE)
                     self.model.eval()
                     out = self.model(Xinput)
-                    output_aux = get_denoiseg_outputs(out, self.config)
+                    output_aux = get_outputs(out, self.config)
                     ix_model += 1
                     if ix_model == 1:  # first model
                         output = output_aux.copy()

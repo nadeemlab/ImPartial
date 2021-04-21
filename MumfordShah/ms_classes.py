@@ -4,10 +4,18 @@ sys.path.append("../")
 from general.utils import save_json
 import torch
 import numpy as np
-
+import pickle
+import matplotlib.pyplot as plt
+import pandas as pd
+from general.utils import model_params_load , mkdir, save_json
+from MumfordShah.ms_functions import get_ms_outputs
+from dataprocessing.dataloaders import Normalize, ToTensor, ImageSegDataset
+from torchvision import transforms
+from general.evaluation import get_performance
+import os
 class MumfordShahConfig(argparse.Namespace):
 
-    def __init__(self,**kwargs):
+    def __init__(self,config_dic = None,**kwargs):
 
         self.basedir = 'models/'
         self.model_name = 'vanilla_model'
@@ -16,6 +24,14 @@ class MumfordShahConfig(argparse.Namespace):
 
         self.seed = 42
         self.GPU_ID = 0
+
+
+        ### Checkpoint ensembles
+        self.nsaves = 1 #number of checkpoints ensembles
+        self.val_model_saves_list = []
+        self.train_model_saves_list = []
+        self.reset_optim = True
+
 
         #Network
         self.activation = 'relu'
@@ -63,6 +79,9 @@ class MumfordShahConfig(argparse.Namespace):
         self.type_metric = []
         self.warmup_epochs = 80 #minimum of epochs to consider before allow stopper
 
+        if config_dic is not None:
+            self.set_values(config_dic)
+
         for k in kwargs:
             setattr(self, k, kwargs[k])
 
@@ -89,6 +108,10 @@ class MumfordShahConfig(argparse.Namespace):
             self.weight_tasks = {}
             for key in self.classification_tasks.keys():
                 self.weight_tasks[key] = 1/len(self.classification_tasks.keys())
+
+        for i in range(self.nsaves):
+            self.val_model_saves_list.append('model_val_best_save' + str(i) + '.pth')
+            self.train_model_saves_list.append('model_train_best_save' + str(i) + '.pth')
 
     def update_parameters(self, allow_new=True, **kwargs):
         if not allow_new:
@@ -122,3 +145,181 @@ class MumfordShahConfig(argparse.Namespace):
             save_path =  self.basedir + self.model_name + '/config.json'
         save_json(config2json, save_path)
         print('Saving config json file in : ', save_path)
+
+    def set_values(self,config_dic):
+        if config_dic is not None:
+            for k in config_dic.keys():
+                setattr(self, k, config_dic[k])
+
+
+class MumfordShahModel:
+    def __init__(self, config):
+        self.config = config
+
+        ### Network Unet ###
+        from general.networks import UNet
+        self.model = UNet(config.n_channels, config.n_output,
+                     depth=config.unet_depth,
+                     base=config.unet_base,
+                     activation=config.activation,
+                     batchnorm=config.batchnorm)
+
+        self.model = self.model.to(config.DEVICE)
+
+        from torch import optim
+        if config.optimizer == 'adam':
+            self.optimizer = optim.Adam(self.model.parameters(), lr=config.LEARNING_RATE,
+                                   weight_decay=config.optim_weight_decay)
+
+        else:
+            if config.optimizer == 'RMSprop':
+                self.optimizer = optim.RMSprop(self.model.parameters(), lr=config.LEARNING_RATE,
+                                          weight_decay=config.optim_weight_decay)
+            else:
+                self.optimizer = optim.SGD(self.model.parameters(), lr=config.LEARNING_RATE)
+
+    def load_network(self, load_file=None):
+        import os
+        if os.path.exists(load_file):
+            print(' Loading : ', load_file)
+            model_params_load(load_file, self.model, self.optimizer,self.config.DEVICE)
+
+    def eval(self,pd_files, default_ensembles = True, model_ensemble_load_files = []):
+
+
+        if default_ensembles & (len(model_ensemble_load_files) < 1):
+            model_ensemble_load_files = []
+            for model_file in self.config.val_model_saves_list:
+                model_ensemble_load_files.append(self.config.basedir+self.config.model_name+'/'+model_file)
+
+        if len(model_ensemble_load_files) > 1:
+            print('Evaluating average predictions of models : ')
+            for model_file in model_ensemble_load_files:
+                print(model_file)
+
+        #------------ Dataloader ----------#
+        transforms_list = []
+        if self.config.normstd:
+            transforms_list.append(Normalize(mean=0.5, std=0.5))
+        transforms_list.append(ToTensor())
+        transform_eval = transforms.Compose(transforms_list)
+
+        # dataloader full images evaluation
+        dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files, transform=transform_eval),
+                                                      batch_size=1, shuffle=False, num_workers=8)
+
+        #---------- Evaluation --------------#
+        output_list = []
+        gt_list = []
+        for batch, data in enumerate(dataloader_eval):
+            # print(batch)
+            Xinput = data['input'].to(self.config.DEVICE)
+
+            ## save ground truth
+            if 'label' in data.keys():
+                Ylabel = data['label'].numpy()
+                gt_list.append(Ylabel)
+
+
+            ## evaluate ensemble of checkpoints and save outputs
+            if len(model_ensemble_load_files) < 1:
+                self.model.eval()
+                out = self.model(Xinput)
+                output = get_ms_outputs(out, self.config)  # output has keys: class_segmentation, factors
+            else:
+                ix_model = 0
+                for model_save in model_ensemble_load_files:
+                    if os.path.exists(model_save):
+                        # print('evaluation of model : ',model_save)
+                        model_params_load(model_save, self.model, self.optimizer, self.config.DEVICE)
+                        self.model.eval()
+                        out = self.model(Xinput)
+                        output_aux = get_ms_outputs(out, self.config)
+                        ix_model += 1
+                        if ix_model == 1:  # first model
+                            output = output_aux.copy()
+                        else:
+                            for task in self.config.classification_tasks.keys():
+
+                                # for ix_class in range(self.config.classification_tasks[task]['classes']):
+                                output[task]['class_segmentation'] = (output_aux[task]['class_segmentation'] +
+                                                                          output[task]['class_segmentation'] * (
+                                                                          ix_model - 1)) / ix_model
+
+                                for key_factors in output[task]['factors'].keys():
+                                    output[task]['factors'][key_factors] = (output_aux[task]['factors'][key_factors] +
+                                                                          output[task]['factors'][key_factors] * (
+                                                                              ix_model - 1)) / ix_model
+            output_list.append(output)
+        return output_list,gt_list
+
+
+    def data_performance_evaluation(self,pd_files,saveout = False, plot = False, default_ensembles = True, model_ensemble_load_files = []):
+
+        output_list, gt_list = self.eval(pd_files,default_ensembles = default_ensembles,
+                                         model_ensemble_load_files = model_ensemble_load_files)
+
+        th_list = np.linspace(0, 1, 21)[1:-1]
+        pd_rows = []
+        pd_saves_out = []
+
+        for ix_file in range(len(pd_files)):
+            output = output_list[ix_file]
+            Ylabels = gt_list[ix_file]
+
+            print('Performance evaluation on file ', pd_files.iloc[ix_file]['prefix'])
+            for task in self.config.classification_tasks.keys():
+
+                output_task = output[task]
+
+                ix_labels_list = self.config.classification_tasks[task]['ix_gt_labels']
+
+                for ix_class in range(self.config.classification_tasks[task]['classes']):
+                    print(' task : ', task, 'class : ', ix_class)
+                    ix_labels = int(ix_labels_list[ix_class])
+
+                    Ypred_fore = output_task['class_segmentation'][0,int(ix_class),...]
+                    Ylabel = Ylabels[0,ix_labels, ...].astype('int')
+
+                    if plot:
+                        plt.figure(figsize=(10, 5))
+                        plt.subplot(1, 2, 1)
+                        plt.imshow(Ylabel)
+                        plt.subplot(1, 2, 2)
+                        plt.imshow(Ypred_fore)
+                        plt.colorbar()
+                        plt.show()
+
+                    ix_labels += 1
+                    for th in th_list:
+                        rows = [_ for _ in pd_files.iloc[ix_file].values]
+                        rows.append(task)
+                        rows.append(ix_class)
+                        rows.append(th)
+                        metrics = get_performance(Ylabel, Ypred_fore, threshold=th)
+                        for key in metrics.keys():
+                            rows.append(metrics[key])
+                        pd_rows.append(rows)
+
+            ## Save output (optional)
+            if saveout:
+                prefix = pd_files.iloc[ix_file]['prefix']
+                save_output_dic = self.config.basedir + self.config.model_name + '/output_images/'
+                file_output_save = 'eval_' + prefix + '.pickle'
+                mkdir(save_output_dic)
+                with open(save_output_dic + file_output_save, 'wb') as handle:
+                    pickle.dump(output, handle)
+                pd_saves_out.append([prefix, file_output_save])
+
+        columns = list(pd_files.columns)
+        columns.extend(['task', 'segclass', 'th'])
+        for key in metrics.keys():
+            columns.append(key)
+        pd_summary = pd.DataFrame(data=pd_rows, columns=columns)
+
+        if saveout:
+            pd_saves = pd.DataFrame(data=pd_saves_out, columns=['prefix', 'output_file'])
+            pd_saves.to_csv(save_output_dic + 'pd_output_saves.csv', index=0)
+            print('output saved in :',save_output_dic + 'pd_output_saves.csv')
+
+        return pd_summary

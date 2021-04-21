@@ -1,7 +1,7 @@
 import sys
 sys.path.append("../")
 import pandas as pd
-from general.utils import mkdir,model_params_load
+from general.utils import mkdir,model_params_load,load_json
 import numpy as np
 from dataprocessing.dataloaders import ImageBlindSpotDataset
 import os
@@ -17,6 +17,8 @@ cparser.add_argument('--basedir', action='store', default='/data/natalia/models/
 cparser.add_argument('--seed', action='store', default=42, type=int, help='randomizer seed')
 cparser.add_argument('--saveout', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: batchnorm')
 cparser.add_argument('--load', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: batchnorm')
+cparser.add_argument('--train', action='store', default=True,type=lambda x: bool(strtobool(x)),help='boolean: validation stopper')
+
 
 ## Dataset
 cparser.add_argument('--dataset', action='store', default='MIBI2CH', type=str,help='dataset')
@@ -35,7 +37,7 @@ cparser.add_argument('--p_scribble', action='store', default=0.6, type=float, he
 cparser.add_argument('--normstd', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: apply standarization to patches')
 
 cparser.add_argument('--min_npatch_image', action='store', default=6, type=int, help='min_npatch_image')
-cparser.add_argument('--npatches_epoch', action='store', default=1024, type=int, help='npatches_epoch')
+cparser.add_argument('--npatches_epoch', action='store', default=4096, type=int, help='npatches_epoch')
 cparser.add_argument('--nepochs_sample_patches', action='store', default=0, type=int, help='nepoch_sample_patches')
 cparser.add_argument('--batch', action='store', default=64, type=int, help='batchsize')
 
@@ -56,22 +58,44 @@ cparser.add_argument('--wreg', action='store', default=0.01, type=float, help='w
 
 ## Optimizer
 cparser.add_argument('--optim_regw', action='store', default=0, type=float, help='regularization weight')
-cparser.add_argument('--lr', action='store', default=5e-5, type=float, help='learners learning rate ')
+cparser.add_argument('--lr', action='store', default=5e-4, type=float, help='learners learning rate ')
 cparser.add_argument('--optim', action='store', default='adam', type=str,help='Learners optimizer')
 cparser.add_argument('--valstop', action='store', default=True,type=lambda x: bool(strtobool(x)),help='boolean: validation stopper')
-cparser.add_argument('--patience', action='store', default=20, type=int, help='no improvement worst loss patience')
-cparser.add_argument('--warmup', action='store', default=80, type=int, help='warmup epochs, no stop is allowed')
-cparser.add_argument('--epochs', action='store', default=80, type=int, help='epochs')
+cparser.add_argument('--patience', action='store', default=5, type=int, help='no improvement worst loss patience')
+cparser.add_argument('--warmup', action='store', default=50, type=int, help='warmup epochs, no stop is allowed')
+cparser.add_argument('--epochs', action='store', default=400, type=int, help='epochs')
 cparser.add_argument('--gradclip', action='store', default=0, type=float, help='0 means no clipping')
+
+
+##Checkpoint ensembles
+cparser.add_argument('--nsaves', action='store', default=1, type=int, help='nsaves model') #how many cycles
+cparser.add_argument('--reset_optim', action='store', default=True,type=lambda x: bool(strtobool(x)),help='boolean: reset optimizer') #reset optimizer between cycles
+
+
+
+
+
+
 cparser = cparser.parse_args()
 
 if __name__== '__main__':
 
+
+    if cparser.dataset == 'Vectra_2CH':
+        data_dir = '/data/natalia/intern20/Vectra_2CH/'
+        files_scribbles = data_dir + 'files_2tasks1x2classes_3images_scribble_train_' + cparser.scribbles + '.csv'
+        pd_files_scribbles = pd.read_csv(files_scribbles)
+
+        pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0)
+        n_channels = 2
+        classification_tasks = {'0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [2, 2]},
+                                '1': {'classes': 2, 'rec_channels': [1], 'ncomponents': [1, 1, 2]}}
+        if cparser.nepochs_sample_patches == 0:
+            cparser.nepochs_sample_patches = 25
+
     if cparser.dataset == 'MIBI2CH':
 
         data_dir = '/data/natalia/intern20/PaperData/MIBI_2channel/'
-        # files_scribbles = data_dir + 'files_2tasks3classes_scribble_train_' + cparser.scribbles + '.csv'
-        # files_scribbles = data_dir + 'files_2tasks1x2classes_3images_scribble_train_' + cparser.scribbles + '.csv'
         files_scribbles = data_dir + 'files_2tasks1x2classes_3images_scribble_train_' + cparser.scribbles + '.csv'
 
         pd_files_scribbles = pd.read_csv(files_scribbles)
@@ -81,7 +105,7 @@ if __name__== '__main__':
         classification_tasks = {'0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [2, 2]},
                                 '1': {'classes': 2, 'rec_channels': [1], 'ncomponents': [1, 1, 2]}}
         if cparser.nepochs_sample_patches == 0:
-            cparser.nepochs_sample_patches = 25
+            cparser.nepochs_sample_patches = 10
 
     if cparser.dataset == 'MIBI2CH_3tasks':
 
@@ -97,7 +121,7 @@ if __name__== '__main__':
                                 '1': {'classes': 1, 'rec_channels': [1]},
                                 '2': {'classes': 1, 'rec_channels': [1]}}
         if cparser.nepochs_sample_patches == 0:
-            cparser.nepochs_sample_patches = 25
+            cparser.nepochs_sample_patches = 10
 
     print('loaded :', files_scribbles)
     print('Total images  train: ', len(pd_files_scribbles),'; test: ', len(pd_files)-len(pd_files_scribbles))
@@ -143,11 +167,14 @@ if __name__== '__main__':
                             warmup_epochs = cparser.warmup,
                             EPOCHS=cparser.epochs,
                             seed=cparser.seed,
-                            GPU_ID=cparser.gpu)
+                            GPU_ID=cparser.gpu,
+                            nsaves = cparser.nsaves,
+                            reset_optim=cparser.reset_optim)
 
     mkdir(config.basedir)
     mkdir(config.basedir+config.model_name+'/')
 
+    config.nsaves = cparser.nsaves ## todo! if this is good should be included in the config
     for task in config.classification_tasks.keys():
         # get list of corresponding gt indexes
         ix_labels_list = pd_files_scribbles['gt_index_task' + task].values[0]
@@ -209,7 +236,7 @@ if __name__== '__main__':
 
     #dataloader full images evaluation
     dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files,transform = transform_eval),
-                                                  batch_size=int(np.minimum((len(pd_files)),16)),
+                                                  batch_size=int(np.minimum((len(pd_files)),4)),
                                                   shuffle=False, num_workers=8)
 
 
@@ -258,8 +285,15 @@ if __name__== '__main__':
             model_params_load(config.basedir + config.model_name + '/' + config.best_model, model, optimizer,config.DEVICE)
 
     #------------------------- Training --------------------------------#
-    from general.training import recseg_trainer
-    history = recseg_trainer(dataloader_train,dataloader_val,model,optimizer,criterio,config)
+    if cparser.train:
+        if cparser.nsaves <= 1:
+            from general.training import recseg_trainer
+            history = recseg_trainer(dataloader_train,dataloader_val,model,optimizer,criterio,config)
+        else:
+            from general.training import recseg_checkpoint_ensemble_trainer
+            history = recseg_checkpoint_ensemble_trainer(dataloader_train, dataloader_val, model, optimizer, criterio,config)
+    else:
+        history = load_json(config.basedir + config.model_name + '/history.json')
 
     print(' Saving .... ')
     config.save_json()
@@ -285,9 +319,26 @@ if __name__== '__main__':
         print(batch)
         Xinput = data['input'].to(config.DEVICE)
 
-        model.eval()
-        out = model(Xinput)
-        output = get_ms_outputs(out, config)  # output has keys: class_segmentation, factors
+        if cparser.nsaves <= 1:
+            model.eval()
+            out = model(Xinput)
+            output = get_ms_outputs(out, config)  # output has keys: class_segmentation, factors
+        else:
+            ix_model = 0
+            for model_save in config.val_model_saves_list[0:len(history['val_epochs_saves_list'])]:
+                print(model_save)
+                model_params_load(config.basedir + config.model_name + '/' + model_save, model, optimizer,
+                                  config.DEVICE)
+                model.eval()
+                out = model(Xinput)
+                output_aux = get_ms_outputs(out, config)
+                ix_model += 1
+                if ix_model == 1: #first model
+                    output = output_aux.copy()
+                else:
+                    for task in config.classification_tasks.keys():
+                        for ix_class in range(config.classification_tasks[task]['classes']):
+                            output[task]['class_segmentation'] = (output_aux[task]['class_segmentation'] + output[task]['class_segmentation']*(ix_model-1))/ix_model
 
         Ylabels = data['label'].numpy()
         X = data['input'].numpy()
@@ -320,7 +371,8 @@ if __name__== '__main__':
                     Ypred_back = 1 - Ypred_fore  # one vs all evaluation
                     #                 Y_fore_save.append(Ypred_fore)
 
-                    Ylabel = Ylabels[i, ix_labels, ...].astype('int')
+                    Ylabel = Ylabels[i, ix_labels, ...].astype('int64')
+                    # Ylabel = Ylabels[i, ix_labels, ...]
                     # ix_labels += 1
                     for th in th_list:
                         rows = [_ for _ in pd_files.iloc[ix_file].values]
@@ -338,8 +390,7 @@ if __name__== '__main__':
         columns.append(key)
     pd_summary = pd.DataFrame(data=pd_rows, columns=columns)
     pd_summary.to_csv(config.basedir + config.model_name + '/pd_summary_results.csv', index=0)
-    print('Evaluation csv saved on : ',
-          config.basedir + config.model_name + '/pd_summary_results.csv')
+    print('Evaluation csv saved on : ',config.basedir + config.model_name + '/pd_summary_results.csv')
 
     if saveout:
         pd_saves = pd.DataFrame(data=pd_saves_out,

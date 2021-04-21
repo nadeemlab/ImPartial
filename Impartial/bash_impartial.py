@@ -40,6 +40,9 @@ sys.path.append("../")
 
 
 dataset = 'MIBI2CH'
+
+# dataset = 'Vectra_2CH'
+scribbles_list = ['150','200']
 scribbles_list = ['150']
 
 saveout = True
@@ -62,69 +65,79 @@ model_name_prefix = 'Im_2tasks3train_base64depth4relu_adam5e4_gclip5_'
 # model_name_prefix = 'Im_'
 # model_name_prefix = 'Im_2tasks_base64depth4relu_adam5e4_gclip5_'
 
+model_name_prefix = 'Im_2tasks_base64depth4relu_adam5e4_gclip10_np2048_nsave5_'
+# model_name_prefix = 'Im_vs4096_2tasks_base64depth4relu_adam5e4_gclip10_nsave5_'
+model_name_prefix = 'Im_chrs4096_2tasks_base64depth4relu_adam5e4_gclip10_nsave5_'
+# model_name_prefix = 'Im_noblind_2tasks_base64depth4relu_adam5e4_gclip1_'
+model_name_prefix = 'Im_2tasks_base64depth4relu_adam5e4_gclip10_nsave6_'
 
-model_name_prefix = 'Im_2tasks_base64depth4relu_adam5e4_gclip1_'
+
+ratio = 0.95
+nsave = 6
+train = False
+load = True
+reset_optim = True
 
 optim = 'adam' #RMSprop
 # lr=5e-5
-lr=5e-4 #todo!: Ultimo cambio fue a 5e-4
+lr=5e-4
 regweight = 0
 ubase = 64
 udepth = 4
 activation = 'relu'
 batchnorm = False
-load = False
 
-epochs=300
+
+epochs = 400
 batch = 64
 if ubase == 128:
     batch = 32
 seed_list=[42,43,44]
-seed_list=[42]
+seed_list=[42,43,44]
+seed_list=[42,43,44]
+seed_list=[42,43,44]
 gpu = 0
-gradclip = 1
+gradclip = 10
 
 # weights_dic = {'02505':[0.25, 0.25, 0.5],
 #                '0500': [0.5, 0.5, 0.0],
 #                '00509': [0.05, 0.05, 0.9],
 #                '03503':[0.35, 0.35, 0.3]} #wfore, wback, wrec
 
-weights_dic = {'02505':[0.25, 0.25, 0.5],
-               '03503':[0.35, 0.35, 0.3],
-               '00509': [0.05, 0.05, 0.9]} #wfore, wback, wrec
+# weights_dic = {'02505':[0.25, 0.25, 0.5],
+#                '04501':[0.45, 0.45, 0.1],
+#                '00509': [0.05, 0.05, 0.9]} #wfore, wback, wrec
 
-# weights_dic = {'02505':[0.25, 0.25, 0.5]} #wfore, wback, wrec
-weights_dic = {'0500': [0.5, 0.5, 0.0]} #wfore, wback, wrec
-# weights_dic = {'03503':[0.35, 0.35, 0.3]}
+weights_dic = {'04501':[0.45, 0.45, 0.1]} #wfore, wback, wrec
 
 losses_dic = {'segCEGauss':['CE','gaussian']}
 
 with open(file_bash_name,'w') as f:
+    for seed in seed_list:
+        for scribbles in scribbles_list:
+            basedir = '/data/natalia/models/' + dataset + '/s'+scribbles + '/Impartial/'
 
-    for scribbles in scribbles_list:
-        basedir = '/data/natalia/models/' + dataset + '/s'+scribbles + '/Impartial/'
-        for seed in seed_list:
             for loss_key in losses_dic.keys():
                 for weights_key in weights_dic.keys():
                     loss_list = losses_dic[loss_key]
                     weights_list = weights_dic[weights_key]
 
-                    out_file_ext = dataset + '_' + model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed) + '_verbose'
+                    out_file_ext = dataset + '_1' + model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed) + '_verbose'
                     model_name = model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed)
 
                     cmd = 'python main_impartial.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={}'.format(basedir,dataset, model_name,saveout,scribbles)
                     # cmd = 'python main_denoiseg_OLD.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} --gpu={}'.format(basedir, dataset, model_name,saveout,scribbles,gpu)
 
 
-                    cmd = cmd + ' --optim_regw={} --optim="{}" --lr={} --gradclip={} --seed={}'.format(regweight, optim, lr,gradclip,seed)
+                    cmd = cmd + ' --optim_regw={} --optim="{}" --lr={} --gradclip={} --seed={} --train={}'.format(regweight, optim, lr,gradclip,seed,train)
                     cmd = cmd + ' --udepth="{}" --ubase="{}" --activation="{}" --batchnorm={}'.format(udepth,ubase,activation,batchnorm)
-                    cmd = cmd + ' --seg_loss="{}" --rec_loss="{}" '.format(loss_list[0], loss_list[1])
-                    cmd = cmd + ' --wfore={} --wback={} --wrec={}'.format(weights_list[0], weights_list[1], weights_list[2])
+                    cmd = cmd + ' --seg_loss="{}" --rec_loss="{}" --nsaves={} --reset_optim={} '.format(loss_list[0], loss_list[1],nsave,reset_optim)
+                    cmd = cmd + ' --wfore={} --wback={} --wrec={} --ratio={} '.format(weights_list[0], weights_list[1], weights_list[2],ratio)
 
 
                     cmd = cmd + ' --epochs={} --batch={} --load={} > {}.txt'.format(epochs,batch,load,out_file_ext)
 
-                    run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[1], sleep=60)
+                    run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[0], sleep=60)
                     f.write(cmd + '\n\n\n')
                 f.write('\n\n\n')
             f.write('\n\n\n')
