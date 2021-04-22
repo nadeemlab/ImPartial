@@ -8,6 +8,13 @@ import pickle
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+from Baseline.bs_functions import get_outputs
+from dataprocessing.dataloaders import Normalize, ToTensor, ImageSegDataset
+from torchvision import transforms
+import os
+from general.evaluation import get_performance
+
+
 
 class Config(argparse.Namespace):
 
@@ -185,12 +192,20 @@ class BaselineModel:
             print(' Loading : ', load_file)
             model_params_load(load_file, self.model, self.optimizer,self.config.DEVICE)
 
-    def data_performance_evaluation(self,pd_files,saveout = False, plot = False, model_ensemble_load_files = []):
-        from Baseline.bs_functions import get_outputs
-        from general.evaluation import get_performance
-        from dataprocessing.dataloaders import Normalize, ToTensor, ImageSegDataset
-        from torchvision import transforms
+    def eval(self, pd_files, default_ensembles=True, model_ensemble_load_files=[]):
 
+        if default_ensembles & (len(model_ensemble_load_files) < 1):
+            model_ensemble_load_files = []
+            for model_file in self.config.val_model_saves_list:
+                model_ensemble_load_files.append(
+                    self.config.basedir + self.config.model_name + '/' + model_file)
+
+        if len(model_ensemble_load_files) > 1:
+            print('Evaluating average predictions of models : ')
+            for model_file in model_ensemble_load_files:
+                print(model_file)
+
+        # ------------ Dataloader ----------#
         transforms_list = []
         if self.config.normstd:
             transforms_list.append(Normalize(mean=0.5, std=0.5))
@@ -199,17 +214,21 @@ class BaselineModel:
 
         # dataloader full images evaluation
         dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files, transform=transform_eval),
-                                                      batch_size=int(np.minimum((len(pd_files)), 16)),
-                                                      shuffle=False, num_workers=8)
+                                                      batch_size=1, shuffle=False, num_workers=8)
 
-        th_list = np.linspace(0, 1, 21)[1:-1]
-        pd_rows = []
-        pd_saves_out = []
-        ix_file = -1
+        # ---------- Evaluation --------------#
+        output_list = []
+        gt_list = []
         for batch, data in enumerate(dataloader_eval):
             # print(batch)
             Xinput = data['input'].to(self.config.DEVICE)
 
+            ## save ground truth
+            if 'label' in data.keys():
+                Ylabel = data['label'].numpy()
+                gt_list.append(Ylabel)
+
+            ## evaluate ensemble of checkpoints and save outputs
             if len(model_ensemble_load_files) < 1:
                 self.model.eval()
                 out = self.model(Xinput)
@@ -217,64 +236,89 @@ class BaselineModel:
             else:
                 ix_model = 0
                 for model_save in model_ensemble_load_files:
-                    print('evaluation of model : ',model_save)
-                    model_params_load(model_ensemble_load_files, self.model, self.optimizer, self.config.DEVICE)
-                    self.model.eval()
-                    out = self.model(Xinput)
-                    output_aux = get_outputs(out, self.config)
-                    ix_model += 1
-                    if ix_model == 1:  # first model
-                        output = output_aux.copy()
-                    else:
-                        for task in self.config.classification_tasks.keys():
-                            for ix_class in range(self.config.classification_tasks[task]['classes']):
+                    if os.path.exists(model_save):
+                        # print('evaluation of model : ',model_save)
+                        model_params_load(model_save, self.model, self.optimizer, self.config.DEVICE)
+                        self.model.eval()
+                        out = self.model(Xinput)
+                        output_aux = get_outputs(out, self.config)
+                        ix_model += 1
+                        if ix_model == 1:  # first model
+                            output = output_aux.copy()
+                        else:
+                            for task in self.config.classification_tasks.keys():
+
+                                # for ix_class in range(self.config.classification_tasks[task]['classes']):
                                 output[task]['class_segmentation'] = (output_aux[task]['class_segmentation'] +
                                                                       output[task]['class_segmentation'] * (
-                                                                      ix_model - 1)) / ix_model
+                                                                          ix_model - 1)) / ix_model
 
-            Ylabels = data['label'].numpy()
-            X = data['input'].numpy()
+                                for key_factors in output[task]['factors'].keys():
+                                    output[task]['factors'][key_factors] = (output_aux[task]['factors'][
+                                                                                key_factors] +
+                                                                            output[task]['factors'][
+                                                                                key_factors] * (
+                                                                                ix_model - 1)) / ix_model
+            output_list.append(output)
+        return output_list, gt_list
 
+    def data_performance_evaluation(self, pd_files, saveout=False, plot=False, default_ensembles=True,
+                                    model_ensemble_load_files=[]):
+
+        output_list, gt_list = self.eval(pd_files, default_ensembles=default_ensembles,
+                                         model_ensemble_load_files=model_ensemble_load_files)
+
+        th_list = np.linspace(0, 1, 21)[1:-1]
+        pd_rows = []
+        pd_saves_out = []
+
+        for ix_file in range(len(pd_files)):
+            output = output_list[ix_file]
+            Ylabels = gt_list[ix_file]
+
+            print('Performance evaluation on file ', pd_files.iloc[ix_file]['prefix'])
+            for task in self.config.classification_tasks.keys():
+
+                output_task = output[task]
+
+                ix_labels_list = self.config.classification_tasks[task]['ix_gt_labels']
+
+                for ix_class in range(self.config.classification_tasks[task]['classes']):
+                    print(' task : ', task, 'class : ', ix_class)
+                    ix_labels = int(ix_labels_list[ix_class])
+
+                    Ypred_fore = output_task['class_segmentation'][0, int(ix_class), ...]
+                    Ylabel = Ylabels[0, ix_labels, ...].astype('int')
+
+                    if plot:
+                        plt.figure(figsize=(10, 5))
+                        plt.subplot(1, 2, 1)
+                        plt.imshow(Ylabel)
+                        plt.subplot(1, 2, 2)
+                        plt.imshow(Ypred_fore)
+                        plt.colorbar()
+                        plt.show()
+
+                    ix_labels += 1
+                    for th in th_list:
+                        rows = [_ for _ in pd_files.iloc[ix_file].values]
+                        rows.append(task)
+                        rows.append(ix_class)
+                        rows.append(th)
+                        metrics = get_performance(Ylabel, Ypred_fore, threshold=th)
+                        for key in metrics.keys():
+                            rows.append(metrics[key])
+                        pd_rows.append(rows)
+
+            ## Save output (optional)
             if saveout:
-                ## Save optional
+                prefix = pd_files.iloc[ix_file]['prefix']
                 save_output_dic = self.config.basedir + self.config.model_name + '/output_images/'
-                file_output_save = 'eval_batch' + str(batch) + '.pickle'
+                file_output_save = 'eval_' + prefix + '.pickle'
                 mkdir(save_output_dic)
                 with open(save_output_dic + file_output_save, 'wb') as handle:
                     pickle.dump(output, handle)
-
-            for i in np.arange(X.shape[0]):
-                ix_file += 1
-                print('Evaluation on sample :', i)
-                if saveout:
-                    pd_saves_out.append([pd_files.iloc[ix_file]['prefix'], file_output_save, batch, i])
-
-                ix_labels = 0
-                for task in self.config.classification_tasks.keys():
-                    output_task = output[task]
-                    for ix_class in range(self.config.classification_tasks[task]['classes']):
-
-                        Ypred_fore = output_task['class_segmentation'][i, int(ix_class), ...]
-                        Ylabel = Ylabels[i, ix_labels, ...].astype('int')
-
-                        if plot:
-                            plt.figure(figsize=(10, 5))
-                            plt.subplot(1, 2, 1)
-                            plt.imshow(Ylabel)
-                            plt.subplot(1, 2, 2)
-                            plt.imshow(Ypred_fore)
-                            plt.show()
-
-                        ix_labels += 1
-                        for th in th_list:
-                            rows = [_ for _ in pd_files.iloc[ix_file].values]
-                            rows.append(task)
-                            rows.append(ix_class)
-                            rows.append(th)
-                            metrics = get_performance(Ylabel, Ypred_fore, threshold=th)
-                            for key in metrics.keys():
-                                rows.append(metrics[key])
-                            pd_rows.append(rows)
+                pd_saves_out.append([prefix, file_output_save])
 
         columns = list(pd_files.columns)
         columns.extend(['task', 'segclass', 'th'])
@@ -283,11 +327,115 @@ class BaselineModel:
         pd_summary = pd.DataFrame(data=pd_rows, columns=columns)
 
         if saveout:
-            pd_saves = pd.DataFrame(data=pd_saves_out,
-                                    columns=['prefix', 'output_file', 'batch', 'index'])
+            pd_saves = pd.DataFrame(data=pd_saves_out, columns=['prefix', 'output_file'])
             pd_saves.to_csv(save_output_dic + 'pd_output_saves.csv', index=0)
-            print('output saved in :',save_output_dic + 'pd_output_saves.csv')
+            print('output saved in :', save_output_dic + 'pd_output_saves.csv')
 
         return pd_summary
 
 
+                # def data_performance_evaluation(self,pd_files,saveout = False, plot = False, model_ensemble_load_files = []):
+    #
+    #     from dataprocessing.dataloaders import Normalize, ToTensor, ImageSegDataset
+    #     from torchvision import transforms
+    #
+    #     transforms_list = []
+    #     if self.config.normstd:
+    #         transforms_list.append(Normalize(mean=0.5, std=0.5))
+    #     transforms_list.append(ToTensor())
+    #     transform_eval = transforms.Compose(transforms_list)
+    #
+    #     # dataloader full images evaluation
+    #     dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files, transform=transform_eval),
+    #                                                   batch_size=int(np.minimum((len(pd_files)), 16)),
+    #                                                   shuffle=False, num_workers=8)
+    #
+    #     th_list = np.linspace(0, 1, 21)[1:-1]
+    #     pd_rows = []
+    #     pd_saves_out = []
+    #     ix_file = -1
+    #     for batch, data in enumerate(dataloader_eval):
+    #         # print(batch)
+    #         Xinput = data['input'].to(self.config.DEVICE)
+    #
+    #         if len(model_ensemble_load_files) < 1:
+    #             self.model.eval()
+    #             out = self.model(Xinput)
+    #             output = get_outputs(out, self.config)  # output has keys: class_segmentation, factors
+    #         else:
+    #             ix_model = 0
+    #             for model_save in model_ensemble_load_files:
+    #                 print('evaluation of model : ',model_save)
+    #                 model_params_load(model_ensemble_load_files, self.model, self.optimizer, self.config.DEVICE)
+    #                 self.model.eval()
+    #                 out = self.model(Xinput)
+    #                 output_aux = get_outputs(out, self.config)
+    #                 ix_model += 1
+    #                 if ix_model == 1:  # first model
+    #                     output = output_aux.copy()
+    #                 else:
+    #                     for task in self.config.classification_tasks.keys():
+    #                         for ix_class in range(self.config.classification_tasks[task]['classes']):
+    #                             output[task]['class_segmentation'] = (output_aux[task]['class_segmentation'] +
+    #                                                                   output[task]['class_segmentation'] * (
+    #                                                                   ix_model - 1)) / ix_model
+    #
+    #         Ylabels = data['label'].numpy()
+    #         X = data['input'].numpy()
+    #
+    #         if saveout:
+    #             ## Save optional
+    #             save_output_dic = self.config.basedir + self.config.model_name + '/output_images/'
+    #             file_output_save = 'eval_batch' + str(batch) + '.pickle'
+    #             mkdir(save_output_dic)
+    #             with open(save_output_dic + file_output_save, 'wb') as handle:
+    #                 pickle.dump(output, handle)
+    #
+    #         for i in np.arange(X.shape[0]):
+    #             ix_file += 1
+    #             print('Evaluation on sample :', i)
+    #             if saveout:
+    #                 pd_saves_out.append([pd_files.iloc[ix_file]['prefix'], file_output_save, batch, i])
+    #
+    #             ix_labels = 0
+    #             for task in self.config.classification_tasks.keys():
+    #                 output_task = output[task]
+    #                 for ix_class in range(self.config.classification_tasks[task]['classes']):
+    #
+    #                     Ypred_fore = output_task['class_segmentation'][i, int(ix_class), ...]
+    #                     Ylabel = Ylabels[i, ix_labels, ...].astype('int')
+    #
+    #                     if plot:
+    #                         plt.figure(figsize=(10, 5))
+    #                         plt.subplot(1, 2, 1)
+    #                         plt.imshow(Ylabel)
+    #                         plt.subplot(1, 2, 2)
+    #                         plt.imshow(Ypred_fore)
+    #                         plt.show()
+    #
+    #                     ix_labels += 1
+    #                     for th in th_list:
+    #                         rows = [_ for _ in pd_files.iloc[ix_file].values]
+    #                         rows.append(task)
+    #                         rows.append(ix_class)
+    #                         rows.append(th)
+    #                         metrics = get_performance(Ylabel, Ypred_fore, threshold=th)
+    #                         for key in metrics.keys():
+    #                             rows.append(metrics[key])
+    #                         pd_rows.append(rows)
+    #
+    #     columns = list(pd_files.columns)
+    #     columns.extend(['task', 'segclass', 'th'])
+    #     for key in metrics.keys():
+    #         columns.append(key)
+    #     pd_summary = pd.DataFrame(data=pd_rows, columns=columns)
+    #
+    #     if saveout:
+    #         pd_saves = pd.DataFrame(data=pd_saves_out,
+    #                                 columns=['prefix', 'output_file', 'batch', 'index'])
+    #         pd_saves.to_csv(save_output_dic + 'pd_output_saves.csv', index=0)
+    #         print('output saved in :',save_output_dic + 'pd_output_saves.csv')
+    #
+    #     return pd_summary
+    #
+    #

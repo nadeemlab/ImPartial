@@ -73,12 +73,6 @@ class ImageBlindSpotDataset(Dataset):
             for i in range(Xcrop.shape[0]):
                 self.data_list.append([Xcrop[i,...],Scrop[i,...]])
 
-            # n2v
-            # Xout, mask = self.generate_mask(Xcrop)
-
-            # for i in range(Xout.shape[0]):
-            #     self.data_list.append({'input': Xout[i,...], 'mask': mask[i,...], 'scribble': Scrop[i,...]})
-
             npatches += self.npatch_image
             if npatches > npatches_total:
                 break

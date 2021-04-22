@@ -19,7 +19,6 @@ cparser.add_argument('--saveout', action='store', default=False,type=lambda x: b
 cparser.add_argument('--load', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: batchnorm')
 cparser.add_argument('--train', action='store', default=True,type=lambda x: bool(strtobool(x)),help='boolean: validation stopper')
 
-
 ## Dataset
 cparser.add_argument('--dataset', action='store', default='MIBI2CH', type=str,help='dataset')
 cparser.add_argument('--scribbles', action='store', default='150', type=str,help='scribbles tag')
@@ -51,9 +50,9 @@ cparser.add_argument('--reg_loss', action='store', default='L1', type=str,help='
 cparser.add_argument('--mean', action='store', default=True,type=lambda x: bool(strtobool(x)),help='fit mean each component')
 cparser.add_argument('--std', action='store', default=False,type=lambda x: bool(strtobool(x)),help='fit std each component')
 
-cparser.add_argument('--wfore', action='store', default=0.25, type=float, help='weight to seg foreground objective')
-cparser.add_argument('--wback', action='store', default=0.25, type=float, help='weight to seg background objective')
-cparser.add_argument('--wrec', action='store', default=0.49, type=float, help='weight to reconstruction objective')
+cparser.add_argument('--wfore', action='store', default=0.45, type=float, help='weight to seg foreground objective')
+cparser.add_argument('--wback', action='store', default=0.45, type=float, help='weight to seg background objective')
+cparser.add_argument('--wrec', action='store', default=0.09, type=float, help='weight to reconstruction objective')
 cparser.add_argument('--wreg', action='store', default=0.01, type=float, help='weight to regularization objective') #todo!: ADD
 
 ## Optimizer
@@ -110,7 +109,6 @@ if __name__== '__main__':
     if cparser.dataset == 'MIBI2CH_3tasks':
 
         data_dir = '/data/natalia/intern20/PaperData/MIBI_2channel/'
-        # pd_files_scribbles = pd.read_csv(data_dir + 'files_scribbles_train_'+cparser.scribbles+'.csv')
         files_scribbles = data_dir + 'files_2tasks3classes_scribble_train_' + cparser.scribbles + '.csv'
         pd_files_scribbles = pd.read_csv(files_scribbles)
 
@@ -125,7 +123,6 @@ if __name__== '__main__':
 
     print('loaded :', files_scribbles)
     print('Total images  train: ', len(pd_files_scribbles),'; test: ', len(pd_files)-len(pd_files_scribbles))
-
 
     #------------------------- Config file --------------------------------#
     from MumfordShah.ms_classes import MumfordShahConfig
@@ -190,7 +187,6 @@ if __name__== '__main__':
     print(config)
     print('')
 
-
     #------------------------- Dataloaders --------------------------------#
     from dataprocessing.dataloaders import Normalize,RandomFlip,ToTensor
     from torchvision import transforms
@@ -238,7 +234,6 @@ if __name__== '__main__':
     dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files,transform = transform_eval),
                                                   batch_size=int(np.minimum((len(pd_files)),4)),
                                                   shuffle=False, num_workers=8)
-
 
     #------------------------- Network/Optimizer/Criteria --------------------------------#
     ### Network Unet ###

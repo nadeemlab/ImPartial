@@ -53,6 +53,7 @@ file_bash_name = dataset+'_bash.sh'
 
 # model_name_prefix = 'MS_2tasks_base64depth4relu_adam5e4_gclip10_nsave5_'
 model_name_prefix = 'MS_2tasks_base64depth4relu_adam5e4_gclip10_nsave6_'
+model_name_prefix = 'MS_2tasks_base64depth4relu_adam5e4_nsave6_'
 nsaves = 6
 train = True
 load = False
@@ -67,14 +68,14 @@ activation = 'relu'
 batchnorm = False
 
 
-epochs=400
+epochs=4
 batch = 64
 if ubase == 128:
     batch = 32
 seed_list=[42,43,44]
-seed_list=[43]
+seed_list=[42]
 gpu = 0
-gradclip = 10
+gradclip = 0
 
 
 #
@@ -122,7 +123,7 @@ with open(file_bash_name,'w') as f:
 
                     cmd = cmd + ' --epochs={} --batch={} --load={} > {}.txt'.format(epochs,batch,load,out_file_ext)
 
-                    run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[0], sleep=60)
+                    run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[1], sleep=60)
                     f.write(cmd + '\n\n\n')
                 f.write('\n\n\n')
             f.write('\n\n\n')

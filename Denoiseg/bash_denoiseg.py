@@ -39,9 +39,10 @@ sys.path.append("../")
 # dataset = 'MIBI2CH'
 dataset = 'MIBI2CH'
 
-# dataset = 'Vectra_2CH'
+dataset = 'Vectra_2CH'
 # scribbles_list = ['150','200']
 scribbles_list = ['150','200']
+scribbles_list = ['200']
 
 saveout = True
 
@@ -112,7 +113,7 @@ with open(file_bash_name,'w') as f:
                     cmd = cmd + ' --wfore={} --wback={} --wrec={}'.format(weights_list[0], weights_list[1], weights_list[2])
                     cmd = cmd + ' --epochs={} --batch={} --load={} > {}.txt'.format(epochs,batch,load,out_file_ext)
 
-                    run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[0], sleep=120)
+                    run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[1], sleep=120)
                     f.write(cmd + '\n\n\n')
                 f.write('\n\n\n')
             f.write('\n\n\n')

@@ -69,13 +69,13 @@ model_name_prefix = 'Im_2tasks_base64depth4relu_adam5e4_gclip10_np2048_nsave5_'
 # model_name_prefix = 'Im_vs4096_2tasks_base64depth4relu_adam5e4_gclip10_nsave5_'
 model_name_prefix = 'Im_chrs4096_2tasks_base64depth4relu_adam5e4_gclip10_nsave5_'
 # model_name_prefix = 'Im_noblind_2tasks_base64depth4relu_adam5e4_gclip1_'
-model_name_prefix = 'Im_2tasks_base64depth4relu_adam5e4_gclip10_nsave6_'
+model_name_prefix = 'Im_2tasks_base64depth4relu_adam5e4_nsave6_'
 
 
 ratio = 0.95
 nsave = 6
-train = False
-load = True
+train = True
+load = False
 reset_optim = True
 
 optim = 'adam' #RMSprop
@@ -88,16 +88,16 @@ activation = 'relu'
 batchnorm = False
 
 
-epochs = 400
+epochs = 4
 batch = 64
 if ubase == 128:
     batch = 32
 seed_list=[42,43,44]
 seed_list=[42,43,44]
 seed_list=[42,43,44]
-seed_list=[42,43,44]
-gpu = 0
-gradclip = 10
+seed_list=[42]
+gpu = 1
+gradclip = 0
 
 # weights_dic = {'02505':[0.25, 0.25, 0.5],
 #                '0500': [0.5, 0.5, 0.0],
@@ -109,7 +109,6 @@ gradclip = 10
 #                '00509': [0.05, 0.05, 0.9]} #wfore, wback, wrec
 
 weights_dic = {'04501':[0.45, 0.45, 0.1]} #wfore, wback, wrec
-
 losses_dic = {'segCEGauss':['CE','gaussian']}
 
 with open(file_bash_name,'w') as f:
@@ -122,7 +121,7 @@ with open(file_bash_name,'w') as f:
                     loss_list = losses_dic[loss_key]
                     weights_list = weights_dic[weights_key]
 
-                    out_file_ext = dataset + '_1' + model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed) + '_verbose'
+                    out_file_ext = dataset + model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed) + '_verbose'
                     model_name = model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed)
 
                     cmd = 'python main_impartial.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={}'.format(basedir,dataset, model_name,saveout,scribbles)
@@ -137,7 +136,7 @@ with open(file_bash_name,'w') as f:
 
                     cmd = cmd + ' --epochs={} --batch={} --load={} > {}.txt'.format(epochs,batch,load,out_file_ext)
 
-                    run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[0], sleep=60)
+                    run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[1], sleep=60)
                     f.write(cmd + '\n\n\n')
                 f.write('\n\n\n')
             f.write('\n\n\n')

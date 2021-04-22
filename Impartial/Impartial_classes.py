@@ -36,6 +36,7 @@ class ImPartialConfig(argparse.Namespace):
         self.batchnorm = False
         self.unet_depth = 4
         self.unet_base = 32
+        self.dropout = False
 
         ####  Dataloaders  ####
         self.n_channels = 1

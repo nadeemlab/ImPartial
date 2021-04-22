@@ -12,10 +12,10 @@ cparser = argparse.ArgumentParser()
 
 ## General specs
 cparser.add_argument('--gpu', action='store', default=0, type=int,help='gpu')
-cparser.add_argument('--model_name', action='store', default='Denoiseg', type=str, help='model_name')
-cparser.add_argument('--basedir', action='store', default='/data/natalia/models/DenoiSeg/', type=str,help='basedir for internal model save')
+cparser.add_argument('--model_name', action='store', default='ImPartial', type=str, help='model_name')
+cparser.add_argument('--basedir', action='store', default='/data/natalia/models/ImPartial/', type=str,help='basedir for internal model save')
 cparser.add_argument('--seed', action='store', default=42, type=int, help='randomizer seed')
-cparser.add_argument('--saveout', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: batchnorm')
+cparser.add_argument('--saveout', action='store', default=True,type=lambda x: bool(strtobool(x)),help='boolean: batchnorm')
 cparser.add_argument('--load', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: batchnorm')
 cparser.add_argument('--train', action='store', default=True,type=lambda x: bool(strtobool(x)),help='boolean: validation stopper')
 
@@ -49,9 +49,9 @@ cparser.add_argument('--rec_loss', action='store', default='gaussian', type=str,
 cparser.add_argument('--mean', action='store', default=True, type=lambda x: bool(strtobool(x)),help='fit mean each component')
 cparser.add_argument('--std', action='store', default=False, type=lambda x: bool(strtobool(x)),help='fit std each component')
 
-cparser.add_argument('--wfore', action='store', default=0.25, type=float, help='weight to seg foreground objective')
-cparser.add_argument('--wback', action='store', default=0.25, type=float, help='weight to seg background objective')
-cparser.add_argument('--wrec', action='store', default=0.5, type=float, help='weight to reconstruction objective')
+cparser.add_argument('--wfore', action='store', default=0.45, type=float, help='weight to seg foreground objective')
+cparser.add_argument('--wback', action='store', default=0.45, type=float, help='weight to seg background objective')
+cparser.add_argument('--wrec', action='store', default=0.1, type=float, help='weight to reconstruction objective')
 
 ## Optimizer
 cparser.add_argument('--optim_regw', action='store', default=0, type=float, help='regularization weight')
@@ -82,26 +82,25 @@ if __name__== '__main__':
         classification_tasks = {'0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [2, 2]},
                                 '1': {'classes': 2, 'rec_channels': [1], 'ncomponents': [1, 1, 2]}}
         if cparser.nepochs_sample_patches == 0:
-            cparser.nepochs_sample_patches = 25
+            cparser.nepochs_sample_patches = 10
 
 
     if cparser.dataset == 'MIBI2CH':
 
         data_dir = '/data/natalia/intern20/PaperData/MIBI_2channel/'
         files_scribbles = data_dir + 'files_2tasks1x2classes_3images_scribble_train_' + cparser.scribbles + '.csv'
-        pd_files_scribbles = pd.read_csv(files_scribbles)
+        pd_files_scribbles = pd.read_csv(files_scribbles) #scribbles
 
-        pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0)
+        pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0) #original files with label ground truth (for final performance evaluation)
         n_channels = 2
         classification_tasks = {'0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [2, 2]},
                                 '1': {'classes': 2, 'rec_channels': [1], 'ncomponents': [1, 1, 2]}}
         if cparser.nepochs_sample_patches == 0:
-            cparser.nepochs_sample_patches = 10 #todo!!!
+            cparser.nepochs_sample_patches = 10
 
     if cparser.dataset == 'MIBI2CH_3tasks':
 
         data_dir = '/data/natalia/intern20/PaperData/MIBI_2channel/'
-        # pd_files_scribbles = pd.read_csv(data_dir + 'files_scribbles_train_'+cparser.scribbles+'.csv')
         files_scribbles = data_dir + 'files_3tasks3classes_scribble_train_' + cparser.scribbles + '.csv'
         pd_files_scribbles = pd.read_csv(files_scribbles)
 
@@ -116,7 +115,6 @@ if __name__== '__main__':
 
     print('loaded :', files_scribbles)
     print('Total images  train: ', len(pd_files_scribbles),'; test: ', len(pd_files)-len(pd_files_scribbles))
-
 
     #------------------------- Config file --------------------------------#
     from Impartial.Impartial_classes import ImPartialConfig
@@ -164,8 +162,9 @@ if __name__== '__main__':
     mkdir(config.basedir)
     mkdir(config.basedir+config.model_name+'/')
     config.nsaves = cparser.nsaves  ## todo! if this is good should be included in the config
+
     for task in config.classification_tasks.keys():
-        # get list of corresponding gt indexes
+        # get list of corresponding gt indexes for each segmentation class for the task
         ix_labels_list = pd_files_scribbles['gt_index_task' + task].values[0]
         if ',' in ix_labels_list[1:-1]:
             ix_labels_list = ix_labels_list[1:-1].split(',')
@@ -174,14 +173,11 @@ if __name__== '__main__':
         config.classification_tasks[task]['ix_gt_labels'] = ix_labels_list
 
 
-
-
     print('---------------- Impartial model config created ----------------------------')
     print('Model directory:', config.basedir + config.model_name + '/')
     print('Config file :')
     print(config)
     print('')
-
 
     #------------------------- Dataloaders --------------------------------#
     from dataprocessing.dataloaders import Normalize,RandomFlip,ToTensor
@@ -207,8 +203,6 @@ if __name__== '__main__':
     dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=config.BATCH_SIZE, shuffle=True,
                                                    num_workers=config.n_workers)
 
-
-
     ### Dataloader for evaluation
     from dataprocessing.dataloaders import ImageSegDataset
     transforms_list = []
@@ -230,7 +224,6 @@ if __name__== '__main__':
     dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files,transform = transform_eval),
                                                   batch_size=int(np.minimum((len(pd_files)),4)),
                                                   shuffle=False, num_workers=8)
-
 
     #------------------------- Network/Optimizer/Criteria --------------------------------#
     ### Network Unet ###
@@ -275,8 +268,6 @@ if __name__== '__main__':
             model_params_load(config.basedir + config.model_name + '/' + config.best_model, model, optimizer,config.DEVICE)
 
     #------------------------- Training --------------------------------#
-    # from general.training import recseg_trainer
-    # history = recseg_trainer(dataloader_train,dataloader_val,model,optimizer,criterio,config)
     if cparser.train:
         if cparser.nsaves <= 1:
             from general.training import recseg_trainer
@@ -285,18 +276,13 @@ if __name__== '__main__':
             from general.training import recseg_checkpoint_ensemble_trainer
             history = recseg_checkpoint_ensemble_trainer(dataloader_train, dataloader_val, model, optimizer,criterio, config)
 
-
         for key in history.keys():
             history[key] = np.array(history[key]).tolist()
-
 
         save_json(history, config.basedir + config.model_name + '/history.json')
         print('history file saved on : ', config.basedir + config.model_name + '/history.json')
     else:
         history = load_json(config.basedir + config.model_name + '/history.json')
-
-    # config.val_model_saves_list = history['val_model_saves_list']
-    # config.train_model_saves_list = history['train_model_saves_list']
 
     print(' Saving .... ')
     config.save_json()
@@ -334,7 +320,7 @@ if __name__== '__main__':
                     output = output_aux.copy()
                 else:
                     for task in config.classification_tasks.keys():
-                        # for ix_class in range(config.classification_tasks[task]['classes']):
+
                         output[task]['class_segmentation'] = (output_aux[task]['class_segmentation'] + output[task]['class_segmentation']*(ix_model-1))/ix_model
 
 
@@ -355,8 +341,6 @@ if __name__== '__main__':
             if saveout:
                 pd_saves_out.append([pd_files.iloc[ix_file]['prefix'], file_output_save, batch, i])
 
-            # ix_labels = 0
-
             for task in config.classification_tasks.keys():
                 output_task = output[task]
 
@@ -367,12 +351,8 @@ if __name__== '__main__':
                     ix_labels = int(ix_labels_list[ix_class])
                     Ypred_fore = output_task['class_segmentation'][i, int(ix_class), ...]
 
-                    Ypred_back = 1 - Ypred_fore  # one vs all evaluation
-                    #                 Y_fore_save.append(Ypred_fore)
-
                     Ylabel = Ylabels[i, ix_labels, ...].astype('int64')
-                    # Ylabel = Ylabels[i, ix_labels, ...]
-                    # ix_labels += 1
+
                     for th in th_list:
                         rows = [_ for _ in pd_files.iloc[ix_file].values]
                         rows.append(task)

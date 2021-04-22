@@ -3,13 +3,17 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 
+
+# if dropout:
+#  layers.append(nn.Dropout())
+
 """ Parts of the U-Net model """
 'The following is adapted from: https://github.com/milesial/Pytorch-UNet'
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""
 
     def __init__(self, in_channels, out_channels, mid_channels=None,
-                 kernel_size=3, activation = 'relu', batchnorm = True):
+                 kernel_size=3, activation = 'relu', batchnorm = True, dropout=False,p_drop = 0.5):
         super().__init__()
         if not mid_channels:
             mid_channels = out_channels
@@ -18,6 +22,8 @@ class DoubleConv(nn.Module):
         out_ch = mid_channels
         sequential_list = []
         for i in range(2):
+            if dropout:
+                sequential_list.append(nn.dropout(in_ch, p=p_drop))
             sequential_list.append(nn.Conv2d(in_ch, out_ch, kernel_size=kernel_size, padding=1))
             if batchnorm:
                 sequential_list.append(nn.BatchNorm2d(out_ch))
@@ -30,16 +36,6 @@ class DoubleConv(nn.Module):
 
         self.double_conv = nn.Sequential(*sequential_list)
 
-        # self.double_conv = nn.Sequential(
-        #     nn.Conv2d(in_channels, mid_channels, kernel_size=kernel_size, padding=1),
-        #     nn.BatchNorm2d(mid_channels),
-        #     nn.ReLU(inplace=True),
-        #     nn.Conv2d(mid_channels, out_channels, kernel_size=kernel_size, padding=1),
-        #     nn.BatchNorm2d(out_channels),
-        #     nn.ReLU(inplace=True)
-        # )
-        # torch.nn.ELU(alpha=1.0, inplace=False)
-
     def forward(self, x):
         return self.double_conv(x)
 
@@ -47,11 +43,13 @@ class DoubleConv(nn.Module):
 class Down(nn.Module):
     """Downscaling with maxpool then double conv"""
 
-    def __init__(self, in_channels, out_channels, activation = 'relu', batchnorm = True):
+    def __init__(self, in_channels, out_channels, activation = 'relu',
+                 batchnorm = True, dropout=False,p_drop = 0.5):
         super().__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool2d(2),
-            DoubleConv(in_channels, out_channels, activation = activation, batchnorm = batchnorm)
+            DoubleConv(in_channels, out_channels, activation = activation,
+                       batchnorm = batchnorm, dropout=dropout,p_drop = p_drop)
         )
 
     def forward(self, x):
@@ -61,18 +59,19 @@ class Down(nn.Module):
 class Up(nn.Module):
     """Upscaling then double conv"""
 
-    def __init__(self, in_channels, out_channels, bilinear=True, activation = 'relu', batchnorm = True):
+    def __init__(self, in_channels, out_channels, bilinear=True, activation = 'relu',
+                 batchnorm = True, dropout=False, p_drop = 0.5):
         super().__init__()
 
         # if bilinear, use the normal convolutions to reduce the number of channels
         if bilinear:
             self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
             self.conv = DoubleConv(in_channels, out_channels, in_channels // 2,
-                                   activation = activation, batchnorm = batchnorm)
+                                   activation = activation, batchnorm = batchnorm, dropout=dropout,p_drop = p_drop)
         else:
             self.up = nn.ConvTranspose2d(in_channels , in_channels // 2, kernel_size=2, stride=2)
             self.conv = DoubleConv(in_channels, out_channels,
-                                   activation = activation, batchnorm = batchnorm)
+                                   activation = activation, batchnorm = batchnorm, dropout=dropout,p_drop = p_drop)
 
 
     def forward(self, x1, x2):
@@ -89,35 +88,45 @@ class Up(nn.Module):
         x = torch.cat([x2, x1], dim=1)
         return self.conv(x)
 
-
 class OutConv(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, dropout=False, p_drop = 0.5):
         super(OutConv, self).__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+        if dropout:
+            self.conv = []
+            self.conv.append(nn.dropout(in_channels, p=p_drop))
+            self.conv.append(nn.Conv2d(in_channels, out_channels, kernel_size=1))
+            self.conv = nn.Sequential(*self.conv)
+        else:
+            self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
 
     def forward(self, x):
         return self.conv(x)
 
-
 'The following UNet is from: https://github.com/milesial/Pytorch-UNet'
+
 class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes, bilinear=True, base = 32, depth=4, activation = 'relu', batchnorm = True):
+    def __init__(self, n_channels, n_classes, bilinear=True, base = 32, depth=4, activation = 'relu',
+                 batchnorm = True, dropout=False, dropout_lastconv=False, p_drop = 0.5):
         super(UNet, self).__init__()
         self.activation = activation
         self.batchnorm = batchnorm
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
+        self.dropout = dropout
+        self.dropout_lastconv = dropout_lastconv
 
         self.inc = DoubleConv(n_channels, base, activation = self.activation, batchnorm = self.batchnorm)
         self.down_list = []
         base_i = base + 0
         if depth > 1:
             for i in range(depth-1):
-                self.down_list.append(Down(base_i, base_i*2, activation = self.activation, batchnorm = self.batchnorm))
+                self.down_list.append(Down(base_i, base_i*2, activation = self.activation,
+                                           batchnorm = self.batchnorm, dropout=self.dropout, p_drop = p_drop))
                 base_i *= 2
         factor = 2 if bilinear else 1
-        self.down_list.append(Down(base_i, base_i*2 // factor , activation = self.activation, batchnorm = self.batchnorm))
+        self.down_list.append(Down(base_i, base_i*2 // factor , activation = self.activation,
+                                   batchnorm = self.batchnorm, dropout=self.dropout, p_drop = p_drop))
         base_i *= 2
         self.down_list = nn.ModuleList(self.down_list)
 
@@ -125,13 +134,13 @@ class UNet(nn.Module):
         if depth > 1:
             for i in range(depth - 1):
                 # print(i, base_i)
-                self.up_list.append(Up(int(base_i) , int((base_i/2)) // factor, bilinear, activation = self.activation, batchnorm = self.batchnorm))
+                self.up_list.append(Up(int(base_i) , int((base_i/2)) // factor, bilinear, activation = self.activation,
+                                       batchnorm = self.batchnorm, dropout=self.dropout, p_drop = p_drop))
                 base_i /= 2
         self.up_list.append(Up(int(base_i), int((base_i / 2)), bilinear,
-                               activation=self.activation, batchnorm=self.batchnorm))
+                               activation=self.activation, batchnorm=self.batchnorm, dropout=self.dropout, p_drop = p_drop))
         self.up_list = nn.ModuleList(self.up_list)
-        self.outc = OutConv(base, n_classes)
-
+        self.outc = OutConv(base, n_classes, dropout=self.dropout_lastconv, p_drop = p_drop)
 
     def forward(self, x):
 
@@ -149,6 +158,22 @@ class UNet(nn.Module):
         logits = self.outc(x_out)
 
         return logits
+
+    def MCdropout_forward(self,x):
+
+        for m in self.down_list.modules():
+            if m.__class__.__name__.startswith('Dropout'):
+                m.train()
+
+        for m in self.up_list.modules():
+            if m.__class__.__name__.startswith('Dropout'):
+                m.train()
+
+        for m in self.outc.modules():
+            if m.__class__.__name__.startswith('Dropout'):
+                m.train()
+
+        return self.forward(x)
 
 
 class UNetFactors(nn.Module):
