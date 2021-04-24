@@ -21,131 +21,59 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file leaf-file-name="main_denoiseg.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/Denoiseg/main_denoiseg.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="480">
+              <caret line="32" column="0" selection-start-line="32" selection-start-column="0" selection-end-line="32" selection-end-column="0" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
       <file leaf-file-name="bash_impartial.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Impartial/bash_impartial.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="323">
-              <caret line="117" column="0" selection-start-line="117" selection-start-column="0" selection-end-line="117" selection-end-column="0" />
+            <state relative-caret-position="498">
+              <caret line="125" column="0" selection-start-line="125" selection-start-column="0" selection-end-line="125" selection-end-column="0" />
               <folding>
                 <element signature="e#185#1326#0" expanded="false" />
-                <element signature="e#5613#5650#0" expanded="false" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="Impartial_classes.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Impartial/Impartial_classes.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="555">
-              <caret line="38" column="28" selection-start-line="38" selection-start-column="28" selection-end-line="38" selection-end-column="28" />
-              <folding>
-                <element signature="e#4917#5325#0" expanded="false" />
-                <element signature="e#5375#6225#0" expanded="false" />
-                <element signature="e#6272#6386#0" expanded="false" />
-                <element signature="e#6450#8095#0" expanded="false" />
-                <element signature="e#8149#8328#0" expanded="false" />
-                <element signature="e#8390#10935#0" expanded="false" />
-                <element signature="e#10968#12424#0" expanded="false" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="bash_bs.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="bash_bs.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Baseline/bash_bs.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="270">
-              <caret line="45" column="81" selection-start-line="45" selection-start-column="81" selection-end-line="45" selection-end-column="81" />
+            <state relative-caret-position="378">
+              <caret line="94" column="73" selection-start-line="94" selection-start-column="62" selection-end-line="94" selection-end-column="73" />
               <folding>
                 <element signature="e#185#1326#0" expanded="false" />
-                <element signature="e#2063#3869#0" expanded="false" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="bash_ms.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="bash_ms.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/MumfordShah/bash_ms.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="368">
-              <caret line="98" column="0" selection-start-line="98" selection-start-column="0" selection-end-line="98" selection-end-column="0" />
+            <state relative-caret-position="634">
+              <caret line="106" column="13" selection-start-line="106" selection-start-column="13" selection-end-line="106" selection-end-column="13" />
               <folding>
                 <element signature="e#185#1326#0" expanded="false" />
-                <element signature="e#4920#4996#0" expanded="false" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="main_bs.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Baseline/main_bs.py">
+      <file leaf-file-name="bash_denoiseg.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/Denoiseg/bash_denoiseg.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2243">
-              <caret line="399" column="30" selection-start-line="399" selection-start-column="30" selection-end-line="399" selection-end-column="30" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="dataloaders.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/dataprocessing/dataloaders.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1380">
-              <caret line="95" column="0" selection-start-line="95" selection-start-column="0" selection-end-line="95" selection-end-column="0" />
+            <state relative-caret-position="169">
+              <caret line="68" column="16" selection-start-line="68" selection-start-column="16" selection-end-line="68" selection-end-column="16" />
               <folding>
-                <element signature="e#3279#3308#0" expanded="false" />
-                <element signature="e#12365#12424#0" expanded="false" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="networks.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/general/networks.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="435">
-              <caret line="149" column="43" selection-start-line="149" selection-start-column="43" selection-end-line="149" selection-end-column="43" />
-              <folding>
-                <element signature="e#1#22#0" expanded="true" />
-                <element signature="e#256#1322#0" expanded="false" />
-                <element signature="e#1352#1861#0" expanded="false" />
-                <element signature="e#1889#3398#0" expanded="false" />
-                <element signature="e#2821#3398#0" expanded="false" />
-                <element signature="e#3430#3933#0" expanded="false" />
-                <element signature="e#6837#8572#0" expanded="false" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="main_impartial.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Impartial/main_impartial.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="315">
-              <caret line="70" column="30" selection-start-line="70" selection-start-column="30" selection-end-line="70" selection-end-column="30" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="main_ms.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/MumfordShah/main_ms.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="375">
-              <caret line="30" column="0" selection-start-line="30" selection-start-column="0" selection-end-line="30" selection-end-column="0" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="dataset_configs.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Impartial/dataset_configs.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="15">
-              <caret line="1" column="18" selection-start-line="1" selection-start-column="18" selection-end-line="1" selection-end-column="18" />
-              <folding>
-                <element signature="e#18#1214#0" expanded="false" />
+                <element signature="e#185#1326#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -178,27 +106,27 @@
         <option value="$PROJECT_DIR$/ImpartialFactors/main_imf.py" />
         <option value="$PROJECT_DIR$/DenoisegFactors/main_ds.py" />
         <option value="$PROJECT_DIR$/ImpartialFactors/imf_functions.py" />
-        <option value="$PROJECT_DIR$/Denoiseg/Denoiseg_functions.py" />
-        <option value="$PROJECT_DIR$/MumfordShah/ms_functions.py" />
-        <option value="$PROJECT_DIR$/Impartial/Impartial_functions.py" />
         <option value="$PROJECT_DIR$/dataprocessing/labelgeneration.py" />
-        <option value="$PROJECT_DIR$/Baseline/bs_functions.py" />
         <option value="$PROJECT_DIR$/ImpartialFactors/imf_classes.py" />
         <option value="$PROJECT_DIR$/Impartial/dataset_configs.py" />
-        <option value="$PROJECT_DIR$/general/training.py" />
-        <option value="$PROJECT_DIR$/Baseline/main_bs.py" />
-        <option value="$PROJECT_DIR$/Denoiseg/main_denoiseg.py" />
-        <option value="$PROJECT_DIR$/MumfordShah/ms_classes.py" />
-        <option value="$PROJECT_DIR$/Baseline/bash_bs.py" />
-        <option value="$PROJECT_DIR$/Baseline/bs_classes.py" />
-        <option value="$PROJECT_DIR$/Denoiseg/Denoiseg_classes.py" />
-        <option value="$PROJECT_DIR$/Denoiseg/bash_denoiseg.py" />
         <option value="$PROJECT_DIR$/dataprocessing/dataloaders.py" />
+        <option value="$PROJECT_DIR$/Baseline/main_bs.py" />
+        <option value="$PROJECT_DIR$/general/training.py" />
+        <option value="$PROJECT_DIR$/Baseline/bs_classes.py" />
         <option value="$PROJECT_DIR$/general/networks.py" />
+        <option value="$PROJECT_DIR$/Baseline/bash_bs.py" />
+        <option value="$PROJECT_DIR$/Baseline/bs_functions.py" />
+        <option value="$PROJECT_DIR$/Impartial/Impartial_functions.py" />
         <option value="$PROJECT_DIR$/Impartial/Impartial_classes.py" />
-        <option value="$PROJECT_DIR$/Impartial/bash_impartial.py" />
+        <option value="$PROJECT_DIR$/MumfordShah/ms_functions.py" />
         <option value="$PROJECT_DIR$/Impartial/main_impartial.py" />
         <option value="$PROJECT_DIR$/MumfordShah/main_ms.py" />
+        <option value="$PROJECT_DIR$/MumfordShah/ms_classes.py" />
+        <option value="$PROJECT_DIR$/Denoiseg/Denoiseg_classes.py" />
+        <option value="$PROJECT_DIR$/Denoiseg/Denoiseg_functions.py" />
+        <option value="$PROJECT_DIR$/Denoiseg/main_denoiseg.py" />
+        <option value="$PROJECT_DIR$/Denoiseg/bash_denoiseg.py" />
+        <option value="$PROJECT_DIR$/Impartial/bash_impartial.py" />
         <option value="$PROJECT_DIR$/MumfordShah/bash_ms.py" />
       </list>
     </option>
@@ -210,10 +138,10 @@
     <sorting>DEFINITION_ORDER</sorting>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="2118" />
-    <option name="y" value="89" />
-    <option name="width" value="1563" />
-    <option name="height" value="953" />
+    <option name="x" value="1612" />
+    <option name="y" value="23" />
+    <option name="width" value="1534" />
+    <option name="height" value="1009" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="false">
     <OptionsSetting value="true" id="Add" />
@@ -269,20 +197,6 @@
             </PATH_ELEMENT>
             <PATH_ELEMENT>
               <option name="myItemId" value="general" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="ImPartialtorch" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="ImPartialtorch" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="dataprocessing" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
@@ -352,7 +266,7 @@
     <property name="settings.editor.selected.configurable" value="web.server" />
     <property name="settings.editor.splitter.proportion" value="0.2" />
     <property name="WebServerToolWindowFactoryState" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../../BlindParetoFairness" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../../BackwardLearning" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -583,17 +497,17 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="2118" y="89" width="1563" height="953" extended-state="0" />
-    <editor active="true" />
+    <frame x="1612" y="23" width="1534" height="1009" extended-state="0" />
+    <editor active="false" />
     <layout>
       <window_info id="Remote Host" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.31886917" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.21380697" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32868758" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32824427" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="File Transfer" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.13937283" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
-      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.0" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
@@ -650,7 +564,7 @@
           <option name="timeStamp" value="19" />
         </line-breakpoint>
       </breakpoints>
-      <option name="time" value="33" />
+      <option name="time" value="40" />
     </breakpoint-manager>
     <watches-manager />
   </component>
@@ -661,7 +575,6 @@
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
             <element signature="e#185#1326#0" expanded="false" />
-            <element signature="e#5613#5650#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -672,7 +585,6 @@
           <caret line="68" column="38" selection-start-line="68" selection-start-column="15" selection-end-line="68" selection-end-column="38" />
           <folding>
             <element signature="e#185#1326#0" expanded="false" />
-            <marker date="1619046551948" expanded="true" signature="2247:2439" ph="..." />
           </folding>
         </state>
       </provider>
@@ -706,7 +618,7 @@
         <state relative-caret-position="630">
           <caret line="42" column="45" selection-start-line="42" selection-start-column="45" selection-end-line="42" selection-end-column="45" />
           <folding>
-            <element signature="e#7417#7437#0" expanded="false" />
+            <element signature="e#10640#10660#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -717,7 +629,7 @@
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
             <element signature="e#0#12#0" expanded="false" />
-            <element signature="e#1062#1988#0" expanded="false" />
+            <element signature="e#1096#2022#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -735,7 +647,6 @@
           <caret line="53" column="14" selection-start-line="53" selection-start-column="14" selection-end-line="53" selection-end-column="14" />
           <folding>
             <element signature="e#185#1326#0" expanded="false" />
-            <marker date="1619046551948" expanded="true" signature="2247:2439" ph="..." />
           </folding>
         </state>
       </provider>
@@ -745,9 +656,9 @@
         <state relative-caret-position="870">
           <caret line="59" column="31" selection-start-line="59" selection-start-column="31" selection-end-line="59" selection-end-column="31" />
           <folding>
-            <element signature="e#489#6228#0" expanded="false" />
-            <element signature="e#4758#5166#0" expanded="false" />
-            <element signature="e#5378#6228#0" expanded="false" />
+            <element signature="e#531#6672#0" expanded="false" />
+            <element signature="e#5202#5610#0" expanded="false" />
+            <element signature="e#5822#6672#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -796,16 +707,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/general/utils.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="210">
-          <caret line="17" column="69" selection-start-line="17" selection-start-column="69" selection-end-line="17" selection-end-column="69" />
-          <folding>
-            <element signature="e#1543#1990#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -918,121 +819,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Impartial/Impartial_functions.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="585">
-          <caret line="135" column="46" selection-start-line="135" selection-start-column="8" selection-end-line="135" selection-end-column="46" />
-          <folding>
-            <element signature="e#533#5433#0" expanded="false" />
-            <element signature="e#7417#7437#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Denoiseg/main_denoiseg.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="214">
-          <caret line="31" column="0" selection-start-line="31" selection-start-column="0" selection-end-line="31" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/MumfordShah/ms_functions.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="525">
-          <caret line="120" column="28" selection-start-line="120" selection-start-column="21" selection-end-line="120" selection-end-column="28" />
-          <folding>
-            <element signature="e#193#4579#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Baseline/bs_functions.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="615">
-          <caret line="97" column="0" selection-start-line="97" selection-start-column="0" selection-end-line="97" selection-end-column="0" />
-          <folding>
-            <element signature="e#160#3126#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Denoiseg/Denoiseg_functions.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="75">
-          <caret line="6" column="86" selection-start-line="6" selection-start-column="86" selection-end-line="6" selection-end-column="86" />
-          <folding>
-            <element signature="e#190#3765#0" expanded="false" />
-            <element signature="e#1062#1988#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Denoiseg/Denoiseg_classes.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="213">
-          <caret line="281" column="38" selection-start-line="281" selection-start-column="38" selection-end-line="281" selection-end-column="38" />
-          <folding>
-            <element signature="e#4758#5166#0" expanded="false" />
-            <element signature="e#5378#6228#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Baseline/bs_classes.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="15">
-          <caret line="2" column="10" selection-start-line="11" selection-start-column="0" selection-end-line="14" selection-end-column="46" />
-          <folding>
-            <element signature="e#465#5846#0" expanded="false" />
-            <element signature="e#521#4307#0" expanded="false" />
-            <element signature="e#4376#4784#0" expanded="false" />
-            <element signature="e#4996#5846#0" expanded="false" />
-            <element signature="e#13928#14039#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/MumfordShah/ms_classes.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="150">
-          <caret line="11" column="0" selection-start-line="11" selection-start-column="0" selection-end-line="12" selection-end-column="34" />
-          <folding>
-            <element signature="e#517#6011#0" expanded="false" />
-            <element signature="e#573#4472#0" expanded="false" />
-            <element signature="e#4541#4949#0" expanded="false" />
-            <element signature="e#5000#5850#0" expanded="false" />
-            <element signature="e#5897#6011#0" expanded="false" />
-            <element signature="e#6078#7061#0" expanded="false" />
-            <element signature="e#7115#7294#0" expanded="false" />
-            <element signature="e#7393#10771#0" expanded="false" />
-            <element signature="e#10923#13864#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Denoiseg/bash_denoiseg.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="450">
-          <caret line="57" column="9" selection-start-line="57" selection-start-column="9" selection-end-line="57" selection-end-column="9" />
-          <folding>
-            <element signature="e#185#1326#0" expanded="false" />
-            <marker date="1619046551948" expanded="true" signature="2247:2439" ph="..." />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/general/training.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="270">
-          <caret line="382" column="39" selection-start-line="382" selection-start-column="39" selection-end-line="382" selection-end-column="39" />
-          <folding>
-            <element signature="e#2923#6210#0" expanded="false" />
-            <element signature="e#6329#11869#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/dataprocessing/dataloaders.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1380">
@@ -1044,101 +830,251 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/general/utils.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="165">
+          <caret line="17" column="69" selection-start-line="17" selection-start-column="69" selection-end-line="17" selection-end-column="69" />
+          <folding>
+            <element signature="e#151#199#0" expanded="false" />
+            <element signature="e#269#347#0" expanded="false" />
+            <element signature="e#423#596#0" expanded="false" />
+            <element signature="e#624#678#0" expanded="false" />
+            <element signature="e#720#789#0" expanded="false" />
+            <element signature="e#812#857#0" expanded="false" />
+            <element signature="e#893#1515#0" expanded="false" />
+            <element signature="e#1543#1990#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/general/networks.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="435">
-          <caret line="149" column="43" selection-start-line="149" selection-start-column="43" selection-end-line="149" selection-end-column="43" />
+        <state relative-caret-position="525">
+          <caret line="121" column="57" selection-start-line="121" selection-start-column="57" selection-end-line="121" selection-end-column="57" />
           <folding>
             <element signature="e#1#22#0" expanded="true" />
-            <element signature="e#256#1322#0" expanded="false" />
-            <element signature="e#1352#1861#0" expanded="false" />
-            <element signature="e#1889#3398#0" expanded="false" />
-            <element signature="e#2821#3398#0" expanded="false" />
-            <element signature="e#3430#3933#0" expanded="false" />
-            <element signature="e#6837#8572#0" expanded="false" />
+            <element signature="e#209#1271#0" expanded="false" />
+            <element signature="e#427#1209#0" expanded="false" />
+            <element signature="e#1300#1809#0" expanded="false" />
+            <element signature="e#1837#3346#0" expanded="false" />
+            <element signature="e#2769#3346#0" expanded="false" />
+            <element signature="e#3378#3868#0" expanded="false" />
+            <element signature="e#5974#6295#0" expanded="false" />
+            <element signature="e#6336#6706#0" expanded="false" />
+            <element signature="e#6751#6804#0" expanded="false" />
+            <element signature="e#6841#8576#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Impartial/dataset_configs.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="15">
-          <caret line="1" column="18" selection-start-line="1" selection-start-column="18" selection-end-line="1" selection-end-column="18" />
+        <state relative-caret-position="165">
+          <caret line="11" column="24" selection-start-line="11" selection-start-column="24" selection-end-line="11" selection-end-column="24" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/general/training.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="196">
+          <caret line="322" column="4" selection-start-line="322" selection-start-column="4" selection-end-line="322" selection-end-column="4" />
           <folding>
-            <element signature="e#18#1214#0" expanded="false" />
+            <element signature="e#3067#6354#0" expanded="false" />
+            <element signature="e#6358#6470#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Baseline/bs_classes.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="225">
+          <caret line="16" column="0" selection-start-line="16" selection-start-column="0" selection-end-line="16" selection-end-column="0" />
+          <folding>
+            <element signature="e#561#4732#0" expanded="false" />
+            <element signature="e#4801#5209#0" expanded="false" />
+            <element signature="e#5421#6271#0" expanded="false" />
+            <element signature="e#6336#8148#0" expanded="false" />
+            <element signature="e#8202#8381#0" expanded="false" />
+            <element signature="e#8443#10988#0" expanded="false" />
+            <element signature="e#11083#14066#0" expanded="false" />
+            <element signature="e#14098#15480#0" expanded="false" />
+            <element signature="e#15661#18693#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Impartial/Impartial_classes.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="555">
-          <caret line="38" column="28" selection-start-line="38" selection-start-column="28" selection-end-line="38" selection-end-column="28" />
+        <state relative-caret-position="614">
+          <caret line="232" column="0" selection-start-line="232" selection-start-column="0" selection-end-line="272" selection-end-column="0" />
           <folding>
-            <element signature="e#4917#5325#0" expanded="false" />
-            <element signature="e#5375#6225#0" expanded="false" />
-            <element signature="e#6272#6386#0" expanded="false" />
-            <element signature="e#6450#8095#0" expanded="false" />
-            <element signature="e#8149#8328#0" expanded="false" />
-            <element signature="e#8390#10935#0" expanded="false" />
-            <element signature="e#10968#12424#0" expanded="false" />
+            <element signature="e#589#5314#0" expanded="false" />
+            <element signature="e#5383#5791#0" expanded="false" />
+            <element signature="e#5841#6691#0" expanded="false" />
+            <element signature="e#6738#6852#0" expanded="false" />
+            <element signature="e#8778#8957#0" expanded="false" />
+            <element signature="e#9019#11564#0" expanded="false" />
+            <element signature="e#11686#13325#0" expanded="false" />
+            <element signature="e#13491#16484#0" expanded="false" />
+            <element signature="e#16666#19698#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Impartial/bash_impartial.py">
+    <entry file="file://$PROJECT_DIR$/MumfordShah/main_ms.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="323">
-          <caret line="117" column="0" selection-start-line="117" selection-start-column="0" selection-end-line="117" selection-end-column="0" />
+        <state relative-caret-position="75">
+          <caret line="5" column="60" selection-start-line="5" selection-start-column="60" selection-end-line="5" selection-end-column="60" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/MumfordShah/ms_functions.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="90">
+          <caret line="7" column="86" selection-start-line="7" selection-start-column="74" selection-end-line="7" selection-end-column="86" />
           <folding>
-            <element signature="e#185#1326#0" expanded="false" />
-            <element signature="e#5613#5650#0" expanded="false" />
+            <element signature="e#4705#8262#0" expanded="false" />
+            <element signature="e#4837#6038#0" expanded="false" />
+            <element signature="e#6182#8243#0" expanded="false" />
+            <element signature="e#8264#8298#0" expanded="false" />
+            <element signature="e#9521#9611#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Impartial/Impartial_functions.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="165">
+          <caret line="117" column="0" selection-start-line="117" selection-start-column="0" selection-end-line="209" selection-end-column="0" />
+          <folding>
+            <element signature="e#245#6052#0" expanded="false" />
+            <element signature="e#6098#10638#0" expanded="false" />
+            <element signature="e#10640#10660#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Impartial/main_impartial.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="315">
-          <caret line="70" column="30" selection-start-line="70" selection-start-column="30" selection-end-line="70" selection-end-column="30" />
+        <state relative-caret-position="229">
+          <caret line="218" column="0" selection-start-line="179" selection-start-column="0" selection-end-line="218" selection-end-column="0" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/MumfordShah/main_ms.py">
+    <entry file="file://$PROJECT_DIR$/Baseline/bs_functions.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="375">
-          <caret line="30" column="0" selection-start-line="30" selection-start-column="0" selection-end-line="30" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/MumfordShah/bash_ms.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="368">
-          <caret line="98" column="0" selection-start-line="98" selection-start-column="0" selection-end-line="98" selection-end-column="0" />
+        <state relative-caret-position="60">
+          <caret line="5" column="0" selection-start-line="5" selection-start-column="0" selection-end-line="5" selection-end-column="33" />
           <folding>
-            <element signature="e#185#1326#0" expanded="false" />
-            <element signature="e#4920#4996#0" expanded="false" />
+            <element signature="e#192#3158#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Denoiseg/Denoiseg_classes.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="390">
+          <caret line="280" column="11" selection-start-line="280" selection-start-column="11" selection-end-line="280" selection-end-column="11" />
+          <folding>
+            <element signature="e#587#5133#0" expanded="false" />
+            <element signature="e#5202#5610#0" expanded="false" />
+            <element signature="e#5657#5771#0" expanded="false" />
+            <element signature="e#5822#6672#0" expanded="false" />
+            <element signature="e#6738#8545#0" expanded="false" />
+            <element signature="e#8600#8779#0" expanded="false" />
+            <element signature="e#8841#11386#0" expanded="false" />
+            <element signature="e#12953#15945#0" expanded="false" />
+            <element signature="e#16126#19158#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Denoiseg/Denoiseg_functions.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="180">
+          <caret line="171" column="0" selection-start-line="171" selection-start-column="0" selection-end-line="171" selection-end-column="0" />
+          <folding>
+            <element signature="e#224#3799#0" expanded="false" />
+            <element signature="e#1096#2022#0" expanded="false" />
+            <element signature="e#3846#7984#0" expanded="false" />
+            <element signature="e#3978#5179#0" expanded="false" />
+            <element signature="e#5522#7583#0" expanded="false" />
+            <element signature="e#7720#7877#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/MumfordShah/ms_classes.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="754">
+          <caret line="295" column="0" selection-start-line="262" selection-start-column="0" selection-end-line="295" selection-end-column="0" />
+          <folding>
+            <element signature="e#614#4917#0" expanded="false" />
+            <element signature="e#4986#5394#0" expanded="false" />
+            <element signature="e#5445#6295#0" expanded="false" />
+            <element signature="e#6342#6456#0" expanded="false" />
+            <element signature="e#8388#8567#0" expanded="false" />
+            <element signature="e#8629#11174#0" expanded="false" />
+            <element signature="e#16184#19216#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Baseline/main_bs.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2243">
-          <caret line="399" column="30" selection-start-line="399" selection-start-column="30" selection-end-line="399" selection-end-column="30" />
+        <state relative-caret-position="424">
+          <caret line="180" column="0" selection-start-line="180" selection-start-column="0" selection-end-line="205" selection-end-column="0" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Denoiseg/main_denoiseg.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="480">
+          <caret line="32" column="0" selection-start-line="32" selection-start-column="0" selection-end-line="32" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Denoiseg/bash_denoiseg.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="169">
+          <caret line="68" column="16" selection-start-line="68" selection-start-column="16" selection-end-line="68" selection-end-column="16" />
+          <folding>
+            <element signature="e#185#1326#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Impartial/bash_impartial.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="498">
+          <caret line="125" column="0" selection-start-line="125" selection-start-column="0" selection-end-line="125" selection-end-column="0" />
+          <folding>
+            <element signature="e#185#1326#0" expanded="false" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Baseline/bash_bs.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="270">
-          <caret line="45" column="81" selection-start-line="45" selection-start-column="81" selection-end-line="45" selection-end-column="81" />
+        <state relative-caret-position="378">
+          <caret line="94" column="73" selection-start-line="94" selection-start-column="62" selection-end-line="94" selection-end-column="73" />
           <folding>
             <element signature="e#185#1326#0" expanded="false" />
-            <element signature="e#2063#3869#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/MumfordShah/bash_ms.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="634">
+          <caret line="106" column="13" selection-start-line="106" selection-start-column="13" selection-end-line="106" selection-end-column="13" />
+          <folding>
+            <element signature="e#185#1326#0" expanded="false" />
           </folding>
         </state>
       </provider>

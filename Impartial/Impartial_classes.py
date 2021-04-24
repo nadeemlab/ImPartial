@@ -6,7 +6,7 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 import pandas as pd
-from general.utils import model_params_load , mkdir, save_json
+from general.utils import model_params_load , mkdir, save_json, to_np
 from Impartial.Impartial_functions import get_impartial_outputs
 from general.evaluation import get_performance
 from dataprocessing.dataloaders import Normalize, ToTensor, RandomFlip, ImageSegDataset,ImageBlindSpotDataset
@@ -26,10 +26,15 @@ class ImPartialConfig(argparse.Namespace):
         self.GPU_ID = 0
 
         ### Checkpoint ensembles
-        self.nsaves = 1 #number of checkpoints ensembles
+        self.nsaves = 1 # number of checkpoints ensembles
         self.val_model_saves_list = []
         self.train_model_saves_list = []
         self.reset_optim = True
+        self.reset_validation = False
+
+        ### MC dropout ###
+        self.MCdrop = False
+        self.MCdrop_it = 40
 
         ### Network ###
         self.activation = 'relu'
@@ -37,13 +42,16 @@ class ImPartialConfig(argparse.Namespace):
         self.unet_depth = 4
         self.unet_base = 32
         self.dropout = False
+        self.drop_last_conv = False
+        self.drop_encoder_decoder = False
+        self.p_drop = 0.5
 
         ####  Dataloaders  ####
         self.n_channels = 1
         self.patch_size = (128, 128)
         self.p_scribble_crop = 0.6 #probability of sampling a patch with a scribble
-        self.shift_crop = 32 # random shift window for the sampled center of the patch
-        self.nepochs_sample_patches = 4 #number of epochs until resample patches
+        self.shift_crop = 32 #random shift window for the sampled center of the patch
+        self.nepochs_sample_patches = 10 #number of epochs until sample patches is available again
         self.npatch_image_sampler = 8 #number of patches to sample when loading an image
         self.npatches_epoch = 512 #number of patches that are considered an epoch
 
@@ -59,18 +67,19 @@ class ImPartialConfig(argparse.Namespace):
         ### Losses ###
         self.seg_loss = 'CE'
         self.rec_loss = 'gaussian'
+        self.reg_loss = 'L1'
         self.classification_tasks = {'0': {'classes': 1, 'rec_channels' : [0], 'ncomponents' : [1,2]}}  # list containing classes 'object types'
         self.mean = True
         self.std = False
         self.weight_tasks = None #per segmentation class reconstruction weight
-        self.weight_objectives = {'seg_fore':0.25,'seg_back':0.25,'rec':0.5}
+        self.weight_objectives = {'seg_fore':0.45,'seg_back':0.45,'rec':0.1, 'reg': 0.0}
 
         ### training ###
         self.EPOCHS = 100
         self.LEARNING_RATE = 1e-4
         self.lrdecay = 1
         self.optim_weight_decay = 0
-        self.patience = 10
+        self.patience = 5
         self.optimizer = 'adam'
         self.max_grad_clip = 0 #default
         self.val_stopper = True
@@ -111,10 +120,13 @@ class ImPartialConfig(argparse.Namespace):
             for key in self.classification_tasks.keys():
                 self.weight_tasks[key] = 1/len(self.classification_tasks.keys())
 
-
         for i in range(self.nsaves):
             self.val_model_saves_list.append('model_val_best_save' + str(i) + '.pth')
             self.train_model_saves_list.append('model_train_best_save' + str(i) + '.pth')
+
+        if self.MCdrop & (not (self.drop_last_conv)) & (not (self.drop_encoder_decoder)):
+            self.drop_last_conv = False
+            self.drop_encoder_decoder = True
 
     # def is_valid(self, return_invalid=False):
         # Todo! I have to update this properly
@@ -172,7 +184,8 @@ class ImPartialModel:
                      depth=config.unet_depth,
                      base=config.unet_base,
                      activation=config.activation,
-                     batchnorm=config.batchnorm)
+                     batchnorm=config.batchnorm, dropout=self.config.drop_encoder_decoder,
+                     dropout_lastconv=self.config.drop_last_conv, p_drop=self.config.p_drop)
 
         self.model = self.model.to(config.DEVICE)
 
@@ -209,6 +222,7 @@ class ImPartialModel:
 
         self.dataloader_train = None
         self.dataloader_val = None
+        self.history = None
 
     def load_network(self, load_file=None):
         import os
@@ -263,13 +277,18 @@ class ImPartialModel:
         if (self.dataloader_train is not None) & (self.dataloader_val is not None):
 
             # ------------------------- losses --------------------------------#
-            from general.losses import seglosses, reclosses
+            from general.losses import seglosses, reclosses,gradientLoss2d
             criterio_rec = reclosses(type_loss=self.config.rec_loss, reduction=None)
             criterio_seg = seglosses(type_loss=self.config.seg_loss, reduction=None)
+            criterio_reg = None
+            if 'reg' in self.config.weight_objectives.keys():
+                if self.config.weight_objectives['reg'] > 0:
+                    criterio_reg = gradientLoss2d(penalty=self.config.reg_loss, reduction='mean')
 
             from Impartial.Impartial_functions import compute_impartial_losses
             def criterio(out, x, scribble, mask):
-                return compute_impartial_losses(out, x, scribble, mask, self.config, criterio_seg, criterio_rec)
+                return compute_impartial_losses(out, x, scribble, mask, self.config,
+                                                criterio_seg, criterio_rec,criterio_reg=criterio_reg)
 
 
 
@@ -290,19 +309,22 @@ class ImPartialModel:
             print('No train/val dataloader was loaded')
 
 
-    def eval(self,pd_files, default_ensembles = True, model_ensemble_load_files = []):
+    def eval(self, pd_files, default_ensembles=True, model_ensemble_load_files=[]):
 
         if default_ensembles & (len(model_ensemble_load_files) < 1):
             model_ensemble_load_files = []
             for model_file in self.config.val_model_saves_list:
-                model_ensemble_load_files.append(self.config.basedir+self.config.model_name+'/'+model_file)
+                model_ensemble_load_files.append(
+                    self.config.basedir + self.config.model_name + '/' + model_file)
 
-        if len(model_ensemble_load_files) > 1:
+        if len(model_ensemble_load_files) >= 1:
             print('Evaluating average predictions of models : ')
             for model_file in model_ensemble_load_files:
                 print(model_file)
+        elif not default_ensembles:
+            print('Evaluation of currently loaded network')
 
-        #------------ Dataloader ----------#
+        # ------------ Dataloader ----------#
         transforms_list = []
         if self.config.normstd:
             transforms_list.append(Normalize(mean=0.5, std=0.5))
@@ -310,10 +332,11 @@ class ImPartialModel:
         transform_eval = transforms.Compose(transforms_list)
 
         # dataloader full images evaluation
+        batch_size = 1
         dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files, transform=transform_eval),
-                                                      batch_size=1, shuffle=False, num_workers=8)
+                                                      batch_size=batch_size, shuffle=False, num_workers=8) ## Batch size 1 !!!
 
-        #---------- Evaluation --------------#
+        # ---------- Evaluation --------------#
         output_list = []
         gt_list = []
         for batch, data in enumerate(dataloader_eval):
@@ -325,44 +348,38 @@ class ImPartialModel:
                 Ylabel = data['label'].numpy()
                 gt_list.append(Ylabel)
 
-
             ## evaluate ensemble of checkpoints and save outputs
             if len(model_ensemble_load_files) < 1:
                 self.model.eval()
-                out = self.model(Xinput)
-                output = get_impartial_outputs(out, self.config)  # output has keys: class_segmentation, factors
+                predictions = (self.model(Xinput)).cpu().numpy()
             else:
-                ix_model = 0
+                predictions = np.empty((0, batch_size, self.config.n_output, Xinput.shape[-2], Xinput.shape[-1]))
                 for model_save in model_ensemble_load_files:
                     if os.path.exists(model_save):
                         # print('evaluation of model : ',model_save)
                         model_params_load(model_save, self.model, self.optimizer, self.config.DEVICE)
                         self.model.eval()
-                        out = self.model(Xinput)
-                        output_aux = get_impartial_outputs(out, self.config)
-                        ix_model += 1
-                        if ix_model == 1:  # first model
-                            output = output_aux.copy()
+
+                        if self.config.MCdrop:
+                            self.model.enable_dropout()
+                            for it in range(self.config.MCdrop_it):
+                                # print(it)
+                                out = to_np(self.model(Xinput))
+                                predictions = np.vstack((predictions, out[np.newaxis,...]))
                         else:
-                            for task in self.config.classification_tasks.keys():
+                            out = to_np(self.model(Xinput))
+                            predictions = np.vstack((predictions, out[np.newaxis, ...]))
 
-                                # for ix_class in range(self.config.classification_tasks[task]['classes']):
-                                output[task]['class_segmentation'] = (output_aux[task]['class_segmentation'] +
-                                                                          output[task]['class_segmentation'] * (
-                                                                          ix_model - 1)) / ix_model
-
-                                for key_factors in output[task]['factors'].keys():
-                                    output[task]['factors'][key_factors] = (output_aux[task]['factors'][key_factors] +
-                                                                          output[task]['factors'][key_factors] * (
-                                                                              ix_model - 1)) / ix_model
+            output = get_impartial_outputs(predictions, self.config)  # output has keys: class_segmentation, factors
             output_list.append(output)
-        return output_list,gt_list
+        return output_list, gt_list
 
 
-    def data_performance_evaluation(self,pd_files,saveout = False, plot = False, default_ensembles = True, model_ensemble_load_files = []):
+    def data_performance_evaluation(self, pd_files, saveout=False, plot=False, default_ensembles=True,
+                                    model_ensemble_load_files=[]):
 
-        output_list, gt_list = self.eval(pd_files,default_ensembles = default_ensembles,
-                                         model_ensemble_load_files = model_ensemble_load_files)
+        output_list, gt_list = self.eval(pd_files, default_ensembles=default_ensembles,
+                                         model_ensemble_load_files=model_ensemble_load_files)
 
         th_list = np.linspace(0, 1, 21)[1:-1]
         pd_rows = []
@@ -383,8 +400,8 @@ class ImPartialModel:
                     print(' task : ', task, 'class : ', ix_class)
                     ix_labels = int(ix_labels_list[ix_class])
 
-                    Ypred_fore = output_task['class_segmentation'][0,int(ix_class),...]
-                    Ylabel = Ylabels[0,ix_labels, ...].astype('int')
+                    Ypred_fore = output_task['class_segmentation'][0, int(ix_class), ...]
+                    Ylabel = Ylabels[0, ix_labels, ...].astype('int')
 
                     if plot:
                         plt.figure(figsize=(10, 5))
@@ -412,6 +429,7 @@ class ImPartialModel:
                 save_output_dic = self.config.basedir + self.config.model_name + '/output_images/'
                 file_output_save = 'eval_' + prefix + '.pickle'
                 mkdir(save_output_dic)
+                print('Saving output : ',save_output_dic + file_output_save)
                 with open(save_output_dic + file_output_save, 'wb') as handle:
                     pickle.dump(output, handle)
                 pd_saves_out.append([prefix, file_output_save])
@@ -425,6 +443,6 @@ class ImPartialModel:
         if saveout:
             pd_saves = pd.DataFrame(data=pd_saves_out, columns=['prefix', 'output_file'])
             pd_saves.to_csv(save_output_dic + 'pd_output_saves.csv', index=0)
-            print('output saved in :',save_output_dic + 'pd_output_saves.csv')
+            print('pandas outputs file saved in :', save_output_dic + 'pd_output_saves.csv')
 
         return pd_summary

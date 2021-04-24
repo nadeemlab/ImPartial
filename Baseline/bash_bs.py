@@ -37,14 +37,18 @@ dataset = 'MIBI2CH'
 # dataset = 'Vectra_2CH'
 
 # scribbles_list = ['150','200']
-scribbles_list = ['150','200']
+# scribbles_list = ['150','200']
+scribbles_list = ['150']
+
 
 saveout = True
 
-file_bash_name = dataset+'_bash.sh'
-model_name_prefix = 'BS_2tasks_base64depth4relu_adam5e4_gclip10_nsave6_'
+file_bash_name = dataset+'_2bash.sh'
+# model_name_prefix = 'BS_2tasks_base64depth4relu_adam5e4_nsave6_'
+model_name_prefix = 'BS_2tasks_base64depth4relu_adam5e4_mcdrop1e4_nsave6_'
 # model_name_prefix = 'BS_2tasks_base64depth4relu_adam5e4_gclip10_nsave5_ratio1_'
 
+mcdrop = True
 load = False
 train = True
 nsave = 6
@@ -52,18 +56,19 @@ ratio = 0.95
 
 optim = 'adam' #RMSprop
 lr=5e-4
-regweight = 0
+optim_regw = 1e-4
 ubase = 64
 udepth = 4
 activation = 'relu'
 batchnorm = False
 
+
 epochs=400
 batch = 64
 if ubase == 128:
     batch = 32
-seed_list=[42,43,44]
-gradclip = 10
+seed_list=[44]
+gradclip = 0
 
 gpu = 1
 weights_dic = {'0500': [0.5, 0.5]} #wfore, wback, wrec
@@ -82,17 +87,16 @@ with open(file_bash_name,'w') as f:
                     out_file_ext = dataset + '_' + model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed) + '_verbose'
                     model_name = model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed)
 
-                    # cmd = 'python main_bs.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} '.format(basedir,dataset, model_name,saveout,scribbles)
-                    cmd = 'python main_bs.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} --gpu={}'.format(basedir, dataset, model_name,saveout,scribbles,gpu)
+                    cmd = 'python main_bs.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} '.format(basedir,dataset, model_name,saveout,scribbles)
+                    # cmd = 'python main_bs.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} --gpu={}'.format(basedir, dataset, model_name,saveout,scribbles,gpu)
 
-
-                    cmd = cmd + ' --optim_regw={} --optim="{}" --lr={} --gradclip={} --seed={} --train={} '.format(regweight, optim, lr,gradclip,seed,train)
+                    cmd = cmd + ' --optim_regw={} --optim="{}" --lr={} --gradclip={} --seed={} --train={}'.format(optim_regw, optim, lr,gradclip,seed,train)
                     cmd = cmd + ' --udepth="{}" --ubase="{}" --activation="{}" --batchnorm={}'.format(udepth,ubase,activation,batchnorm)
-                    cmd = cmd + ' --seg_loss="{}" --nsaves={} --ratio={} '.format(loss_list[0],nsave,ratio)
+                    cmd = cmd + ' --seg_loss="{}" --nsaves={} --mcdrop={} --ratio={}'.format(loss_list[0],nsave,mcdrop,ratio)
                     cmd = cmd + ' --wfore={} --wback={}'.format(weights_list[0], weights_list[1])
                     cmd = cmd + ' --epochs={} --batch={} --load={} > {}.txt'.format(epochs,batch,load,out_file_ext)
 
-                    # run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[1], sleep=120)
+                    run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[1], sleep=10)
                     f.write(cmd + '\n\n\n')
                 f.write('\n\n\n')
             f.write('\n\n\n')

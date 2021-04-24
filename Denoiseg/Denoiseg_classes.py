@@ -7,9 +7,9 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 import pandas as pd
-from general.utils import model_params_load , mkdir, save_json
+from general.utils import model_params_load , mkdir, save_json, to_np
 from Denoiseg.Denoiseg_functions import get_denoiseg_outputs
-from dataprocessing.dataloaders import Normalize, ToTensor, ImageSegDataset
+from dataprocessing.dataloaders import Normalize, ToTensor, ImageSegDataset, RandomFlip, ImageBlindSpotDataset
 from torchvision import transforms
 import os
 from general.evaluation import get_performance
@@ -31,12 +31,20 @@ class DenoisegConfig(argparse.Namespace):
         self.val_model_saves_list = []
         self.train_model_saves_list = []
         self.reset_optim = True
+        self.reset_validation = False
+
+        ### MC dropout ###
+        self.MCdrop = False
+        self.MCdrop_it = 40
 
         #Network
         self.activation = 'relu'
         self.batchnorm = False
         self.unet_depth = 4
         self.unet_base = 32
+        self.drop_last_conv = False
+        self.drop_encoder_decoder = False
+        self.p_drop = 0.5
 
         ####  Dataloaders  ####
         self.n_channels = 1
@@ -114,6 +122,10 @@ class DenoisegConfig(argparse.Namespace):
             self.val_model_saves_list.append('model_val_best_save' + str(i) + '.pth')
             self.train_model_saves_list.append('model_train_best_save' + str(i) + '.pth')
 
+        if self.MCdrop & (not (self.drop_last_conv)) & (not (self.drop_encoder_decoder)):
+            self.drop_last_conv = False
+            self.drop_encoder_decoder = True
+
     # def is_valid(self, return_invalid=False):
         # Todo! I have to update this properly
         # ok = {}
@@ -174,7 +186,8 @@ class DenoisegModel:
                      depth=config.unet_depth,
                      base=config.unet_base,
                      activation=config.activation,
-                     batchnorm=config.batchnorm)
+                     batchnorm=config.batchnorm, dropout=self.config.drop_encoder_decoder,
+                     dropout_lastconv=self.config.drop_last_conv, p_drop=self.config.p_drop)
 
         self.model = self.model.to(config.DEVICE)
 
@@ -190,12 +203,106 @@ class DenoisegModel:
             else:
                 self.optimizer = optim.SGD(self.model.parameters(), lr=config.LEARNING_RATE)
 
+        print('---------------- Denoiseg model config created ----------------------------')
+        print()
+        print('Model directory:', self.config.basedir + self.config.model_name + '/')
+        print()
+        print('-- Config file :')
+        print(self.config)
+        print('')
+        print()
+        print('-- Network : ')
+        print(self.model)
+        print()
+        print()
+        print('-- Optimizer : ')
+        print(self.optimizer)
+        print()
+        print()
+        mkdir(self.config.basedir)
+        mkdir(self.config.basedir+self.config.model_name+'/')
+
+        self.dataloader_train = None
+        self.dataloader_val = None
+        self.history = None
+
 
     def load_network(self, load_file=None):
         import os
         if os.path.exists(load_file):
             print(' Loading : ', load_file)
             model_params_load(load_file, self.model, self.optimizer,self.config.DEVICE)
+
+    def load_dataloaders(self,pd_files_scribbles):
+
+        # ------------------------- Dataloaders --------------------------------#
+        print('-- Dataloaders : ')
+        ### Dataloaders for training
+        transforms_list = []
+        if self.config.normstd:
+            transforms_list.append(Normalize(mean=0.5, std=0.5))
+        if self.config.augmentations:
+            transforms_list.append(RandomFlip())
+        transforms_list.append(ToTensor(dim_data=3))
+
+        transform_train = transforms.Compose(transforms_list)
+
+        # dataaset train
+        dataset_train = ImageBlindSpotDataset(pd_files_scribbles, transform=transform_train, validation=False,
+                                              ratio=self.config.ratio, size_window=self.config.size_window,
+                                              p_scribble_crop=self.config.p_scribble_crop, shift_crop=self.config.shift_crop,
+                                              patch_size=self.config.patch_size, npatch_image=self.config.npatch_image_sampler)
+        print('Sampling ' + str(self.config.npatches_epoch) + ' train patches ... ')
+        dataset_train.sample_patches_data(npatches_total=self.config.npatches_epoch)  # sample first epoch patches
+        self.dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=self.config.BATCH_SIZE, shuffle=True,
+                                                       num_workers=self.config.n_workers)
+
+        ### Dataloader for evaluation
+        transforms_list = []
+        if self.config.normstd:
+            transforms_list.append(Normalize(mean=0.5, std=0.5))
+        transforms_list.append(ToTensor())
+        transform_eval = transforms.Compose(transforms_list)
+
+        # dataset validation
+        dataset_val = ImageBlindSpotDataset(pd_files_scribbles, transform=transform_eval, validation=True,
+                                            ratio=1, size_window=self.config.size_window,
+                                            p_scribble_crop=self.config.p_scribble_crop, shift_crop=self.config.shift_crop,
+                                            patch_size=self.config.patch_size, npatch_image=self.config.npatch_image_sampler)
+        print('Sampling ' + str(self.config.npatches_epoch) + ' validation patches ... ')
+        dataset_val.sample_patches_data(npatches_total=self.config.npatches_epoch)  # sample first epoch patches
+        self.dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=self.config.BATCH_SIZE,
+                                                     shuffle=False, num_workers=self.config.n_workers)
+
+    def train(self):
+
+        if (self.dataloader_train is not None) & (self.dataloader_val is not None):
+
+            # ------------------------- losses --------------------------------#
+            from general.losses import seglosses
+            criterio_rec = seglosses(type_loss=self.config.rec_loss, reduction=None)
+            criterio_seg = seglosses(type_loss=self.config.seg_loss, reduction=None)
+
+            from Denoiseg.Denoiseg_functions import compute_denoiseg_losses
+            def criterio(out, x, scribble, mask):
+                return compute_denoiseg_losses(out, x, scribble, mask, self.config, criterio_seg, criterio_rec)
+
+            # ------------------------- Training --------------------------------#
+            from general.training import recseg_checkpoint_ensemble_trainer
+            history = recseg_checkpoint_ensemble_trainer(self.dataloader_train, self.dataloader_val, self.model,
+                                                         self.optimizer, criterio, self.config)
+
+            for key in history.keys():
+                history[key] = np.array(history[key]).tolist()
+
+            from general.utils import save_json
+            save_json(history, self.config.basedir + self.config.model_name + '/history.json')
+            print('history file saved on : ', self.config.basedir + self.config.model_name + '/history.json')
+
+            return history
+        else:
+            print('No train/val dataloader was loaded')
+
 
     def eval(self, pd_files, default_ensembles=True, model_ensemble_load_files=[]):
 
@@ -205,10 +312,12 @@ class DenoisegModel:
                 model_ensemble_load_files.append(
                     self.config.basedir + self.config.model_name + '/' + model_file)
 
-        if len(model_ensemble_load_files) > 1:
+        if len(model_ensemble_load_files) >= 1:
             print('Evaluating average predictions of models : ')
             for model_file in model_ensemble_load_files:
                 print(model_file)
+        elif not default_ensembles:
+            print('Evaluation of currently loaded network')
 
         # ------------ Dataloader ----------#
         transforms_list = []
@@ -218,8 +327,9 @@ class DenoisegModel:
         transform_eval = transforms.Compose(transforms_list)
 
         # dataloader full images evaluation
+        batch_size = 1
         dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files, transform=transform_eval),
-                                                      batch_size=1, shuffle=False, num_workers=8)
+                                                      batch_size=batch_size, shuffle=False, num_workers=8) ## Batch size 1 !!!
 
         # ---------- Evaluation --------------#
         output_list = []
@@ -236,34 +346,26 @@ class DenoisegModel:
             ## evaluate ensemble of checkpoints and save outputs
             if len(model_ensemble_load_files) < 1:
                 self.model.eval()
-                out = self.model(Xinput)
-                output = get_denoiseg_outputs(out, self.config)  # output has keys: class_segmentation, factors
+                predictions = (self.model(Xinput)).cpu().numpy()
             else:
-                ix_model = 0
+                predictions = np.empty((0, batch_size, self.config.n_output, Xinput.shape[-2], Xinput.shape[-1]))
                 for model_save in model_ensemble_load_files:
                     if os.path.exists(model_save):
                         # print('evaluation of model : ',model_save)
                         model_params_load(model_save, self.model, self.optimizer, self.config.DEVICE)
                         self.model.eval()
-                        out = self.model(Xinput)
-                        output_aux = get_denoiseg_outputs(out, self.config)
-                        ix_model += 1
-                        if ix_model == 1:  # first model
-                            output = output_aux.copy()
+
+                        if self.config.MCdrop:
+                            self.model.enable_dropout()
+                            for it in range(self.config.MCdrop_it):
+                                # print(it)
+                                out = to_np(self.model(Xinput))
+                                predictions = np.vstack((predictions, out[np.newaxis,...]))
                         else:
-                            for task in self.config.classification_tasks.keys():
+                            out = to_np(self.model(Xinput))
+                            predictions = np.vstack((predictions, out[np.newaxis, ...]))
 
-                                # for ix_class in range(self.config.classification_tasks[task]['classes']):
-                                output[task]['class_segmentation'] = (output_aux[task]['class_segmentation'] +
-                                                                      output[task]['class_segmentation'] * (
-                                                                          ix_model - 1)) / ix_model
-
-                                for key_factors in output[task]['factors'].keys():
-                                    output[task]['factors'][key_factors] = (output_aux[task]['factors'][
-                                                                                key_factors] +
-                                                                            output[task]['factors'][
-                                                                                key_factors] * (
-                                                                                ix_model - 1)) / ix_model
+            output = get_denoiseg_outputs(predictions, self.config)  # output has keys: class_segmentation, factors
             output_list.append(output)
         return output_list, gt_list
 
@@ -321,6 +423,7 @@ class DenoisegModel:
                 save_output_dic = self.config.basedir + self.config.model_name + '/output_images/'
                 file_output_save = 'eval_' + prefix + '.pickle'
                 mkdir(save_output_dic)
+                print('Saving output : ',save_output_dic + file_output_save)
                 with open(save_output_dic + file_output_save, 'wb') as handle:
                     pickle.dump(output, handle)
                 pd_saves_out.append([prefix, file_output_save])
@@ -334,6 +437,6 @@ class DenoisegModel:
         if saveout:
             pd_saves = pd.DataFrame(data=pd_saves_out, columns=['prefix', 'output_file'])
             pd_saves.to_csv(save_output_dic + 'pd_output_saves.csv', index=0)
-            print('output saved in :', save_output_dic + 'pd_output_saves.csv')
+            print('pandas outputs file saved in :', save_output_dic + 'pd_output_saves.csv')
 
         return pd_summary

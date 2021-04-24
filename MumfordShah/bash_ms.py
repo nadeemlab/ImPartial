@@ -54,21 +54,24 @@ file_bash_name = dataset+'_bash.sh'
 # model_name_prefix = 'MS_2tasks_base64depth4relu_adam5e4_gclip10_nsave5_'
 model_name_prefix = 'MS_2tasks_base64depth4relu_adam5e4_gclip10_nsave6_'
 model_name_prefix = 'MS_2tasks_base64depth4relu_adam5e4_nsave6_'
-nsaves = 6
+
+
+mcdrop = False
 train = True
 load = False
+nsaves = 2
 reset_optim = True
 
 optim = 'adam' #RMSprop
 lr=5e-4
-regweight = 0
+optim_regw = 0
 ubase = 64
 udepth = 4
 activation = 'relu'
 batchnorm = False
 
 
-epochs=4
+epochs=400
 batch = 64
 if ubase == 128:
     batch = 32
@@ -77,27 +80,11 @@ seed_list=[42]
 gpu = 0
 gradclip = 0
 
-
-#
-# weights_dic = {'02505':[0.25, 0.25, 0.49, 0.01],
-#                '0500': [0.5, 0.5, 0.0, 0.0],
-#                '03503': [0.35, 0.35, 0.29, 0.01],
-#                '00509': [0.05, 0.05, 0.89, 0.01]} #wfore, wback, wrec, wreg
-
-# weights_dic = {'02505':[0.25, 0.25, 0.5],
-#                '03503':[0.35, 0.35, 0.3],
-#                '00509': [0.05, 0.05, 0.9]} #wfore, wback, wrec
-
 # weights_dic = {'02505':[0.25, 0.25, 0.49, 0.01],
                # '04501': [0.45, 0.45, 0.09, 0.01],
                # '00509': [0.05, 0.05, 0.89, 0.01]} #wfore, wback, wrec, wreg
 
-# weights_dic = {'02505':[0.25, 0.25, 0.49, 0.01],
-               # '04501': [0.45, 0.45, 0.09, 0.01]} #wfore, wback, wrec, wreg
-
 weights_dic = {'04501': [0.45, 0.45, 0.09, 0.01]} #wfore, wback, wrec, wreg
-
-# weights_dic = {'02505':[0.25, 0.25, 0.49, 0.01]} #wfore, wback, wrec, wreg
 losses_dic = {'segCErecL2':['CE','L2']}
 
 with open(file_bash_name,'w') as f:
@@ -114,58 +101,17 @@ with open(file_bash_name,'w') as f:
                     model_name = model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed)
 
                     cmd = 'python main_ms.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={}'.format(basedir,dataset, model_name,saveout,scribbles)
-                    # cmd = 'python main_denoiseg_OLD.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} --gpu={}'.format(basedir, dataset, model_name,saveout,scribbles,gpu)
+                    # cmd = 'python main_ms.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} --gpu={}'.format(basedir, dataset, model_name,saveout,scribbles,gpu)
 
-                    cmd = cmd + ' --optim_regw={} --optim="{}" --lr={} --gradclip={} --seed={} --train={}'.format(regweight, optim, lr, gradclip, seed,train)
+                    cmd = cmd + ' --optim_regw={} --optim="{}" --lr={} --gradclip={} --seed={} --train={}'.format(optim_regw, optim, lr, gradclip, seed,train)
                     cmd = cmd + ' --udepth="{}" --ubase="{}" --activation="{}" --batchnorm={}'.format(udepth,ubase,activation,batchnorm)
-                    cmd = cmd + ' --seg_loss="{}" --rec_loss="{}" --nsaves={} --reset_optim={}'.format(loss_list[0], loss_list[1],nsaves,reset_optim)
+                    cmd = cmd + ' --seg_loss="{}" --rec_loss="{}" --nsaves={} --mcdrop={} --reset_optim={}'.format(loss_list[0], loss_list[1],nsaves,mcdrop,reset_optim)
                     cmd = cmd + ' --wfore={} --wback={} --wrec={} --wreg={}'.format(weights_list[0], weights_list[1], weights_list[2], weights_list[3])
 
                     cmd = cmd + ' --epochs={} --batch={} --load={} > {}.txt'.format(epochs,batch,load,out_file_ext)
 
-                    run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[1], sleep=60)
+                    run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[0], sleep=10)
                     f.write(cmd + '\n\n\n')
                 f.write('\n\n\n')
             f.write('\n\n\n')
-
-
-# weights_dic = {'02505':[0.25, 0.25, 0.49, 0.01]} #wfore, wback, wrec, wreg
-# nfore_back_dic = {'f2b2':[2,2]}
-#
-#
-# losses_dic = {'segCErecL2':['CE','L2']}
-#
-# with open(file_bash_name,'w') as f:
-#
-#     for scribbles in scribbles_list:
-#         basedir = '/data/natalia/models/' + dataset + '/s'+scribbles + '/MS/'
-#         for seed in seed_list:
-#             for nfb_key in nfore_back_dic.keys():
-#                 for loss_key in losses_dic.keys():
-#                     for weights_key in weights_dic.keys():
-#                         loss_list = losses_dic[loss_key]
-#                         weights_list = weights_dic[weights_key]
-#                         nfb_list = nfore_back_dic[nfb_key]
-#
-#                         out_file_ext = dataset + '_' + model_name_prefix + loss_key + '_' + nfb_key +'_w'+ weights_key +'_seed' + str(seed) + '_verbose'
-#                         model_name = model_name_prefix + loss_key + '_' + nfb_key + '_w'+ weights_key +'_seed' + str(seed)
-#
-#                         cmd = 'python main_ms.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={}'.format(basedir,dataset, model_name,saveout,scribbles)
-#                         # cmd = 'python main_denoiseg_OLD.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} --gpu={}'.format(basedir, dataset, model_name,saveout,scribbles,gpu)
-#
-#                         cmd = cmd + ' --optim_regw={} --optim="{}" --lr={} --gradclip={} --seed={}'.format(regweight, optim, lr, gradclip, seed)
-#                         cmd = cmd + ' --udepth="{}" --ubase="{}" --activation="{}" --batchnorm={}'.format(udepth,ubase,activation,batchnorm)
-#                         cmd = cmd + ' --seg_loss="{}" --rec_loss="{}" --nfore={} --nback={}'.format(loss_list[0], loss_list[1], nfb_list[0], nfb_list[1])
-#                         cmd = cmd + ' --wfore={} --wback={} --wrec={} --wreg={}'.format(weights_list[0], weights_list[1], weights_list[2], weights_list[3])
-#
-#                         cmd = cmd + ' --epochs={} --batch={} --load={} > {}.txt'.format(epochs,batch,load,out_file_ext)
-#
-#                         run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[0], sleep=10)
-#                         f.write(cmd + '\n\n\n')
-#                     f.write('\n\n\n')
-#                 f.write('\n\n\n')
-#             f.write('\n\n\n')
-#
-#
-
 

@@ -2,14 +2,14 @@
 import argparse
 import sys
 sys.path.append("../")
-from general.utils import save_json,model_params_load,mkdir
+from general.utils import save_json,model_params_load,mkdir,to_np
 import pandas as pd
 import pickle
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from Baseline.bs_functions import get_outputs
-from dataprocessing.dataloaders import Normalize, ToTensor, ImageSegDataset
+from dataprocessing.dataloaders import Normalize, ToTensor, RandomFlip, ImageSegDataset,ImageBlindSpotDataset
 from torchvision import transforms
 import os
 from general.evaluation import get_performance
@@ -33,23 +33,33 @@ class Config(argparse.Namespace):
         self.val_model_saves_list = []
         self.train_model_saves_list = []
         self.reset_optim = True
+        self.reset_validation = False
+
+        ## MC dropout
+        self.MCdrop = False
+        self.MCdrop_it = 40
+
 
         #Network
         self.activation = 'relu'
         self.batchnorm = False
         self.unet_depth = 4
         self.unet_base = 32
+        self.drop_last_conv = False
+        self.drop_encoder_decoder = False
+        self.p_drop = 0.5
+
 
         ####  Dataloaders  ####
         self.n_channels = 1
         self.patch_size = (128, 128)
         self.p_scribble_crop = 0.6 #probability of sampling a patch with a scribble
         self.shift_crop = 32 # random shift window for the sampled center of the patch
-        self.nepochs_sample_patches = 4 #number of epochs until resample patches
+        self.nepochs_sample_patches = 10 #number of epochs until resample patches
         self.npatch_image_sampler = 8 #number of patches to sample when loading an image
-        self.npatches_epoch = 512 #number of patches that are considered an epoch
+        self.npatches_epoch = 4096 #number of patches that are considered an epoch
 
-        self.BATCH_SIZE = 32 #batch size
+        self.BATCH_SIZE = 64 #batch size
         self.n_workers = 32
         self.augmentations = True
         self.normstd = False #normalization
@@ -67,15 +77,15 @@ class Config(argparse.Namespace):
         self.weight_objectives = {'seg_fore':0.5,'seg_back':0.5}
 
         self.EPOCHS = 100
-        self.LEARNING_RATE = 1e-4
+        self.LEARNING_RATE = 5e-4
         self.lrdecay = 1
         self.optim_weight_decay = 0
-        self.patience = 10
+        self.patience = 5
         self.optimizer = 'adam'
         self.max_grad_clip = 0  # default no clipping
         self.val_stopper = True
         self.type_metric = []
-        self.warmup_epochs = 80 #minimum of epochs to consider before allow stopper
+        self.warmup_epochs = 50 #minimum of epochs to consider before allow stopper
 
         if config_dic is not None:
             self.set_values(config_dic)
@@ -109,8 +119,11 @@ class Config(argparse.Namespace):
             self.val_model_saves_list.append('model_val_best_save' + str(i) + '.pth')
             self.train_model_saves_list.append('model_train_best_save' + str(i) + '.pth')
 
+        if self.MCdrop & (not(self.drop_last_conv)) & (not(self.drop_encoder_decoder)):
+            self.drop_last_conv = False
+            self.drop_encoder_decoder = True
 
-                    # def is_valid(self, return_invalid=False):
+        # def is_valid(self, return_invalid=False):
         # Todo! I have to update this properly
         # ok = {}
         #
@@ -169,7 +182,8 @@ class BaselineModel:
                      depth=config.unet_depth,
                      base=config.unet_base,
                      activation=config.activation,
-                     batchnorm=config.batchnorm)
+                     batchnorm=config.batchnorm, dropout=self.config.drop_encoder_decoder,
+                          dropout_lastconv=self.config.drop_last_conv, p_drop=self.config.p_drop)
 
         self.model = self.model.to(config.DEVICE)
 
@@ -185,12 +199,75 @@ class BaselineModel:
             else:
                 self.optimizer = optim.SGD(self.model.parameters(), lr=config.LEARNING_RATE)
 
+        print('---------------- Baseline model config created ----------------------------')
+        print()
+        print('Model directory:', self.config.basedir + self.config.model_name + '/')
+        print()
+        print('-- Config file :')
+        print(self.config)
+        print('')
+        print()
+        print('-- Network : ')
+        print(self.model)
+        print()
+        print()
+        print('-- Optimizer : ')
+        print(self.optimizer)
+        print()
+        print()
+        mkdir(self.config.basedir)
+        mkdir(self.config.basedir+self.config.model_name+'/')
+
+        self.dataloader_train = None
+        self.dataloader_val = None
+        self.history = None
 
     def load_network(self, load_file=None):
         import os
         if os.path.exists(load_file):
             print(' Loading : ', load_file)
             model_params_load(load_file, self.model, self.optimizer,self.config.DEVICE)
+
+    def load_dataloaders(self,pd_files_scribbles):
+
+        # ------------------------- Dataloaders --------------------------------#
+        print('-- Dataloaders : ')
+        ### Dataloaders for training
+        transforms_list = []
+        if self.config.normstd:
+            transforms_list.append(Normalize(mean=0.5, std=0.5))
+        if self.config.augmentations:
+            transforms_list.append(RandomFlip())
+        transforms_list.append(ToTensor(dim_data=3))
+
+        transform_train = transforms.Compose(transforms_list)
+
+        # dataaset train
+        dataset_train = ImageBlindSpotDataset(pd_files_scribbles, transform=transform_train, validation=False,
+                                              ratio=self.config.ratio, size_window=self.config.size_window,
+                                              p_scribble_crop=self.config.p_scribble_crop, shift_crop=self.config.shift_crop,
+                                              patch_size=self.config.patch_size, npatch_image=self.config.npatch_image_sampler)
+        print('Sampling ' + str(self.config.npatches_epoch) + ' train patches ... ')
+        dataset_train.sample_patches_data(npatches_total=self.config.npatches_epoch)  # sample first epoch patches
+        self.dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=self.config.BATCH_SIZE, shuffle=True,
+                                                       num_workers=self.config.n_workers)
+
+        ### Dataloader for evaluation
+        transforms_list = []
+        if self.config.normstd:
+            transforms_list.append(Normalize(mean=0.5, std=0.5))
+        transforms_list.append(ToTensor())
+        transform_eval = transforms.Compose(transforms_list)
+
+        # dataset validation
+        dataset_val = ImageBlindSpotDataset(pd_files_scribbles, transform=transform_eval, validation=True,
+                                            ratio=1, size_window=self.config.size_window,
+                                            p_scribble_crop=self.config.p_scribble_crop, shift_crop=self.config.shift_crop,
+                                            patch_size=self.config.patch_size, npatch_image=self.config.npatch_image_sampler)
+        print('Sampling ' + str(self.config.npatches_epoch) + ' validation patches ... ')
+        dataset_val.sample_patches_data(npatches_total=self.config.npatches_epoch)  # sample first epoch patches
+        self.dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=self.config.BATCH_SIZE,
+                                                     shuffle=False, num_workers=self.config.n_workers)
 
     def eval(self, pd_files, default_ensembles=True, model_ensemble_load_files=[]):
 
@@ -200,10 +277,12 @@ class BaselineModel:
                 model_ensemble_load_files.append(
                     self.config.basedir + self.config.model_name + '/' + model_file)
 
-        if len(model_ensemble_load_files) > 1:
+        if len(model_ensemble_load_files) >= 1:
             print('Evaluating average predictions of models : ')
             for model_file in model_ensemble_load_files:
                 print(model_file)
+        elif not default_ensembles:
+            print('Evaluation of currently loaded network')
 
         # ------------ Dataloader ----------#
         transforms_list = []
@@ -213,8 +292,9 @@ class BaselineModel:
         transform_eval = transforms.Compose(transforms_list)
 
         # dataloader full images evaluation
+        batch_size = 1
         dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files, transform=transform_eval),
-                                                      batch_size=1, shuffle=False, num_workers=8)
+                                                      batch_size=batch_size, shuffle=False, num_workers=8) ## Batch size 1 !!!
 
         # ---------- Evaluation --------------#
         output_list = []
@@ -231,36 +311,58 @@ class BaselineModel:
             ## evaluate ensemble of checkpoints and save outputs
             if len(model_ensemble_load_files) < 1:
                 self.model.eval()
-                out = self.model(Xinput)
-                output = get_outputs(out, self.config)  # output has keys: class_segmentation, factors
+                predictions = (self.model(Xinput)).cpu().numpy()
             else:
-                ix_model = 0
+                predictions = np.empty((0, batch_size, self.config.n_output, Xinput.shape[-2], Xinput.shape[-1]))
                 for model_save in model_ensemble_load_files:
                     if os.path.exists(model_save):
                         # print('evaluation of model : ',model_save)
                         model_params_load(model_save, self.model, self.optimizer, self.config.DEVICE)
                         self.model.eval()
-                        out = self.model(Xinput)
-                        output_aux = get_outputs(out, self.config)
-                        ix_model += 1
-                        if ix_model == 1:  # first model
-                            output = output_aux.copy()
+
+                        if self.config.MCdrop:
+                            self.model.enable_dropout()
+                            for it in range(self.config.MCdrop_it):
+                                # print(it)
+                                out = to_np(self.model(Xinput))
+                                predictions = np.vstack((predictions, out[np.newaxis,...]))
                         else:
-                            for task in self.config.classification_tasks.keys():
+                            out = to_np(self.model(Xinput))
+                            predictions = np.vstack((predictions, out[np.newaxis, ...]))
 
-                                # for ix_class in range(self.config.classification_tasks[task]['classes']):
-                                output[task]['class_segmentation'] = (output_aux[task]['class_segmentation'] +
-                                                                      output[task]['class_segmentation'] * (
-                                                                          ix_model - 1)) / ix_model
-
-                                for key_factors in output[task]['factors'].keys():
-                                    output[task]['factors'][key_factors] = (output_aux[task]['factors'][
-                                                                                key_factors] +
-                                                                            output[task]['factors'][
-                                                                                key_factors] * (
-                                                                                ix_model - 1)) / ix_model
+            output = get_outputs(predictions, self.config)  # output has keys: class_segmentation, factors
             output_list.append(output)
         return output_list, gt_list
+
+    def train(self):
+
+        if (self.dataloader_train is not None) & (self.dataloader_val is not None):
+
+            # ------------------------- losses -------------------------------- #
+            from general.losses import seglosses
+            criterio_seg = seglosses(type_loss=self.config.seg_loss, reduction=None)
+
+            from Baseline.bs_functions import compute_segloss
+            def criterio(out, x, scribble, mask):
+                return compute_segloss(out, scribble, self.config, criterio_seg)
+
+
+            # ------------------------- Training -------------------------------- #
+            from general.training import recseg_checkpoint_ensemble_trainer
+            history = recseg_checkpoint_ensemble_trainer(self.dataloader_train, self.dataloader_val, self.model,
+                                                         self.optimizer, criterio, self.config)
+
+            for key in history.keys():
+                history[key] = np.array(history[key]).tolist()
+
+            from general.utils import save_json
+            save_json(history, self.config.basedir + self.config.model_name + '/history.json')
+            self.config.save_json()
+            print('history file saved on : ', self.config.basedir + self.config.model_name + '/history.json')
+            self.history = history
+            return history
+        else:
+            print('No train/val dataloader was loaded')
 
     def data_performance_evaluation(self, pd_files, saveout=False, plot=False, default_ensembles=True,
                                     model_ensemble_load_files=[]):
@@ -316,6 +418,7 @@ class BaselineModel:
                 save_output_dic = self.config.basedir + self.config.model_name + '/output_images/'
                 file_output_save = 'eval_' + prefix + '.pickle'
                 mkdir(save_output_dic)
+                print('Saving output : ',save_output_dic + file_output_save)
                 with open(save_output_dic + file_output_save, 'wb') as handle:
                     pickle.dump(output, handle)
                 pd_saves_out.append([prefix, file_output_save])
@@ -329,113 +432,6 @@ class BaselineModel:
         if saveout:
             pd_saves = pd.DataFrame(data=pd_saves_out, columns=['prefix', 'output_file'])
             pd_saves.to_csv(save_output_dic + 'pd_output_saves.csv', index=0)
-            print('output saved in :', save_output_dic + 'pd_output_saves.csv')
+            print('pandas outputs file saved in :', save_output_dic + 'pd_output_saves.csv')
 
         return pd_summary
-
-
-                # def data_performance_evaluation(self,pd_files,saveout = False, plot = False, model_ensemble_load_files = []):
-    #
-    #     from dataprocessing.dataloaders import Normalize, ToTensor, ImageSegDataset
-    #     from torchvision import transforms
-    #
-    #     transforms_list = []
-    #     if self.config.normstd:
-    #         transforms_list.append(Normalize(mean=0.5, std=0.5))
-    #     transforms_list.append(ToTensor())
-    #     transform_eval = transforms.Compose(transforms_list)
-    #
-    #     # dataloader full images evaluation
-    #     dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files, transform=transform_eval),
-    #                                                   batch_size=int(np.minimum((len(pd_files)), 16)),
-    #                                                   shuffle=False, num_workers=8)
-    #
-    #     th_list = np.linspace(0, 1, 21)[1:-1]
-    #     pd_rows = []
-    #     pd_saves_out = []
-    #     ix_file = -1
-    #     for batch, data in enumerate(dataloader_eval):
-    #         # print(batch)
-    #         Xinput = data['input'].to(self.config.DEVICE)
-    #
-    #         if len(model_ensemble_load_files) < 1:
-    #             self.model.eval()
-    #             out = self.model(Xinput)
-    #             output = get_outputs(out, self.config)  # output has keys: class_segmentation, factors
-    #         else:
-    #             ix_model = 0
-    #             for model_save in model_ensemble_load_files:
-    #                 print('evaluation of model : ',model_save)
-    #                 model_params_load(model_ensemble_load_files, self.model, self.optimizer, self.config.DEVICE)
-    #                 self.model.eval()
-    #                 out = self.model(Xinput)
-    #                 output_aux = get_outputs(out, self.config)
-    #                 ix_model += 1
-    #                 if ix_model == 1:  # first model
-    #                     output = output_aux.copy()
-    #                 else:
-    #                     for task in self.config.classification_tasks.keys():
-    #                         for ix_class in range(self.config.classification_tasks[task]['classes']):
-    #                             output[task]['class_segmentation'] = (output_aux[task]['class_segmentation'] +
-    #                                                                   output[task]['class_segmentation'] * (
-    #                                                                   ix_model - 1)) / ix_model
-    #
-    #         Ylabels = data['label'].numpy()
-    #         X = data['input'].numpy()
-    #
-    #         if saveout:
-    #             ## Save optional
-    #             save_output_dic = self.config.basedir + self.config.model_name + '/output_images/'
-    #             file_output_save = 'eval_batch' + str(batch) + '.pickle'
-    #             mkdir(save_output_dic)
-    #             with open(save_output_dic + file_output_save, 'wb') as handle:
-    #                 pickle.dump(output, handle)
-    #
-    #         for i in np.arange(X.shape[0]):
-    #             ix_file += 1
-    #             print('Evaluation on sample :', i)
-    #             if saveout:
-    #                 pd_saves_out.append([pd_files.iloc[ix_file]['prefix'], file_output_save, batch, i])
-    #
-    #             ix_labels = 0
-    #             for task in self.config.classification_tasks.keys():
-    #                 output_task = output[task]
-    #                 for ix_class in range(self.config.classification_tasks[task]['classes']):
-    #
-    #                     Ypred_fore = output_task['class_segmentation'][i, int(ix_class), ...]
-    #                     Ylabel = Ylabels[i, ix_labels, ...].astype('int')
-    #
-    #                     if plot:
-    #                         plt.figure(figsize=(10, 5))
-    #                         plt.subplot(1, 2, 1)
-    #                         plt.imshow(Ylabel)
-    #                         plt.subplot(1, 2, 2)
-    #                         plt.imshow(Ypred_fore)
-    #                         plt.show()
-    #
-    #                     ix_labels += 1
-    #                     for th in th_list:
-    #                         rows = [_ for _ in pd_files.iloc[ix_file].values]
-    #                         rows.append(task)
-    #                         rows.append(ix_class)
-    #                         rows.append(th)
-    #                         metrics = get_performance(Ylabel, Ypred_fore, threshold=th)
-    #                         for key in metrics.keys():
-    #                             rows.append(metrics[key])
-    #                         pd_rows.append(rows)
-    #
-    #     columns = list(pd_files.columns)
-    #     columns.extend(['task', 'segclass', 'th'])
-    #     for key in metrics.keys():
-    #         columns.append(key)
-    #     pd_summary = pd.DataFrame(data=pd_rows, columns=columns)
-    #
-    #     if saveout:
-    #         pd_saves = pd.DataFrame(data=pd_saves_out,
-    #                                 columns=['prefix', 'output_file', 'batch', 'index'])
-    #         pd_saves.to_csv(save_output_dic + 'pd_output_saves.csv', index=0)
-    #         print('output saved in :',save_output_dic + 'pd_output_saves.csv')
-    #
-    #     return pd_summary
-    #
-    #
