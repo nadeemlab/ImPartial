@@ -31,7 +31,14 @@ def compute_ms_losses(out,input,scribble,config,criterio_seg,criterio_rec,criter
         nrec_channels = len(rec_channels)
 
         ncomponents = np.array(classification_tasks['ncomponents'])
-        out_seg = torch.nn.Softmax(dim=1)(out[:, ix:ix + np.sum(ncomponents),...])
+        # out_seg = torch.nn.Softmax(dim=1)(out[:, ix:ix + np.sum(ncomponents),...])
+        if len(out.shape)<= 4:
+            out_seg = torch.nn.Softmax(dim=1)(out[:, ix:ix + np.sum(ncomponents),...]) # batch_size x channels x h x w
+        else:
+            out_seg = torch.nn.Softmax(dim=2)(out[:, :, ix:ix + np.sum(ncomponents), ...])  #predictions x batch_size x channels x h x w
+            out_seg = torch.mean(out_seg,0)
+
+
         ix += np.sum(ncomponents)
 
         ## foreground scribbles loss for each class ##

@@ -278,12 +278,17 @@ class ImPartialModel:
 
             # ------------------------- losses --------------------------------#
             from general.losses import seglosses, reclosses,gradientLoss2d
-            criterio_rec = reclosses(type_loss=self.config.rec_loss, reduction=None)
+
             criterio_seg = seglosses(type_loss=self.config.seg_loss, reduction=None)
             criterio_reg = None
             if 'reg' in self.config.weight_objectives.keys():
                 if self.config.weight_objectives['reg'] > 0:
                     criterio_reg = gradientLoss2d(penalty=self.config.reg_loss, reduction='mean')
+
+            criterio_rec = None
+            if 'rec' in self.config.weight_objectives.keys():
+                if self.config.weight_objectives['rec'] > 0:
+                    criterio_rec = reclosses(type_loss=self.config.rec_loss, reduction=None)
 
             from Impartial.Impartial_functions import compute_impartial_losses
             def criterio(out, x, scribble, mask):
@@ -339,8 +344,10 @@ class ImPartialModel:
         # ---------- Evaluation --------------#
         output_list = []
         gt_list = []
+        print('Start evaluation...')
         for batch, data in enumerate(dataloader_eval):
-            # print(batch)
+            print()
+            print('batch : ',batch)
             Xinput = data['input'].to(self.config.DEVICE)
 
             ## save ground truth
@@ -351,23 +358,26 @@ class ImPartialModel:
             ## evaluate ensemble of checkpoints and save outputs
             if len(model_ensemble_load_files) < 1:
                 self.model.eval()
-                predictions = (self.model(Xinput)).cpu().numpy()
+                with torch.no_grad():
+                    predictions = (self.model(Xinput)).cpu().numpy()
             else:
                 predictions = np.empty((0, batch_size, self.config.n_output, Xinput.shape[-2], Xinput.shape[-1]))
                 for model_save in model_ensemble_load_files:
                     if os.path.exists(model_save):
-                        # print('evaluation of model : ',model_save)
+                        print(' evaluation of model : ',model_save)
                         model_params_load(model_save, self.model, self.optimizer, self.config.DEVICE)
                         self.model.eval()
 
                         if self.config.MCdrop:
                             self.model.enable_dropout()
+                            print(' running mcdrop iterations : ',self.config.MCdrop_it)
                             for it in range(self.config.MCdrop_it):
-                                # print(it)
-                                out = to_np(self.model(Xinput))
+                                with torch.no_grad():
+                                    out = to_np(self.model(Xinput))
                                 predictions = np.vstack((predictions, out[np.newaxis,...]))
                         else:
-                            out = to_np(self.model(Xinput))
+                            with torch.no_grad():
+                                out = to_np(self.model(Xinput))
                             predictions = np.vstack((predictions, out[np.newaxis, ...]))
 
             output = get_impartial_outputs(predictions, self.config)  # output has keys: class_segmentation, factors

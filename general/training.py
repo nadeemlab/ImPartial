@@ -6,6 +6,7 @@ import numpy as np
 import torch.nn as nn
 import time
 from torch import optim
+import torch
 
 def epoch_recseg_loss(dataloader, model, optimizer, config, criterio,train_type=True):
     #criterio has to output loss, seg_fore loss, seg_back loss and rec loss
@@ -40,9 +41,20 @@ def epoch_recseg_loss(dataloader, model, optimizer, config, criterio,train_type=
         # tic_list.append(time.perf_counter())
         # tic_bs_list.append(tic_list[-1] - tic_list[-2])
         # print(' batch sampling : ', tic_list[-1] - tic_list[-2])
+        if train_type:
+            out = model(x)
+            losses = criterio(out, target, scribble, mask)
+        else:
+            with torch.no_grad():
+                out = model(x)
+                if config.MCdrop:
+                    out = torch.unsqueeze(out, 0)
+                    for it in range(2): #loss computed using 2 dropout predictions in total
+                        out_aux = model(x)
+                        out = torch.cat((out,torch.unsqueeze(out_aux, 0)),0)
 
-        out = model(x)
-        losses = criterio(out, target, scribble, mask)
+                losses = criterio(out, target, scribble, mask)
+
 
         # tic_list.append(time.perf_counter())
         # tic_criterio_list.append(tic_list[-1] - tic_list[-2])
@@ -312,6 +324,7 @@ def recseg_checkpoint_ensemble_trainer(dataloader_train,dataloader_val,model,opt
 
     ## Savings
     history = {}
+    history['cycle'] = []
     history['loss_mbatch_train'] = []
     for key in config.weight_objectives.keys():
         history[key+'_mbatch_train'] = []
@@ -327,6 +340,7 @@ def recseg_checkpoint_ensemble_trainer(dataloader_train,dataloader_val,model,opt
     for key in config.weight_objectives.keys():
         tags_plot.append(key)
 
+
     #number of cycles
     nsaves = config.nsaves
     #boolean: reset optimizer when starting a new cycle
@@ -334,7 +348,7 @@ def recseg_checkpoint_ensemble_trainer(dataloader_train,dataloader_val,model,opt
 
     ## Stoppers and saving lists
     stopper_best_all = early_stopping(config.patience, 0, np.infty) #only to save global best model
-    stopper = early_stopping(config.patience, 0, np.infty)
+    stopper = early_stopping(config.patience*2, 0, np.infty) #first cycle has patience x 2
 
     if config.val_stopper:
         model_saves_list = config.val_model_saves_list #stores the epochs of each val
@@ -358,6 +372,7 @@ def recseg_checkpoint_ensemble_trainer(dataloader_train,dataloader_val,model,opt
 
     for epoch in range(config.EPOCHS): #config.epochs should be set super large is not supposed to be the stopping criteria
 
+        history['cycle'].append(patch_sampler)
         #Training:
         output = epoch_recseg_loss(dataloader_train, model, optimizer, config,
                                    criterio, train_type=True)
@@ -438,6 +453,7 @@ def recseg_checkpoint_ensemble_trainer(dataloader_train,dataloader_val,model,opt
             #reset train stopper and increase train save, note that we save once per sample patches iteration
             stopper.best_loss = np.infty
             stopper.counter = 0
+            stopper.patience = config.patience
 
             # val_model_saves_list.append('model_val_best_save' + str(patch_sampler) + '.pth')
             epochs_saves_list.append(0)

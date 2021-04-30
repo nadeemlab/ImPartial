@@ -24,7 +24,12 @@ def compute_denoiseg_losses(out,input,scribble,mask,config,criterio_seg,criterio
 
         nclasses = int(classification_tasks['classes']) #number of classes
         ncomponents = np.array(classification_tasks['ncomponents'])
-        out_seg = torch.nn.Softmax(dim=1)(out[:, ix:ix + np.sum(ncomponents),...])
+        # out_seg = torch.nn.Softmax(dim=1)(out[:, ix:ix + np.sum(ncomponents),...])
+        if len(out.shape)<= 4:
+            out_seg = torch.nn.Softmax(dim=1)(out[:, ix:ix + np.sum(ncomponents),...]) # batch_size x channels x h x w
+        else:
+            out_seg = torch.nn.Softmax(dim=2)(out[:, :, ix:ix + np.sum(ncomponents), ...])  #predictions x batch_size x channels x h x w
+            out_seg = torch.mean(out_seg,0)
         ix += np.sum(ncomponents)
 
         ## foreground scribbles loss for each class ##
@@ -63,7 +68,10 @@ def compute_denoiseg_losses(out,input,scribble,mask,config,criterio_seg,criterio
 
         # channel to reconstruct for this class object
         num_mask = torch.sum(1 - mask[:, ch, :, :], [1, 2]) #size batch
-        rec_ch = criterio_rec(out[:, ix:1 + ix, ...].squeeze(),input[:, ch, ...]) * (1 - mask[:, ch, :, :])
+        if len(out.shape) <= 4:
+            rec_ch = criterio_rec(out[:, ix:1 + ix, ...].squeeze(),input[:, ch, ...]) * (1 - mask[:, ch, :, :])
+        else:
+            rec_ch = criterio_rec(torch.mean(out[:, :, ix:1 + ix, ...],0).squeeze(), input[:, ch, ...]) * (1 - mask[:, ch, :, :])
         # print(rec_ch.shape)
         ix += 1
         rec_loss_dic[ch] = torch.mean(torch.sum(rec_ch, [1, 2]) / num_mask)

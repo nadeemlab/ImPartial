@@ -5,6 +5,7 @@ from general.utils import to_np
 import numpy as np
 from scipy.special import softmax
 
+
 def compute_segloss(out,scribble,config,criterio_seg):
     seg_fore_loss_dic = {}
     seg_back_loss_dic = {}
@@ -22,7 +23,12 @@ def compute_segloss(out,scribble,config,criterio_seg):
 
         nclasses = int(classification_tasks['classes']) #number of classes
         ncomponents = np.array(classification_tasks['ncomponents'])
-        out_seg = torch.nn.Softmax(dim=1)(out[:, ix:ix + np.sum(ncomponents),...])
+        # out_seg = torch.nn.Softmax(dim=1)(out[:, ix:ix + np.sum(ncomponents),...])
+        if len(out.shape)<= 4:
+            out_seg = torch.nn.Softmax(dim=1)(out[:, ix:ix + np.sum(ncomponents),...]) # batch_size x channels x h x w
+        else:
+            out_seg = torch.nn.Softmax(dim=2)(out[:, :, ix:ix + np.sum(ncomponents), ...])  #predictions x batch_size x channels x h x w
+            out_seg = torch.mean(out_seg,0)
         ix += np.sum(ncomponents)
 
         ## foreground scribbles loss for each class ##

@@ -69,10 +69,11 @@ cparser.add_argument('--gradclip', action='store', default=0, type=float, help='
 cparser.add_argument('--nsaves', action='store', default=1, type=int, help='nsaves model') #how many cycles where we reset optimizer and resample training patches
 cparser.add_argument('--reset_optim', action='store', default=True,type=lambda x: bool(strtobool(x)),help='boolean: reset optimizer') #reset optimizer between cycles
 cparser.add_argument('--nepochs_sample_patches', action='store', default=10, type=int, help='minimum number of epochs before resampling image patches')
+cparser.add_argument('--reset_validation', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: reset optimizer') #reset optimizer between cycles
 
 ##MCdropout
 cparser.add_argument('--mcdrop', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: mc_dropout?')
-cparser.add_argument('--mcdrop_iter', action='store', default=50, type=int, help='mcdropout iterations during inference')
+cparser.add_argument('--mcdrop_iter', action='store', default=10, type=int, help='mcdropout iterations during inference')
 
 cparser = cparser.parse_args()
 
@@ -168,8 +169,10 @@ if __name__== '__main__':
                             EPOCHS=cparser.epochs,
                             seed=cparser.seed,
                             GPU_ID=cparser.gpu,
+
                             nsaves = cparser.nsaves,
                             reset_optim=cparser.reset_optim,
+                            reset_validation=cparser.reset_validation,
 
                             MCdrop = cparser.mcdrop,
                             MCdrop_it = cparser.mcdrop_iter)
@@ -181,9 +184,6 @@ if __name__== '__main__':
     from Impartial.Impartial_classes import ImPartialModel
     im_model = ImPartialModel(config)
 
-    ## load dataloader
-    im_model.load_dataloaders(pd_files_scribbles)
-
     if cparser.load:
         if os.path.exists(im_model.config.basedir + im_model.config.model_name + '/' + im_model.config.best_model):
             print(' Loading : ',im_model.config.basedir + im_model.config.model_name + '/' + im_model.config.best_model)
@@ -192,6 +192,11 @@ if __name__== '__main__':
 
     # ------------------------- Training --------------------------------#
     if cparser.train:
+
+        ## load dataloader
+        im_model.load_dataloaders(pd_files_scribbles)
+
+        ## Train
         history = im_model.train()
 
         print(' Saving .... ')

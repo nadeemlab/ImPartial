@@ -65,7 +65,7 @@ cparser.add_argument('--nepochs_sample_patches', action='store', default=10, typ
 
 ##MCdropout
 cparser.add_argument('--mcdrop', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: mc_dropout?')
-cparser.add_argument('--mcdrop_iter', action='store', default=50, type=int, help='mcdropout iterations during inference')
+cparser.add_argument('--mcdrop_iter', action='store', default=10, type=int, help='mcdropout iterations during inference')
 
 
 cparser = cparser.parse_args()
@@ -169,8 +169,6 @@ if __name__== '__main__':
     from Baseline.bs_classes import BaselineModel
     im_model = BaselineModel(config)
 
-    ## load dataloader
-    im_model.load_dataloaders(pd_files_scribbles)
 
     if cparser.load:
         if os.path.exists(im_model.config.basedir + im_model.config.model_name + '/' + im_model.config.best_model):
@@ -180,6 +178,10 @@ if __name__== '__main__':
 
     # ------------------------- Training --------------------------------#
     if cparser.train:
+
+        ## load dataloader
+        im_model.load_dataloaders(pd_files_scribbles)
+
         history = im_model.train()
 
         print(' Saving .... ')

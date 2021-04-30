@@ -346,7 +346,8 @@ class DenoisegModel:
             ## evaluate ensemble of checkpoints and save outputs
             if len(model_ensemble_load_files) < 1:
                 self.model.eval()
-                predictions = (self.model(Xinput)).cpu().numpy()
+                with torch.no_grad():
+                    predictions = (self.model(Xinput)).cpu().numpy()
             else:
                 predictions = np.empty((0, batch_size, self.config.n_output, Xinput.shape[-2], Xinput.shape[-1]))
                 for model_save in model_ensemble_load_files:
@@ -359,10 +360,12 @@ class DenoisegModel:
                             self.model.enable_dropout()
                             for it in range(self.config.MCdrop_it):
                                 # print(it)
-                                out = to_np(self.model(Xinput))
+                                with torch.no_grad():
+                                    out = to_np(self.model(Xinput))
                                 predictions = np.vstack((predictions, out[np.newaxis,...]))
                         else:
-                            out = to_np(self.model(Xinput))
+                            with torch.no_grad():
+                                out = to_np(self.model(Xinput))
                             predictions = np.vstack((predictions, out[np.newaxis, ...]))
 
             output = get_denoiseg_outputs(predictions, self.config)  # output has keys: class_segmentation, factors
