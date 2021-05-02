@@ -8,8 +8,11 @@
 In each dataset folder make sure to change the ‘input_dir’ column values in the .csv files for the correct path of the folder.
 (e.g., 
 data_dir = ‘/Data/MIBI_2CH/‘
+
 pd_file = pd.read_csv(data_dir+'files.csv',index_col=0)
+
 pd_file['input_dir'] = data_dir
+
 pd_file.to_csv(data_dir + 'files.csv')
 )
 
