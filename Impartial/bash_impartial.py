@@ -2,6 +2,7 @@ import time, os
 from pynvml import *
 from subprocess import Popen
 import numpy as np
+import pandas as pd
 nvmlInit()
 
 def run_command(cmd, minmem=2,use_env_variable=True, admissible_gpus=[1],sleep=60):
@@ -44,12 +45,14 @@ dataset = 'MIBI2CH'
 dataset = 'Vectra_2CH'
 # scribbles_list = ['150','200']
 # scribbles_list = ['150']
-scribbles_list = ['200']
+# scribbles_list = ['200']
+scribbles_list = ['300','200']
 # scribbles_list = ['250','100']
 
 saveout = True
 
-file_bash_name = dataset+'_2bash.sh'
+file_bash_name = dataset+'_bash.sh'
+file_bash_name = 'impartial_experiments.sh'
 
 
 # model_name_prefix = 'Im_reg_2tasks_base64depth4relu_adam5e4_gclip10_nsave6_'
@@ -68,7 +71,6 @@ reset_validation = False
 
 ratio = 0.95
 optim = 'adam' #RMSprop
-# lr=5e-5
 lr=5e-4
 optim_regw = 1e-4
 ubase = 64
@@ -84,29 +86,28 @@ if ubase == 128:
 seed_list=[42,43,44]
 seed_list=[42,43,44]
 seed_list=[42,43,44]
-seed_list=[44]
+seed_list=[42]
 gpu = 1
 gradclip = 0
 
-# weights_dic = {'02505':[0.25, 0.25, 0.5],
-#                '0500': [0.5, 0.5, 0.0],
-#                '00509': [0.05, 0.05, 0.9],
-#                '03503':[0.35, 0.35, 0.3]} #wfore, wback, wrec
-
-# weights_dic = {'02505':[0.25, 0.25, 0.5],
-#                '04501':[0.45, 0.45, 0.1],
-#                '00509': [0.05, 0.05, 0.9]} #wfore, wback, wrec
-
-weights_dic = {'04501':[0.45, 0.45, 0.1, 0.0]} #wfore, wback, wrec
+weights_dic = {'02505':[0.25, 0.25, 0.5, 0.0],
+               '04501':[0.45, 0.45, 0.1, 0.0]} #wfore, wback, wrec
 # weights_dic = {'02505':[0.25, 0.25, 0.5, 0.0],
                # '00509': [0.05, 0.05, 0.9, 0.0]} #wfore, wback, wrec
 # weights_dic = {'04501':[0.45, 0.45, 0.09,0.01]} #wfore, wback, wrec
+# weights_dic = {'02505':[0.25, 0.25, 0.5, 0.0]} #wfore, wback, wrec
 losses_dic = {'segCEGauss':['CE','gaussian']}
 
+rows_model = []
+basedir_root = '/data/natalia/models/'
+
 with open(file_bash_name,'w') as f:
+    str_root = 'basedir_root="{}"'.format(basedir_root)
+    f.write(str_root + '\n\n\n')
     for seed in seed_list:
         for scribbles in scribbles_list:
-            basedir = '/data/natalia/models/' + dataset + '/s'+scribbles + '/Impartial/'
+            basedir_local = dataset + '/s' + scribbles + '/Impartial/'
+            basedir = basedir_root + basedir_local
 
             for loss_key in losses_dic.keys():
                 for weights_key in weights_dic.keys():
@@ -117,19 +118,46 @@ with open(file_bash_name,'w') as f:
                     model_name = model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed)
 
                     # cmd = 'python main_impartial.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={}'.format(basedir,dataset, model_name,saveout,scribbles)
-                    cmd = 'python main_impartial.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} --gpu={}'.format(basedir, dataset, model_name,saveout,scribbles,gpu)
-
+                    cmd = 'python main_impartial.py --basedir={}"{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} --gpu={}'.format('$basedir_root',basedir_local, dataset, model_name,saveout,scribbles,gpu)
 
                     cmd = cmd + ' --optim_regw={} --optim="{}" --lr={} --gradclip={} --seed={} --train={}'.format(optim_regw, optim, lr,gradclip,seed,train)
                     cmd = cmd + ' --udepth="{}" --ubase="{}" --activation="{}" --batchnorm={}'.format(udepth,ubase,activation,batchnorm)
                     cmd = cmd + ' --seg_loss="{}" --rec_loss="{}" --nsaves={} --mcdrop={} --reset_optim={} --reset_validation={} '.format(loss_list[0], loss_list[1],nsave,mcdrop,reset_optim,reset_validation)
                     cmd = cmd + ' --wfore={} --wback={} --wrec={} --wreg={} --ratio={} '.format(weights_list[0], weights_list[1], weights_list[2],weights_list[3], ratio)
-
-
                     cmd = cmd + ' --epochs={} --batch={} --load={} > {}.txt'.format(epochs,batch,load,out_file_ext)
 
+                    rows_model.append(basedir_local+model_name+'/')
                     # run_command(cmd, minmem=8, use_env_variable=True, admissible_gpus=[1], sleep=60)
                     f.write(cmd + '\n\n\n')
                 f.write('\n\n\n')
             f.write('\n\n\n')
 
+pd_model = pd.DataFrame(data = rows_model, columns=['model_path'])
+pd_model.to_csv('model_path.csv',index = 0)
+
+# with open(file_bash_name,'w') as f:
+#     for seed in seed_list:
+#         for scribbles in scribbles_list:
+#             basedir = '/data/natalia/models/' + dataset + '/s'+scribbles + '/Impartial/'
+#
+#             for loss_key in losses_dic.keys():
+#                 for weights_key in weights_dic.keys():
+#                     loss_list = losses_dic[loss_key]
+#                     weights_list = weights_dic[weights_key]
+#
+#                     out_file_ext = dataset + model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed) + '_verbose'
+#                     model_name = model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed)
+#
+#                     # cmd = 'python main_impartial.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={}'.format(basedir,dataset, model_name,saveout,scribbles)
+#                     cmd = 'python main_impartial.py --basedir="{}" --dataset="{}" --model_name="{}" --scribbles={}'.format(basedir, dataset, model_name, scribbles)
+#
+#
+#                     cmd = cmd + ' --optim_regw={} --lr={} --seed={} --train={}'.format(optim_regw, lr, seed,train)
+#                     cmd = cmd + ' --nsaves={} --mcdrop={} '.format(nsave,mcdrop)
+#                     cmd = cmd + ' --wfore={} --wback={} --wrec={} --wreg={} '.format(weights_list[0], weights_list[1], weights_list[2],weights_list[3])
+#                     cmd = cmd + ' --epochs={} --batch={} > {}.txt'.format(epochs,batch,out_file_ext)
+#
+#                     # run_command(cmd, minmem=8, use_env_variable=True, admissible_gpus=[1], sleep=60)
+#                     f.write(cmd + '\n\n\n')
+#                 f.write('\n\n\n')
+#             f.write('\n\n\n')

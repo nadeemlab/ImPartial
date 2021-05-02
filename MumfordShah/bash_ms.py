@@ -39,17 +39,17 @@ sys.path.append("../")
 # scribbles_list = ['200']
 
 
-# dataset = 'MIBI2CH'
+dataset = 'MIBI2CH'
 
 dataset = 'Vectra_2CH'
 # scribbles_list = ['150','200']
-# scribbles_list = ['150']
+scribbles_list = ['150']
 # scribbles_list = ['250','100']
-scribbles_list = ['200']
+scribbles_list = ['300']
 
 saveout = True
 
-file_bash_name = dataset+'_bash.sh'
+file_bash_name = dataset+'_2bash.sh'
 
 
 # model_name_prefix = 'MS_2tasks_base64depth4relu_adam5e4_gclip10_nsave5_'
@@ -78,7 +78,7 @@ batch = 64
 if ubase == 128:
     batch = 32
 seed_list=[42,43,44]
-seed_list=[43,44]
+# seed_list=[42]
 gpu = 0
 gradclip = 0
 
@@ -87,6 +87,8 @@ gradclip = 0
                # '00509': [0.05, 0.05, 0.89, 0.01]} #wfore, wback, wrec, wreg
 
 weights_dic = {'04501': [0.45, 0.45, 0.09, 0.01]} #wfore, wback, wrec, wreg
+# weights_dic = {'02505':[0.25, 0.25, 0.49, 0.01]} #wfore, wback, wrec, wreg
+# weights_dic = {'00509': [0.05, 0.05, 0.89, 0.01]} #wfore, wback, wrec, wreg
 losses_dic = {'segCErecL2':['CE','L2']}
 
 with open(file_bash_name,'w') as f:
@@ -112,7 +114,7 @@ with open(file_bash_name,'w') as f:
 
                     cmd = cmd + ' --epochs={} --batch={} --load={} > {}.txt'.format(epochs,batch,load,out_file_ext)
 
-                    run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[0], sleep=60)
+                    run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[1], sleep=60)
                     f.write(cmd + '\n\n\n')
                 f.write('\n\n\n')
             f.write('\n\n\n')

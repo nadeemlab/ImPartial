@@ -27,7 +27,7 @@ cparser.add_argument('--scribbles', action='store', default='150', type=str,help
 cparser.add_argument('--activation', action='store', default='relu', type=str,help='activation')
 cparser.add_argument('--batchnorm', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: batchnorm')
 cparser.add_argument('--udepth', action='store', default=4, type=int, help='unet depth')
-cparser.add_argument('--ubase', action='store', default=32, type=int, help='unet fist level number of filters')
+cparser.add_argument('--ubase', action='store', default=64, type=int, help='unet fist level number of filters')
 cparser.add_argument('--drop_encdec', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: dropout encoder decoder')
 cparser.add_argument('--drop_lastconv', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: dropout last conv layer')
 

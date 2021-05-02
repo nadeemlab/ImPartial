@@ -17,6 +17,8 @@ cparser.add_argument('--seed', action='store', default=42, type=int, help='rando
 cparser.add_argument('--saveout', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: batchnorm')
 cparser.add_argument('--load', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: batchnorm')
 cparser.add_argument('--train', action='store', default=True,type=lambda x: bool(strtobool(x)),help='boolean: validation stopper')
+cparser.add_argument('--multiple_components', action='store', default=True,type=lambda x: bool(strtobool(x)),help='boolean: multiple_components')
+
 
 ## Dataset
 cparser.add_argument('--dataset', action='store', default='MIBI2CH', type=str,help='dataset')
@@ -92,8 +94,15 @@ if __name__== '__main__':
 
         pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0)
         n_channels = 2
-        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0]},
-                                '1': {'classes': 2, 'ncomponents': [1, 1, 2], 'rec_channels': [1]}}
+
+        if cparser.multiple_components:
+            classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0]},
+                                    '1': {'classes': 2, 'ncomponents': [1, 1, 2], 'rec_channels': [1]}}
+        else:
+            classification_tasks = {'0': {'classes': 1, 'ncomponents': [1, 1], 'rec_channels': [0]},
+                                    '1': {'classes': 2, 'ncomponents': [1, 1, 1], 'rec_channels': [1]}}
+
+
 
         if cparser.nepochs_sample_patches == 0:
             cparser.nepochs_sample_patches = 10

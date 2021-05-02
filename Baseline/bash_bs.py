@@ -33,8 +33,8 @@ def run_command(cmd, minmem=2,use_env_variable=True, admissible_gpus=[1],sleep=6
 import sys
 sys.path.append("../")
 
-dataset = 'MIBI2CH'
-# dataset = 'Vectra_2CH'
+# dataset = 'MIBI2CH'
+dataset = 'Vectra_2CH'
 
 # scribbles_list = ['150','200']
 # scribbles_list = ['150','200']
@@ -42,24 +42,26 @@ scribbles_list = ['150','250','100']
 scribbles_list = ['250','100']
 scribbles_list = ['200']
 scribbles_list = ['150']
+scribbles_list = ['300']
 saveout = True
 
-file_bash_name = dataset+'_2bash.sh'
+file_bash_name = dataset+'_bash.sh'
 # model_name_prefix = 'BS_2tasks_base64depth4relu_adam5e4_nsave6_'
 model_name_prefix = 'BS_2tasks_base64depth4relu_adam5e4_mcdrop1e4_nsave5_'
-model_name_prefix = 'BS_2tasks_base64depth4relu_adam5e4_nsave5_'
+# model_name_prefix = 'BS_non2v_2tasks_base64depth4relu_adam5e4_nsave5_'
 # model_name_prefix = 'BS_2tasks_base64depth4relu_adam5e4_mcdrop_nsave5_'
 # model_name_prefix = 'BS_2tasks_base64depth4relu_adam5e4_nsave5_'
 
-mcdrop = False
+mcdrop = True
 load = False
 train = True
 nsave = 5
 ratio = 0.95
+multiple_components = False
 
 optim = 'adam' #RMSprop
 lr=5e-4
-optim_regw = 0
+optim_regw = 1e-4
 ubase = 64
 udepth = 4
 activation = 'relu'
@@ -70,7 +72,7 @@ epochs=400
 batch = 64
 if ubase == 128:
     batch = 32
-seed_list=[43,44]
+seed_list=[42,43,44]
 gradclip = 0
 
 gpu = 1
@@ -97,7 +99,7 @@ with open(file_bash_name,'w') as f:
                     cmd = cmd + ' --udepth="{}" --ubase="{}" --activation="{}" --batchnorm={}'.format(udepth,ubase,activation,batchnorm)
                     cmd = cmd + ' --seg_loss="{}" --nsaves={} --mcdrop={} --ratio={}'.format(loss_list[0],nsave,mcdrop,ratio)
                     cmd = cmd + ' --wfore={} --wback={}'.format(weights_list[0], weights_list[1])
-                    cmd = cmd + ' --epochs={} --batch={} --load={} > {}.txt'.format(epochs, batch, load, out_file_ext)
+                    cmd = cmd + ' --epochs={} --batch={} --load={} --multiple_components={} > {}.txt'.format(epochs, batch, load,multiple_components, out_file_ext)
 
                     # run_command(cmd, minmem=7, use_env_variable=True, admissible_gpus=[1], sleep=10)
                     f.write(cmd + '\n\n\n')

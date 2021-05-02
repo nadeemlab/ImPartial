@@ -1,0 +1,16 @@
+input_dir,input_file,prefix,scribble_file,total_labels_class0,scribble_labels_class0,label_with_scribble_class0,perc_pixels_scribbles_TP_class0,perc_pixels_scribbles_TN_class0,total_labels_class1,scribble_labels_class1,label_with_scribble_class1,perc_pixels_scribbles_TP_class1,perc_pixels_scribbles_TN_class1,total_labels_class2,scribble_labels_class2,label_with_scribble_class2,perc_pixels_scribbles_TP_class2,perc_pixels_scribbles_TN_class2,gt_index_task0,gt_index_task1
+/data/natalia/intern20/Vectra_2CH/,image1.npz,image1,image1_2tasks1x2classes_3images_scribble_n300.npz,211,27,"[ 20  29  36  43  45  49  58  66  81  98 102 103 105 110 111 114 116 120
+ 121 123 124 132 182 183 190 196 200]",2.22,3.37,189,23,"[ 21  22  23  50  62  63  75  92  93  96 107 132 139 142 143 144 148 150
+ 152 153 162 182 187]",0.69,1.55,62,19,[23 24 25 26 27 29 30 32 34 37 39 40 42 43 44 45 46 47 54],2.85,0.56,[0],"[1, 2]"
+/data/natalia/intern20/Vectra_2CH/,image3.npz,image3,image3_2tasks1x2classes_3images_scribble_n300.npz,230,18,[ 38  40  50  52  58  60 125 130 131 139 142 144 157 158 179 182 183 206],1.44,1.83,166,23,"[  7  11  16  18  19  21  26  30  31  83  84  87  92  94  98 103 104 106
+ 109 136 142 145 154]",0.59,0.99,219,21,"[  2   4   8  12  13  14  40  44  55  71  73  74  94  98 100 102 106 123
+ 132 139 218]",1.01,0.58,[0],"[1, 2]"
+/data/natalia/intern20/Vectra_2CH/,image5.npz,image5,image5_2tasks1x2classes_3images_scribble_n300.npz,200,25,"[ 24  31  46  57  60  64  65 125 131 132 135 137 138 142 143 153 154 156
+ 157 159 160 167 181 189 196]",2.34,2.33,190,22,"[ 13  20  25  27  28  32  35  45  46  49  51  53  58  65  66  94 103 106
+ 171 179 180 190]",0.75,1.19,73,15,[ 3 19 21 23 33 38 50 52 54 55 57 58 66 67 71],2.25,0.57,[0],"[1, 2]"
+/data/natalia/intern20/Vectra_2CH/,image7.npz,image7,image7_2tasks1x2classes_3images_scribble_n300.npz,187,24,"[  6   7  11  12  13  20  21  46  59  65  70  81  86  98 155 157 158 162
+ 165 166 174 177 178 183]",2.41,2.97,171,21,"[  6   7  12  15  17  19  21  32  44  45  51  57  63  66  67  78 136 142
+ 146 154 156]",0.48,1.29,78,14,[ 3 11 14 15 16 23 24 25 26 27 28 33 43 77],1.61,0.51,[0],"[1, 2]"
+/data/natalia/intern20/Vectra_2CH/,image9.npz,image9,image9_2tasks1x2classes_3images_scribble_n300.npz,128,26,"[  1   2  18  21  22  29  32  34  35  36  40  41  44  85  90  91  93  94
+  97 100 101 103 112 116 118 126]",3.09,17.82,144,24,"[  4  15  18  32  34  39  40  43  51  59  67  73  79  84  93  99 101 106
+ 116 119 121 122 124 129]",0.81,3.04,5,5,[1 2 3 4 5],8.49,0.27,[0],"[1, 2]"
