@@ -3,7 +3,7 @@
 ## Data Folders:
 
 * /MIBI_2CH : 4  2-channel mibi images, segmentation classes: cytoplasm, nuclei in cytoplasm, nuclei out of cytoplasm
-* /Vectra_2CH: 8  2-channel Vector images, segmentation classes: cytoplasm, nuclei in cytoplasm, nuclei out of cytoplasm
+* /Vectra_2CH: 8  2-channel Vectra images, segmentation classes: cytoplasm, nuclei in cytoplasm, nuclei out of cytoplasm
 
 In each dataset folder make sure to change the ‘input_dir’ column values in the .csv files for the correct path of the folder.
 (e.g., 
