@@ -1,3 +1,21 @@
+
+
+## Data Folders:
+
+* /MIBI_2CH : 4  2-channel mibi images, segmentation classes: cytoplasm, nuclei in cytoplasm, nuclei out of cytoplasm
+* /Vectra_2CH: 8  2-channel Vector images, segmentation classes: cytoplasm, nuclei in cytoplasm, nuclei out of cytoplasm
+
+In each dataset folder make sure to change the ‘input_dir’ column values in the .csv files for the correct path of the folder.
+(e.g., 
+data_dir = ‘/Data/MIBI_2CH/‘
+pd_file = pd.read_csv(data_dir+'files.csv',index_col=0)
+pd_file['input_dir'] = data_dir
+pd_file.to_csv(data_dir + 'files.csv')
+)
+
+
+
+
 ## Examples for running main files :
 
 #### Dataset MIBI_2CH with 150 scribbles:
