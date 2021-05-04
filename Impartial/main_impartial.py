@@ -104,6 +104,20 @@ if __name__== '__main__':
             cparser.nepochs_sample_patches = 10
 
 
+    if cparser.dataset == 'cellpose':
+        data_dir = '/data/natalia/intern20/PaperData/cellpose/'
+        files_scribbles = data_dir + 'files_1task1class_10images_scribble_train_' + cparser.scribbles + '.csv'
+        pd_files_scribbles = pd.read_csv(files_scribbles)
+
+        pd_files = pd.read_csv(data_dir + 'files.csv')
+        n_channels = 2
+
+        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0,1]}}
+
+        if cparser.nepochs_sample_patches == 0:
+            cparser.nepochs_sample_patches = 10
+
+
     print('loaded :', files_scribbles)
     print('Total images  train: ', len(pd_files_scribbles),'; test: ', len(pd_files)-len(pd_files_scribbles))
 

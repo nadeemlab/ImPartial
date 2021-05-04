@@ -41,6 +41,7 @@ def epoch_recseg_loss(dataloader, model, optimizer, config, criterio,train_type=
         # tic_list.append(time.perf_counter())
         # tic_bs_list.append(tic_list[-1] - tic_list[-2])
         # print(' batch sampling : ', tic_list[-1] - tic_list[-2])
+
         if train_type:
             out = model(x)
             losses = criterio(out, target, scribble, mask)

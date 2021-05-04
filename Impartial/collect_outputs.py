@@ -35,6 +35,8 @@ for ix in range(len(pd_model_folders)):
             else:
                 print('!! Warning : file ' , f, 'not found')
         print()
+
+
         ## Save history, config jsons and summary results
         # history = load_json(basedir_root+model_dir + 'history.json')
         # config_json = load_json(basedir_root+model_dir + 'config.json')
