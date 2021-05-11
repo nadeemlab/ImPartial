@@ -112,7 +112,7 @@ gpu = 1
 weights_dic = {'0500': [0.5, 0.5]} #wfore, wback, wrec
 losses_dic = {'segCE':['CE']}
 
-
+## Hii
 rows_model = []
 basedir_root = '/data/natalia/models/'
 ix_model = 0

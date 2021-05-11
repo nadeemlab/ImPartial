@@ -21,14 +21,14 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="bash_bs.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="bash_bs.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Baseline/bash_bs.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="457">
-              <caret line="136" column="29" selection-start-line="136" selection-start-column="29" selection-end-line="136" selection-end-column="29" />
+            <state relative-caret-position="217">
+              <caret line="120" column="36" selection-start-line="120" selection-start-column="36" selection-end-line="120" selection-end-column="36" />
               <folding>
                 <element signature="e#205#1346#0" expanded="false" />
-                <element signature="e#3827#3828#0" expanded="false" />
+                <element signature="e#3833#3834#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -64,10 +64,10 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="networks.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="networks.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/general/networks.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="780">
+            <state relative-caret-position="1035">
               <caret line="172" column="0" selection-start-line="172" selection-start-column="0" selection-end-line="172" selection-end-column="0" />
               <folding>
                 <element signature="e#209#1271#0" expanded="false" />
@@ -204,8 +204,8 @@
         <option value="$PROJECT_DIR$/MumfordShah/main_ms.py" />
         <option value="$PROJECT_DIR$/Impartial/main_impartial.py" />
         <option value="$PROJECT_DIR$/Denoiseg/main_denoiseg.py" />
-        <option value="$PROJECT_DIR$/Baseline/bash_bs.py" />
         <option value="$PROJECT_DIR$/Denoiseg/bash_denoiseg.py" />
+        <option value="$PROJECT_DIR$/Baseline/bash_bs.py" />
       </list>
     </option>
   </component>
@@ -592,7 +592,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="1561" y="137" width="1557" height="1019" extended-state="1" />
+    <frame x="1561" y="137" width="1557" height="1019" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info id="Remote Host" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
@@ -1075,17 +1075,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Baseline/bash_bs.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="457">
-          <caret line="136" column="29" selection-start-line="136" selection-start-column="29" selection-end-line="136" selection-end-column="29" />
-          <folding>
-            <element signature="e#205#1346#0" expanded="false" />
-            <element signature="e#3827#3828#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Denoiseg/bash_denoiseg.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="652">
@@ -1114,7 +1103,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/general/networks.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="780">
+        <state relative-caret-position="1035">
           <caret line="172" column="0" selection-start-line="172" selection-start-column="0" selection-end-line="172" selection-end-column="0" />
           <folding>
             <element signature="e#209#1271#0" expanded="false" />
@@ -1126,6 +1115,17 @@
             <element signature="e#5974#6295#0" expanded="false" />
             <element signature="e#6751#6804#0" expanded="false" />
             <element signature="e#6841#8576#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Baseline/bash_bs.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="217">
+          <caret line="120" column="36" selection-start-line="120" selection-start-column="36" selection-end-line="120" selection-end-column="36" />
+          <folding>
+            <element signature="e#205#1346#0" expanded="false" />
+            <element signature="e#3833#3834#0" expanded="false" />
           </folding>
         </state>
       </provider>
