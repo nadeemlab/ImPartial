@@ -18,6 +18,7 @@ cparser.add_argument('--seed', action='store', default=42, type=int, help='rando
 cparser.add_argument('--saveout', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: batchnorm')
 cparser.add_argument('--load', action='store', default=False,type=lambda x: bool(strtobool(x)),help='boolean: batchnorm')
 cparser.add_argument('--train', action='store', default=True,type=lambda x: bool(strtobool(x)),help='boolean: validation stopper')
+cparser.add_argument('--evaluation', action='store', default=True,type=lambda x: bool(strtobool(x)),help='boolean: validation stopper')
 
 ## Dataset
 cparser.add_argument('--dataset', action='store', default='MIBI2CH', type=str,help='dataset')
@@ -103,6 +104,19 @@ if __name__== '__main__':
         if cparser.nepochs_sample_patches == 0:
             cparser.nepochs_sample_patches = 10
 
+    if cparser.dataset == 'MIBI1CH':
+        data_dir = '/data/natalia/intern20/PaperData/MIBI_1channel/'
+        files_scribbles = data_dir + 'files_1task1class_4images_scribble_train_' + cparser.scribbles + '.csv'
+        pd_files_scribbles = pd.read_csv(files_scribbles)
+
+        pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0)
+        n_channels = 1
+
+        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0]}}
+
+        if cparser.nepochs_sample_patches == 0:
+            cparser.nepochs_sample_patches = 10
+
     if cparser.dataset == 'cellpose':
         data_dir = '/data/natalia/intern20/PaperData/cellpose/'
         files_scribbles = data_dir + 'files_1task1class_10images_scribble_train_' + cparser.scribbles + '.csv'
@@ -112,6 +126,33 @@ if __name__== '__main__':
         n_channels = 2
 
         classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0,1]}}
+
+        if cparser.nepochs_sample_patches == 0:
+            cparser.nepochs_sample_patches = 10
+
+    if cparser.dataset == 'MIBI1CH_Bladder':
+        data_dir = '/data/natalia/intern20/MIBI_Paper/MIBI1CH_Bladder/'
+        files_scribbles = data_dir + 'files_1task1class_10images_scribble_train_' + cparser.scribbles + '.csv'
+        pd_files_scribbles = pd.read_csv(files_scribbles)
+
+        pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0)
+        n_channels = 1
+
+        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0]}}
+
+        if cparser.nepochs_sample_patches == 0:
+            cparser.nepochs_sample_patches = 10
+
+    if cparser.dataset == 'MIBI1CH_Lung':
+        data_dir = '/data/natalia/intern20/MIBI_Paper/MIBI1CH_Lung/'
+        files_scribbles = data_dir + 'files_1task1class_10images_scribble_train_' + cparser.scribbles + '.csv'
+        pd_files_scribbles = pd.read_csv(files_scribbles)
+
+        pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0)
+        n_channels = 1
+
+        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0]}}
+
 
         if cparser.nepochs_sample_patches == 0:
             cparser.nepochs_sample_patches = 10
@@ -220,8 +261,8 @@ if __name__== '__main__':
 
 
     # ------------------------- Evaluation --------------------------------#
+    if cparser.evaluation:
+        pd_summary = im_model.data_performance_evaluation(pd_files, saveout=cparser.saveout, plot=False, default_ensembles=True)
 
-    pd_summary = im_model.data_performance_evaluation(pd_files, saveout=cparser.saveout, plot=False, default_ensembles=True)
-
-    pd_summary.to_csv(im_model.config.basedir + im_model.config.model_name + '/pd_summary_results.csv', index=0)
-    print('Evaluation csv saved on : ', im_model.config.basedir + im_model.config.model_name + '/pd_summary_results.csv')
+        pd_summary.to_csv(im_model.config.basedir + im_model.config.model_name + '/pd_summary_results.csv', index=0)
+        print('Evaluation csv saved on : ', im_model.config.basedir + im_model.config.model_name + '/pd_summary_results.csv')

@@ -45,20 +45,36 @@ dataset = 'cellpose'
 scribbles_list = ['200']
 
 
+# dataset = 'MIBI1CH'
+# scribbles_list = ['200']
+
+dataset = 'MIBI1CH'
+scribbles_list = ['100', '200']
+
+
+dataset_list = ['MIBI1CH_Bladder', 'MIBI1CH_Lung']
+scribbles_list = ['200','400']
+
 model_name_prefix_list=['BS_2tasks_base32depth4relu_adam5e4_mcdrop1e4_nsave5_',
                         'BS_2tasks_base64depth4relu_adam5e4_mcdrop1e4_nsave5_']
 ubase_list = [32,64]
 udepth_list = [4,4]
 
-model_name_prefix_list=['BS_2tasks_base64depth4relu_adam5e4_mcdrop1e4_nsave5_',
-                        'BS_2tasks_base64depth3relu_adam5e4_mcdrop1e4_nsave5_']
-ubase_list = [64,64]
-udepth_list = [4,3]
+
+model_name_prefix_list=['BS_2tasks_base32depth4relu_adam5e4_mcdrop1e4_nsave5_']
+ubase_list = [32]
+udepth_list = [4]
 
 
-model_name_prefix_list=['BS_2tasks_base64depth3relu_adam5e4_mcdrop1e4_nsave5_']
-ubase_list = [64]
-udepth_list = [3]
+# model_name_prefix_list=['BS_2tasks_base64depth4relu_adam5e4_mcdrop1e4_nsave5_',
+#                         'BS_2tasks_base64depth3relu_adam5e4_mcdrop1e4_nsave5_']
+# ubase_list = [64,64]
+# udepth_list = [4,3]
+
+
+# model_name_prefix_list=['BS_2tasks_base64depth2relu_adam5e4_mcdrop1e4_nsave5_']
+# ubase_list = [64]
+# udepth_list = [2]
 
 saveout = True
 
@@ -74,6 +90,7 @@ file_bash_name = dataset+'_bash.sh'
 mcdrop = True
 load = False
 train = True
+evaluation = False
 nsave = 5
 ratio = 0.95
 multiple_components = False
@@ -87,10 +104,8 @@ activation = 'relu'
 batchnorm = False
 
 
-epochs=4
-
-
-seed_list=[42]
+epochs=400
+seed_list=[42,43,44]
 gradclip = 0
 
 gpu = 1
@@ -98,57 +113,80 @@ weights_dic = {'0500': [0.5, 0.5]} #wfore, wback, wrec
 losses_dic = {'segCE':['CE']}
 
 
-
-
 rows_model = []
 basedir_root = '/data/natalia/models/'
 ix_model = 0
 
-with open(file_bash_name,'w') as f:
-
+file_bash_name = 'Baseline_bash.sh'
+with open(file_bash_name, 'w') as f:
     str_root = 'basedir_root="{}"'.format(basedir_root)
     f.write(str_root + '\n\n\n')
 
-    for model_name_prefix in model_name_prefix_list:
-        ubase = ubase_list[ix_model]
-        udepth = udepth_list[ix_model]
-        ix_model += 1
-        batch = 64
-        if ubase == 128:
-            batch = 32
+    for seed in seed_list:
+        if seed == 42:
+            saveout = True
+        else:
+            saveout = False
 
+        for dataset in dataset_list:
 
-        for seed in seed_list:
-            for scribbles in scribbles_list:
-                basedir_local = dataset + '/s' + scribbles + '/Baseline/'
-                basedir = basedir_root + basedir_local
+            ix_model = 0
+            for model_name_prefix in model_name_prefix_list:
+                ubase = ubase_list[ix_model]
+                udepth = udepth_list[ix_model]
+                ix_model += 1
+                if ubase == 128:
+                    batch = 32
+#
+# with open(file_bash_name,'w') as f:
+#
+#     str_root = 'basedir_root="{}"'.format(basedir_root)
+#     f.write(str_root + '\n\n\n')
+#
+#     for model_name_prefix in model_name_prefix_list:
+#         ubase = ubase_list[ix_model]
+#
+#         ix_model += 1
+#         batch = 64
+#         if ubase == 128:
+#             batch = 32
+#
+#         for seed in seed_list:
+#
+#             if seed == 42:
+#                 saveout = True
+#             else:
+#                 saveout = False
+                for scribbles in scribbles_list:
+                    basedir_local = dataset + '/s' + scribbles + '/Baseline/'
+                    basedir = basedir_root + basedir_local
 
-                for loss_key in losses_dic.keys():
-                    for weights_key in weights_dic.keys():
-                        loss_list = losses_dic[loss_key]
-                        weights_list = weights_dic[weights_key]
+                    for loss_key in losses_dic.keys():
+                        for weights_key in weights_dic.keys():
+                            loss_list = losses_dic[loss_key]
+                            weights_list = weights_dic[weights_key]
 
-                        out_file_ext = dataset + '_' + model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed) + '_verbose'
-                        model_name = model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed)
+                            out_file_ext = dataset + '_' + model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed) + '_verbose'
+                            model_name = model_name_prefix + loss_key + '_w'+ weights_key +'_seed' + str(seed)
 
-                        cmd = 'python main_bs.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} '.format(basedir,dataset, model_name,saveout,scribbles)
-                        # cmd = 'python main_bs.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} --gpu={}'.format(basedir, dataset, model_name,saveout,scribbles,gpu)
-                        cmd = 'python main_ms.py --basedir={}"{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} --gpu={}'.format('$basedir_root',basedir_local, dataset, model_name,saveout,scribbles,gpu)
+                            cmd = 'python main_bs.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} '.format(basedir,dataset, model_name,saveout,scribbles)
+                            # cmd = 'python main_bs.py --basedir="{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} --gpu={}'.format(basedir, dataset, model_name,saveout,scribbles,gpu)
+                            # cmd = 'python main_bs.py --basedir={}"{}" --dataset="{}" --model_name="{}" --saveout={} --scribbles={} --gpu={}'.format('$basedir_root',basedir_local, dataset, model_name,saveout,scribbles,gpu)
 
-                        cmd = cmd + ' --optim_regw={} --optim="{}" --lr={} --gradclip={} --seed={} --train={}'.format(optim_regw, optim, lr,gradclip,seed,train)
-                        cmd = cmd + ' --udepth="{}" --ubase="{}" --activation="{}" --batchnorm={}'.format(udepth,ubase,activation,batchnorm)
-                        cmd = cmd + ' --seg_loss="{}" --nsaves={} --mcdrop={} --ratio={}'.format(loss_list[0],nsave,mcdrop,ratio)
-                        cmd = cmd + ' --wfore={} --wback={}'.format(weights_list[0], weights_list[1])
-                        cmd = cmd + ' --epochs={} --batch={} --load={} --multiple_components={} > {}.txt'.format(epochs, batch, load,multiple_components, out_file_ext)
+                            cmd = cmd + ' --optim_regw={} --optim="{}" --lr={} --gradclip={} --seed={} --train={} --evaluation={}'.format(optim_regw, optim, lr,gradclip,seed,train,evaluation)
+                            cmd = cmd + ' --udepth="{}" --ubase="{}" --activation="{}" --batchnorm={}'.format(udepth,ubase,activation,batchnorm)
+                            cmd = cmd + ' --seg_loss="{}" --nsaves={} --mcdrop={} --ratio={}'.format(loss_list[0],nsave,mcdrop,ratio)
+                            cmd = cmd + ' --wfore={} --wback={}'.format(weights_list[0], weights_list[1])
+                            cmd = cmd + ' --epochs={} --batch={} --load={} --multiple_components={} > {}.txt'.format(epochs, batch, load,multiple_components, out_file_ext)
 
-                        rows_model.append(basedir_local + model_name + '/')
-                        if ubase == 32:
-                            run_command(cmd, minmem=5.5, use_env_variable=True, admissible_gpus=[1], sleep=60)
-                        else:
-                            run_command(cmd, minmem=8, use_env_variable=True, admissible_gpus=[1], sleep=60)
-                        f.write(cmd + '\n\n\n')
+                            rows_model.append(basedir_local + model_name + '/')
+                            if ubase == 32:
+                                run_command(cmd, minmem=5.5, use_env_variable=True, admissible_gpus=[1], sleep=60)
+                            else:
+                                run_command(cmd, minmem=8, use_env_variable=True, admissible_gpus=[1], sleep=60)
+                            f.write(cmd + '\n\n\n')
+                        f.write('\n\n\n')
                     f.write('\n\n\n')
-                f.write('\n\n\n')
 
 pd_model = pd.DataFrame(data = rows_model, columns=['model_path'])
 pd_model.to_csv('model_path.csv',index = 0)

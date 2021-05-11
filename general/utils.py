@@ -12,13 +12,17 @@ def random_seed(seed=1):
     torch.manual_seed(seed)
 
 
-def model_params_save(filename,classifier_network, optimizer):
-    torch.save([classifier_network.state_dict(),optimizer.state_dict()], filename)
+def model_params_save(filename,classifier_network, optimizer, save_optimizer = False):
+    if save_optimizer:
+        torch.save([classifier_network.state_dict(),optimizer.state_dict()], filename)
+    else:
+        torch.save([classifier_network.state_dict()], filename)
 
-def model_params_load(filename,classifier_network, optimizer,DEVICE):
-    classifier_dic, optimizer_dic = torch.load(filename, map_location=DEVICE)
-    classifier_network.load_state_dict(classifier_dic)
-    optimizer.load_state_dict(optimizer_dic)
+def model_params_load(filename,classifier_network, optimizer, DEVICE):
+    saves_model = torch.load(filename, map_location=DEVICE)
+    classifier_network.load_state_dict(saves_model[0])
+    if (len(saves_model) > 1) & (optimizer is not None):
+        optimizer.load_state_dict(saves_model[1])
 
 def load_json(fpath):
     with open(fpath,'r') as f:
