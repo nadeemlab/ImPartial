@@ -8,17 +8,19 @@ from .utils import to_np
 import numpy as np
 
 class seglosses(nn.Module):
-    def __init__(self,type_loss = 'L2', reduction = None):
+
+    def __init__(self, type_loss = 'L2', reduction = None):
         super(seglosses, self).__init__()
         self.reduction=reduction
         self.type_loss = type_loss
+
     def forward(self, inputs, targets):
 
         if self.type_loss == 'L1':
             ret = torch.abs(inputs - targets)
 
         elif self.type_loss == 'CE':
-            ret = -1*(torch.log(torch.max(inputs,1e-20*torch.ones_like(inputs)))*targets)
+            ret = -1*(torch.log(torch.max(inputs, 1e-20*torch.ones_like(inputs)))*targets)
 
         else:
             ret = (inputs - targets) ** 2
@@ -30,10 +32,12 @@ class seglosses(nn.Module):
 
 
 class reclosses(nn.Module):
-    def __init__(self,type_loss = 'gaussian', reduction = None ):
+
+    def __init__(self, type_loss = 'gaussian', reduction = None ):
         super(reclosses, self).__init__()
         self.reduction=reduction
         self.type_loss = type_loss
+        
     def forward(self, targets, mean = 0, logstd = 0):
 
         if self.type_loss == 'laplacian':
