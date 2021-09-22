@@ -1,3 +1,11 @@
+<!-- PROJECT LOGO -->
+<br />
+<p align="center">
+    <img src="./images/impartial-logo.png" width="50%">
+    <h3 align="center"><strong>ImPartial: Partial Annotations for Cell Instance Segmentation</strong></h3>
+    <p align="center">
+  </p>
+</p>
 
 
 ## Data Folders:
