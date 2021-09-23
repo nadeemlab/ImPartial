@@ -1,6 +1,8 @@
 import numpy as np
+import pandas as pd
+from scipy import ndimage
+from sklearn.metrics import roc_auc_score, jaccard_score
 
-#Code taken from ::
 
 def pixel_sharing_bipartite(lab1, lab2):
     assert lab1.shape == lab2.shape
@@ -10,8 +12,6 @@ def pixel_sharing_bipartite(lab1, lab2):
     return psg
 
 
-from scipy import ndimage
-from sklearn.metrics import roc_auc_score, jaccard_score
 def get_performance(label_gt, y_pred, threshold=0.5, iou_threshold=0.5):
     pred_thresholded = y_pred > threshold
     labels_pred, _ = ndimage.label(pred_thresholded)
@@ -49,8 +49,7 @@ def get_performance(label_gt, y_pred, threshold=0.5, iou_threshold=0.5):
     return metrics
 
 
-import pandas as pd
-def summary_performance(pd_summary, best_all = False, metric = 'AP', group = 'train'):
+def summary_performance(pd_summary, best_all=False, metric='AP', group='train'):
     if best_all: #pick best performance per sample per metric ('best possible achievable')
         row_list = []
         for task in pd_summary.task.unique():
@@ -63,6 +62,7 @@ def summary_performance(pd_summary, best_all = False, metric = 'AP', group = 'tr
                     row_list.append(row)
                 # print(row_list)
         pd_best = pd.DataFrame(data=row_list,columns=pd_summary.columns)
+
     else: #chose best threshold (model) according to metric and group
         ix = 0
         for task in pd_summary.task.unique():
@@ -85,8 +85,7 @@ def summary_performance(pd_summary, best_all = False, metric = 'AP', group = 'tr
     return pd_best
 
 
-import pandas as pd
-def summary_performance_best(pd_summary, best_all = False, metric = 'AP', group = 'train'):
+def summary_performance_best(pd_summary, best_all=False, metric='AP', group='train'):
     if best_all: #pick best performance per sample per metric ('best possible achievable')
         row_list = []
         for segclass in pd_summary.segclass.unique():

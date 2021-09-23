@@ -1,23 +1,26 @@
 import argparse
 import sys
-sys.path.append("../")
-import torch
-import numpy as np
+import os
 import pickle
+import time
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-from general.utils import model_params_load , mkdir, save_json, to_np
+
+import torch
+from torchvision import transforms
+
+sys.path.append("../")
+from general.utils import model_params_load, mkdir, save_json, to_np
 from Impartial.Impartial_functions import get_impartial_outputs
 from general.evaluation import get_performance
-from dataprocessing.dataloaders import Normalize, ToTensor, RandomFlip, ImageSegDataset,ImageBlindSpotDataset
-from torchvision import transforms
-import os
+from dataprocessing.dataloaders import Normalize, ToTensor, RandomFlip, ImageSegDataset, ImageBlindSpotDataset
 
 class ImPartialConfig(argparse.Namespace):
 
-    def __init__(self,config_dic = None,**kwargs):
+    def __init__(self, config_dic=None, **kwargs):
 
-        self.basedir = 'models/'
+        self.basedir = 'models/'  # todo gs
         self.model_name = 'vanilla_model'
         self.best_model = 'weights_best.pth'
         self.last_model = 'weights_last.pth'
@@ -62,17 +65,17 @@ class ImPartialConfig(argparse.Namespace):
 
         #blind spots specific
         self.ratio = 0.95 #(1-ratio)*num_pixels in images will be blind spot
-        self.size_window = (10,10) #window to sample the value of the blind pixel
+        self.size_window = (10, 10) #window to sample the value of the blind pixel
 
         ### Losses ###
         self.seg_loss = 'CE'
         self.rec_loss = 'gaussian'
         self.reg_loss = 'L1'
-        self.classification_tasks = {'0': {'classes': 1, 'rec_channels' : [0], 'ncomponents' : [1,2]}}  # list containing classes 'object types'
+        self.classification_tasks = {'0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [1,2]}}  # list containing classes 'object types'
         self.mean = True
         self.std = False
         self.weight_tasks = None #per segmentation class reconstruction weight
-        self.weight_objectives = {'seg_fore':0.45,'seg_back':0.45,'rec':0.1, 'reg': 0.0}
+        self.weight_objectives = {'seg_fore':0.45, 'seg_back':0.45, 'rec':0.1, 'reg': 0.0}
 
         ### training ###
         self.EPOCHS = 100
@@ -128,14 +131,6 @@ class ImPartialConfig(argparse.Namespace):
             self.drop_last_conv = False
             self.drop_encoder_decoder = True
 
-    # def is_valid(self, return_invalid=False):
-        # Todo! I have to update this properly
-        # ok = {}
-        #
-        # if return_invalid:
-        #     return all(ok.values()), tuple(k for (k, v) in ok.items() if not v)
-        # else:
-        #     return all(ok.values())
 
     def update_parameters(self, allow_new=True, **kwargs):
         if not allow_new:
@@ -149,6 +144,7 @@ class ImPartialConfig(argparse.Namespace):
                 raise AttributeError("Not allowed to add new parameters (%s)" % ', '.join(attr_new))
         for k in kwargs:
             setattr(self, k, kwargs[k])
+
 
     def save_json(self,save_path=None):
         config_dict = self.__dict__
@@ -169,10 +165,12 @@ class ImPartialConfig(argparse.Namespace):
         save_json(config2json, save_path)
         print('Saving config json file in : ', save_path)
 
-    def set_values(self,config_dic):
+    def set_values(self, config_dic):
         if config_dic is not None:
             for k in config_dic.keys():
                 setattr(self, k, config_dic[k])
+
+
 
 class ImPartialModel:
     def __init__(self, config):
@@ -218,19 +216,20 @@ class ImPartialModel:
         print()
         print()
         mkdir(self.config.basedir)
-        mkdir(self.config.basedir+self.config.model_name+'/')
+        mkdir(self.config.basedir + self.config.model_name + '/')  # todo gs
 
         self.dataloader_train = None
         self.dataloader_val = None
         self.history = None
 
+
     def load_network(self, load_file=None):
-        import os
         if os.path.exists(load_file):
             print(' Loading : ', load_file)
-            model_params_load(load_file, self.model, self.optimizer,self.config.DEVICE)
+            model_params_load(load_file, self.model, self.optimizer, self.config.DEVICE)
 
-    def load_dataloaders(self,pd_files_scribbles):
+
+    def load_dataloaders(self, pd_files_scribbles, pd_files):
 
         # ------------------------- Dataloaders --------------------------------#
         print('-- Dataloaders : ')
@@ -249,86 +248,86 @@ class ImPartialModel:
                                               ratio=self.config.ratio, size_window=self.config.size_window,
                                               p_scribble_crop=self.config.p_scribble_crop, shift_crop=self.config.shift_crop,
                                               patch_size=self.config.patch_size, npatch_image=self.config.npatch_image_sampler)
+        
         print('Sampling ' + str(self.config.npatches_epoch) + ' train patches ... ')
+
         dataset_train.sample_patches_data(npatches_total=self.config.npatches_epoch)  # sample first epoch patches
         self.dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=self.config.BATCH_SIZE, shuffle=True,
                                                        num_workers=self.config.n_workers)
 
-        ### Dataloader for evaluation
+
+        ### Dataloader for validation
         transforms_list = []
         if self.config.normstd:
             transforms_list.append(Normalize(mean=0.5, std=0.5))
         transforms_list.append(ToTensor())
-        transform_eval = transforms.Compose(transforms_list)
+        transform_val = transforms.Compose(transforms_list)
 
         # dataset validation
-        dataset_val = ImageBlindSpotDataset(pd_files_scribbles, transform=transform_eval, validation=True,
+        dataset_val = ImageBlindSpotDataset(pd_files_scribbles, transform=transform_val, validation=True,
                                             ratio=1, size_window=self.config.size_window,
                                             p_scribble_crop=self.config.p_scribble_crop, shift_crop=self.config.shift_crop,
                                             patch_size=self.config.patch_size, npatch_image=self.config.npatch_image_sampler)
-        print('Sampling ' + str(self.config.npatches_epoch) + ' validation patches ... ')
+        
+        print('Sampling ' + str(self.config.npatches_epoch) + ' validation patches ...')
         dataset_val.sample_patches_data(npatches_total=self.config.npatches_epoch)  # sample first epoch patches
         self.dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=self.config.BATCH_SIZE,
                                                      shuffle=False, num_workers=self.config.n_workers)
 
 
+        # dataloader full images evaluation
+        # batch size 1 !!!      #gs
+        batch_size = 1
+        dataset_eval = ImageSegDataset(pd_files, transform=transform_val)
+        self.dataloader_eval = torch.utils.data.DataLoader(dataset_eval, batch_size=batch_size, shuffle=False, num_workers=8) 
+
+
+
     def train(self):
 
-        if (self.dataloader_train is not None) & (self.dataloader_val is not None):
+        if (self.dataloader_train == None) or (self.dataloader_val == None) or (self.dataloader_eval == None):
+            print('No train/val/eval dataloader was loaded')
+            return
 
-            # ------------------------- losses --------------------------------#
-            from general.losses import seglosses, reclosses,gradientLoss2d
+        # ------------------------- losses --------------------------------#
+        from general.losses import seglosses, reclosses, gradientLoss2d
 
-            criterio_seg = seglosses(type_loss=self.config.seg_loss, reduction=None)
-            criterio_reg = None
-            if 'reg' in self.config.weight_objectives.keys():
-                if self.config.weight_objectives['reg'] > 0:
-                    criterio_reg = gradientLoss2d(penalty=self.config.reg_loss, reduction='mean')
+        criterio_seg = seglosses(type_loss=self.config.seg_loss, reduction=None)
+        criterio_reg = None
+        if 'reg' in self.config.weight_objectives.keys():
+            if self.config.weight_objectives['reg'] > 0:
+                criterio_reg = gradientLoss2d(penalty=self.config.reg_loss, reduction='mean')
 
-            criterio_rec = None
-            if 'rec' in self.config.weight_objectives.keys():
-                if self.config.weight_objectives['rec'] > 0:
-                    criterio_rec = reclosses(type_loss=self.config.rec_loss, reduction=None)
+        criterio_rec = None
+        if 'rec' in self.config.weight_objectives.keys():
+            if self.config.weight_objectives['rec'] > 0:
+                criterio_rec = reclosses(type_loss=self.config.rec_loss, reduction=None)
 
-            from Impartial.Impartial_functions import compute_impartial_losses
-            def criterio(out, x, scribble, mask):
-                return compute_impartial_losses(out, x, scribble, mask, self.config,
-                                                criterio_seg, criterio_rec,criterio_reg=criterio_reg)
-
-
-
-            # ------------------------- Training --------------------------------#
-            from general.training import recseg_checkpoint_ensemble_trainer
-            history = recseg_checkpoint_ensemble_trainer(self.dataloader_train, self.dataloader_val, self.model,
-                                                         self.optimizer, criterio, self.config)
-
-            for key in history.keys():
-                history[key] = np.array(history[key]).tolist()
-
-            from general.utils import save_json
-            save_json(history, self.config.basedir + self.config.model_name + '/history.json')
-            print('history file saved on : ', self.config.basedir + self.config.model_name + '/history.json')
-
-            return history
-        else:
-            print('No train/val dataloader was loaded')
+        from Impartial.Impartial_functions import compute_impartial_losses
+        def criterio(out, x, scribble, mask):
+            return compute_impartial_losses(out, x, scribble, mask, self.config,
+                                            criterio_seg, criterio_rec, criterio_reg=criterio_reg)
 
 
-    def eval(self, pd_files, default_ensembles=True, model_ensemble_load_files=[]):
 
-        if default_ensembles & (len(model_ensemble_load_files) < 1):
-            model_ensemble_load_files = []
-            for model_file in self.config.val_model_saves_list:
-                model_ensemble_load_files.append(
-                    self.config.basedir + self.config.model_name + '/' + model_file)
+        # ------------------------- Training --------------------------------#
+        from general.training import recseg_checkpoint_ensemble_trainer
+        history = recseg_checkpoint_ensemble_trainer(self.dataloader_train, self.dataloader_val, self.dataloader_eval,
+                                                     self.model, self.optimizer, criterio, self.config)
 
-        if len(model_ensemble_load_files) >= 1:
-            print('Evaluating average predictions of models : ')
-            for model_file in model_ensemble_load_files:
-                print(model_file)
-        elif not default_ensembles:
-            print('Evaluation of currently loaded network')
+        for key in history.keys():
+            history[key] = np.array(history[key]).tolist()
 
+        from general.utils import save_json
+        save_json(history, self.config.basedir + self.config.model_name + '/history.json')    # todo gs
+        print('history file saved on: ', self.config.basedir + self.config.model_name + '/history.json')   # todo gs
+
+        return history
+    
+
+    def data_performance_evaluation(self, pd_files, saveout=False, plot=False, default_ensembles=True, model_ensemble_load_files=[]):
+        
+        start_eval_time = time.time() 
         # ------------ Dataloader ----------#
         transforms_list = []
         if self.config.normstd:
@@ -341,55 +340,14 @@ class ImPartialModel:
         dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files, transform=transform_eval),
                                                       batch_size=batch_size, shuffle=False, num_workers=8) ## Batch size 1 !!!
 
-        # ---------- Evaluation --------------#
-        output_list = []
-        gt_list = []
-        print('Start evaluation...')
-        for batch, data in enumerate(dataloader_eval):
-            print()
-            print('batch : ',batch)
-            Xinput = data['input'].to(self.config.DEVICE)
-
-            ## save ground truth
-            if 'label' in data.keys():
-                Ylabel = data['label'].numpy()
-                gt_list.append(Ylabel)
-
-            ## evaluate ensemble of checkpoints and save outputs
-            if len(model_ensemble_load_files) < 1:
-                self.model.eval()
-                with torch.no_grad():
-                    predictions = (self.model(Xinput)).cpu().numpy()
-            else:
-                predictions = np.empty((0, batch_size, self.config.n_output, Xinput.shape[-2], Xinput.shape[-1]))
-                for model_save in model_ensemble_load_files:
-                    if os.path.exists(model_save):
-                        print(' evaluation of model : ',model_save)
-                        model_params_load(model_save, self.model, self.optimizer, self.config.DEVICE)
-                        self.model.eval()
-
-                        if self.config.MCdrop:
-                            self.model.enable_dropout()
-                            print(' running mcdrop iterations : ',self.config.MCdrop_it)
-                            for it in range(self.config.MCdrop_it):
-                                with torch.no_grad():
-                                    out = to_np(self.model(Xinput))
-                                predictions = np.vstack((predictions, out[np.newaxis,...]))
-                        else:
-                            with torch.no_grad():
-                                out = to_np(self.model(Xinput))
-                            predictions = np.vstack((predictions, out[np.newaxis, ...]))
-
-            output = get_impartial_outputs(predictions, self.config)  # output has keys: class_segmentation, factors
-            output_list.append(output)
-        return output_list, gt_list
-
-
-    def data_performance_evaluation(self, pd_files, saveout=False, plot=False, default_ensembles=True,
-                                    model_ensemble_load_files=[]):
-
-        output_list, gt_list = self.eval(pd_files, default_ensembles=default_ensembles,
-                                         model_ensemble_load_files=model_ensemble_load_files)
+        
+        # ------------------------- Evaluation --------------------------------#
+        from general.training import eval
+        output_list, gt_list = eval(dataloader_eval, self.model, self.optimizer, self.config, epoch=0, saveout=False, 
+                                    default_ensembles=default_ensembles, model_ensemble_load_files=model_ensemble_load_files)
+        
+        end_eval_time = time.time() #gs
+        print('Evaluation time taken:  ', str(end_eval_time - start_eval_time))
 
         th_list = np.linspace(0, 1, 21)[1:-1]
         pd_rows = []
@@ -439,7 +397,7 @@ class ImPartialModel:
                 save_output_dic = self.config.basedir + self.config.model_name + '/output_images/'
                 file_output_save = 'eval_' + prefix + '.pickle'
                 mkdir(save_output_dic)
-                print('Saving output : ',save_output_dic + file_output_save)
+                print('Saving output : ', save_output_dic + file_output_save)
                 with open(save_output_dic + file_output_save, 'wb') as handle:
                     pickle.dump(output, handle)
                 pd_saves_out.append([prefix, file_output_save])
@@ -456,3 +414,4 @@ class ImPartialModel:
             print('pandas outputs file saved in :', save_output_dic + 'pd_output_saves.csv')
 
         return pd_summary
+

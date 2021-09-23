@@ -1,11 +1,12 @@
+import sys
+import numpy as np
+
 import torch
 import torch.nn as nn
 from sklearn.metrics import roc_auc_score
 
-import sys
 sys.path.append("../")
 from .utils import to_np
-import numpy as np
 
 class seglosses(nn.Module):
 

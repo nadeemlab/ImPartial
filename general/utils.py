@@ -12,25 +12,25 @@ def random_seed(seed=1):
     torch.manual_seed(seed)
 
 
-def model_params_save(filename,classifier_network, optimizer, save_optimizer = False):
+def model_params_save(filename, classifier_network, optimizer, save_optimizer = False):
     if save_optimizer:
-        torch.save([classifier_network.state_dict(),optimizer.state_dict()], filename)
+        torch.save([classifier_network.state_dict(), optimizer.state_dict()], filename)
     else:
         torch.save([classifier_network.state_dict()], filename)
 
-def model_params_load(filename,classifier_network, optimizer, DEVICE):
+def model_params_load(filename, classifier_network, optimizer, DEVICE):
     saves_model = torch.load(filename, map_location=DEVICE)
     classifier_network.load_state_dict(saves_model[0])
     if (len(saves_model) > 1) & (optimizer is not None):
         optimizer.load_state_dict(saves_model[1])
 
 def load_json(fpath):
-    with open(fpath,'r') as f:
+    with open(fpath, 'r') as f:
         return json.load(f)
 
-def save_json(data,fpath,**kwargs):
-    with open(fpath,'w') as f:
-        f.write(json.dumps(data,**kwargs))
+def save_json(data, fpath, **kwargs):
+    with open(fpath, 'w') as f:
+        f.write(json.dumps(data, **kwargs))
 
 def mkdir(path):
     Path(path).mkdir(parents=True, exist_ok=True)
