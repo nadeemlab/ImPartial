@@ -3,9 +3,6 @@ import numpy as np
 from scipy.special import softmax
 import torch
 
-sys.path.append("../")
-from general.utils import to_np
-
 
 def compute_impartial_losses(out, input, scribble, mask, config, criterio_seg, criterio_rec, criterio_reg=None):
     rec_loss_dic = {}

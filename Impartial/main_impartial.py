@@ -1,15 +1,12 @@
+import argparse
+import os
 import sys
 import pandas as pd
 import numpy as np
-import os
-import argparse
+from distutils.util import strtobool
 
 sys.path.append("../")
-
-from distutils.util import strtobool
-from dataprocessing.dataloaders import ImageBlindSpotDataset
 from general.utils import mkdir, model_params_load, load_json, save_json
-
 
 cparser = argparse.ArgumentParser()
 
@@ -282,7 +279,7 @@ if __name__== '__main__':
 
         im_model.config.save_json()
         save_json(history, im_model.config.basedir + im_model.config.model_name + '/history.json')
-        print('history file saved on : ', im_model.config.basedir + im_model.config.model_name + '/history.json')
+        print('history file saved on: ', im_model.config.basedir + im_model.config.model_name + '/history.json')
 
     else:
         history = load_json(im_model.config.basedir + im_model.config.model_name + '/history.json')

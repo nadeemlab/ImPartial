@@ -3,16 +3,15 @@ import sys
 import os
 import pickle
 import time
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 import torch
 from torchvision import transforms
 
 sys.path.append("../")
-from general.utils import model_params_load, mkdir, save_json, to_np
-from Impartial.Impartial_functions import get_impartial_outputs
+from general.utils import model_params_load, mkdir, save_json
 from general.evaluation import get_performance
 from dataprocessing.dataloaders import Normalize, ToTensor, RandomFlip, ImageSegDataset, ImageBlindSpotDataset
 
