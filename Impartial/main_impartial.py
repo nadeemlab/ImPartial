@@ -14,6 +14,7 @@ cparser = argparse.ArgumentParser()
 cparser.add_argument('--gpu', action='store', default=0, type=int, help='gpu')
 cparser.add_argument('--model_name', action='store', default='ImPartial', type=str, help='model_name')
 cparser.add_argument('--basedir', action='store', default='/data/natalia/models/ImPartial/', type=str, help='basedir for internal model save')
+cparser.add_argument('--data_dir', action='store', default='/nadeem_lab/Gunjan/data/impartial/', type=str, help='base data dir')
 cparser.add_argument('--seed', action='store', default=42, type=int, help='randomizer seed')
 cparser.add_argument('--saveout', action='store', default=True, type=lambda x: bool(strtobool(x)), help='boolean: batchnorm')
 cparser.add_argument('--load', action='store', default=False, type=lambda x: bool(strtobool(x)), help='boolean: batchnorm')
@@ -82,64 +83,45 @@ cparser = cparser.parse_args()
 
 if __name__== '__main__':
 
+    data_dir = os.path.join(cparser.data_dir, cparser.dataset) #moved outside of 'if'
+    pd_files = pd.read_csv(os.path.join(data_dir, 'files.csv'), index_col=0) 
+    # original files with label ground truth (for final performance evaluation)
+    if cparser.nepochs_sample_patches == 0:
+        cparser.nepochs_sample_patches = 10
+        
     if cparser.dataset == 'Vectra_2CH':
-        data_dir = '/nadeem_lab/Gunjan/data/impartial/Vectra_2CH/'
-        files_scribbles = data_dir + 'files_2tasks1x2classes_3images_scribble_train_' + cparser.scribbles + '.csv'
+        scribble_fname = 'files_2tasks1x2classes_3images_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
         pd_files_scribbles = pd.read_csv(files_scribbles)
 
-        pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0)
         n_channels = 2
         classification_tasks = {'0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [2, 2]},
                                 '1': {'classes': 2, 'rec_channels': [1], 'ncomponents': [1, 1, 2]}}
-        if cparser.nepochs_sample_patches == 0:
-            cparser.nepochs_sample_patches = 10
-
+        
     if cparser.dataset == 'MIBI2CH':
-        data_dir = '/nadeem_lab/Gunjan/data/impartial/MIBI_2CH/'
-        files_scribbles = data_dir + 'files_2tasks1x2classes_3images_scribble_train_' + cparser.scribbles + '.csv'
+        scribble_fname = 'files_2tasks1x2classes_3images_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
         pd_files_scribbles = pd.read_csv(files_scribbles) #scribbles
 
-        pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0) #original files with label ground truth (for final performance evaluation)
         n_channels = 2
         classification_tasks = {'0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [2, 2]},
                                 '1': {'classes': 2, 'rec_channels': [1], 'ncomponents': [1, 1, 2]}}
-        if cparser.nepochs_sample_patches == 0:
-            cparser.nepochs_sample_patches = 10
-
 
     if cparser.dataset == 'Deepcell':
-        # data_dir = '/lab/deasylab1/Saad/Gunjan/code/Impartial/ImPartialtorch-2021-06-01/Data/Deepcell/'
-        data_dir = "/nadeem_lab/Gunjan/data/impartial/Deepcell/"
-        files_scribbles = data_dir + 'files_2tasks_10images_scribble_train_' + cparser.scribbles + '.csv'
+        scribble_fname = 'files_2tasks_10images_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
         pd_files_scribbles = pd.read_csv(files_scribbles) #scribbles
 
-        pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0) #original files with label ground truth (for final performance evaluation)
         n_channels = 2
         classification_tasks = {'0': {'classes': 1, 'rec_channels': [0,1], 'ncomponents': [2, 2]},
                                 '1': {'classes': 1, 'rec_channels': [0], 'ncomponents': [1, 2]}}
-        if cparser.nepochs_sample_patches == 0:
-            cparser.nepochs_sample_patches = 10    
-    
-    if cparser.dataset == 'MIBI1CH':
-        data_dir = '/nadeem_lab/Gunjan/data/impartial/MIBI1CH/'
-        files_scribbles = data_dir + 'files_1task1class_4images_scribble_train_' + cparser.scribbles + '.csv'
-        pd_files_scribbles = pd.read_csv(files_scribbles)
-
-        pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0)
-        n_channels = 1
-
-        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0]}}
-
-        if cparser.nepochs_sample_patches == 0:
-            cparser.nepochs_sample_patches = 10
-
-
+  
     if cparser.dataset == 'cellpose':
-        data_dir = '/nadeem_lab/Gunjan/data/cellpose/'
-        files_scribbles = data_dir + 'files_1task1class_10images_scribble_train_' + cparser.scribbles + '.csv'
+        scribble_fname = 'files_1task1class_10images_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
         pd_files_scribbles = pd.read_csv(files_scribbles)
 
-        pd_files = pd.read_csv(data_dir + 'files.csv')
+        pd_files = pd.read_csv(os.path.join(data_dir, 'files.csv'))
         n_channels = 2
 
         classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0,1]}}
@@ -149,13 +131,11 @@ if __name__== '__main__':
 
 
     if cparser.dataset == 'MIBI1CH_Bladder':
-        data_dir = '/nadeem_lab/Gunjan/data/MIBI1CH/MIBI1CH_Bladder/'
-        files_scribbles = data_dir + 'files_1task1class_10images_scribble_train_' + cparser.scribbles + '.csv'
+        scribble_fname = 'files_1task1class_10images_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
         pd_files_scribbles = pd.read_csv(files_scribbles)
 
-        pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0)
         n_channels = 1
-
         classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0]}}
 
 
@@ -163,13 +143,11 @@ if __name__== '__main__':
             cparser.nepochs_sample_patches = 10
 
     if cparser.dataset == 'MIBI1CH_Lung':
-        data_dir = '/nadeem_lab/Gunjan/data/MIBI1CH/MIBI1CH_Lung/'
-        files_scribbles = data_dir + 'files_1task1class_10images_scribble_train_' + cparser.scribbles + '.csv'
+        scribble_fname = 'files_1task1class_10images_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname) 
         pd_files_scribbles = pd.read_csv(files_scribbles)
 
-        pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0)
         n_channels = 1
-
         classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0]}}
 
 
@@ -191,16 +169,16 @@ if __name__== '__main__':
 
     #------------------------- Config file --------------------------------#
     from Impartial.Impartial_classes import ImPartialConfig
-    patch_size = (cparser.patch,cparser.patch)
-    size_window = (cparser.size_window,cparser.size_window)
+    patch_size = (cparser.patch, cparser.patch)
+    size_window = (cparser.size_window, cparser.size_window)
 
     if cparser.wreg>0:
         weight_objectives = {'seg_fore':cparser.wfore, 'seg_back':cparser.wback, 'rec':cparser.wrec, 'reg':cparser.wreg}
     else:
         weight_objectives = {'seg_fore': cparser.wfore, 'seg_back': cparser.wback, 'rec': cparser.wrec }
 
-    npatch_image_sampler = np.maximum(int(cparser.npatches_epoch/len(pd_files_scribbles)),cparser.min_npatch_image)
-    nepochs_sample_patches = np.maximum(int(cparser.warmup/cparser.nsaves),cparser.nepochs_sample_patches)
+    npatch_image_sampler = np.maximum(int(cparser.npatches_epoch/len(pd_files_scribbles)), cparser.min_npatch_image)
+    nepochs_sample_patches = np.maximum(int(cparser.warmup/cparser.nsaves), cparser.nepochs_sample_patches)
 
 
     config = ImPartialConfig(basedir=cparser.basedir,
@@ -249,23 +227,28 @@ if __name__== '__main__':
                             MCdrop_it = cparser.mcdrop_iter)
 
     mkdir(config.basedir)
-    mkdir(config.basedir+config.model_name+'/')
+
+    mkdir(os.path.join(config.basedir, config.model_name)) #change gs
 
     # ------------------------- Model Setup --------------------------------#
     from Impartial.Impartial_classes import ImPartialModel
     im_model = ImPartialModel(config)
 
+    model_output_dir = os.path.join(im_model.config.basedir, im_model.config.model_name)
     if cparser.load:
-        if os.path.exists(im_model.config.basedir + im_model.config.model_name + '/' + im_model.config.best_model):
-            print(' Loading : ', im_model.config.basedir + im_model.config.model_name + '/' + im_model.config.best_model)
-            model_params_load(im_model.config.basedir + im_model.config.model_name + '/' + im_model.config.best_model,
-                              im_model.model, im_model.optimizer,im_model.config.DEVICE)
+        _path = os.path.join(model_output_dir, im_model.config.best_model)
+        if os.path.exists(_path):
+            print(' Loading: ', _path)
+            model_params_load(_path, im_model.model, im_model.optimizer, im_model.config.DEVICE)
 
     # ------------------------- Training --------------------------------#
+    model_output_hist_path = os.path.join(model_output_dir, 'history.json')
+    model_output_pd_summary_path = os.path.join(model_output_dir, 'pd_summary_results.csv')
+
     if cparser.train:
 
         ## load dataloader
-        im_model.load_dataloaders(pd_files_scribbles, pd_files)
+        im_model.load_dataloaders(data_dir, pd_files_scribbles, pd_files)
 
         ## Train
         history = im_model.train()
@@ -278,16 +261,17 @@ if __name__== '__main__':
         from general.utils import save_json
 
         im_model.config.save_json()
-        save_json(history, im_model.config.basedir + im_model.config.model_name + '/history.json')
-        print('history file saved on: ', im_model.config.basedir + im_model.config.model_name + '/history.json')
+        
+        save_json(history, model_output_hist_path)
+        print('history file saved on: ', model_output_hist_path)
 
     else:
-        history = load_json(im_model.config.basedir + im_model.config.model_name + '/history.json')
+        history = load_json(model_output_hist_path)
 
     # ------------------------- Evaluation --------------------------------#
     if cparser.evaluation:
-        pd_summary = im_model.data_performance_evaluation(pd_files, saveout=cparser.saveout, plot=False, default_ensembles=True)
+        pd_summary = im_model.data_performance_evaluation(data_dir, pd_files, saveout=cparser.saveout, plot=False, default_ensembles=True)
 
-        pd_summary.to_csv(im_model.config.basedir + im_model.config.model_name + '/pd_summary_results.csv', index=0)
-        print('Evaluation csv saved on : ', im_model.config.basedir + im_model.config.model_name + '/pd_summary_results.csv')
+        pd_summary.to_csv(model_output_pd_summary_path, index=0)
+        print('Evaluation csv saved on : ', model_output_pd_summary_path)
 

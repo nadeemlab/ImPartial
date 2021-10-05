@@ -352,7 +352,7 @@ class BaselineModel:
 
             # ------------------------- Training -------------------------------- #
             from general.training import recseg_checkpoint_ensemble_trainer
-            history = recseg_checkpoint_ensemble_trainer(self.dataloader_train, self.dataloader_val, self.model,
+            history = recseg_checkpoint_ensemble_trainer(self.dataloader_train, self.dataloader_val, None, self.model,
                                                          self.optimizer, criterio, self.config)
 
             for key in history.keys():

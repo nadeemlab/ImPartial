@@ -160,7 +160,7 @@ class ImPartialConfig(argparse.Namespace):
                 else:
                     config2json[key] = config_dict[key]
         if save_path is None:
-            save_path =  self.basedir + self.model_name + '/config.json'
+            save_path =  os.path.join(self.basedir, self.model_name, 'config.json')    # todo gs
         save_json(config2json, save_path)
         print('Saving config json file in : ', save_path)
 
@@ -198,9 +198,10 @@ class ImPartialModel:
             else:
                 self.optimizer = optim.SGD(self.model.parameters(), lr=config.LEARNING_RATE)
 
+        self.model_output_dir = os.path.join(self.config.basedir, self.config.model_name)
         print('---------------- Impartial model config created ----------------------------')
         print()
-        print('Model directory:', self.config.basedir + self.config.model_name + '/')
+        print('Model directory:', self.model_output_dir) # todo gs
         print()
         print('-- Config file :')
         print(self.config)
@@ -214,8 +215,7 @@ class ImPartialModel:
         print(self.optimizer)
         print()
         print()
-        mkdir(self.config.basedir)
-        mkdir(self.config.basedir + self.config.model_name + '/')  # todo gs
+        mkdir(self.model_output_dir)  # todo gs
 
         self.dataloader_train = None
         self.dataloader_val = None
@@ -228,7 +228,7 @@ class ImPartialModel:
             model_params_load(load_file, self.model, self.optimizer, self.config.DEVICE)
 
 
-    def load_dataloaders(self, pd_files_scribbles, pd_files):
+    def load_dataloaders(self, data_dir, pd_files_scribbles, pd_files):
 
         # ------------------------- Dataloaders --------------------------------#
         print('-- Dataloaders : ')
@@ -243,7 +243,7 @@ class ImPartialModel:
         transform_train = transforms.Compose(transforms_list)
 
         # dataaset train
-        dataset_train = ImageBlindSpotDataset(pd_files_scribbles, transform=transform_train, validation=False,
+        dataset_train = ImageBlindSpotDataset(pd_files_scribbles, data_dir, transform=transform_train, validation=False,
                                               ratio=self.config.ratio, size_window=self.config.size_window,
                                               p_scribble_crop=self.config.p_scribble_crop, shift_crop=self.config.shift_crop,
                                               patch_size=self.config.patch_size, npatch_image=self.config.npatch_image_sampler)
@@ -263,7 +263,7 @@ class ImPartialModel:
         transform_val = transforms.Compose(transforms_list)
 
         # dataset validation
-        dataset_val = ImageBlindSpotDataset(pd_files_scribbles, transform=transform_val, validation=True,
+        dataset_val = ImageBlindSpotDataset(pd_files_scribbles, data_dir, transform=transform_val, validation=True,
                                             ratio=1, size_window=self.config.size_window,
                                             p_scribble_crop=self.config.p_scribble_crop, shift_crop=self.config.shift_crop,
                                             patch_size=self.config.patch_size, npatch_image=self.config.npatch_image_sampler)
@@ -277,7 +277,7 @@ class ImPartialModel:
         # dataloader full images evaluation
         # batch size 1 !!!      #gs
         batch_size = 1
-        dataset_eval = ImageSegDataset(pd_files, transform=transform_val)
+        dataset_eval = ImageSegDataset(pd_files, data_dir, transform=transform_val)
         self.dataloader_eval = torch.utils.data.DataLoader(dataset_eval, batch_size=batch_size, shuffle=False, num_workers=8) 
 
 
@@ -318,13 +318,14 @@ class ImPartialModel:
             history[key] = np.array(history[key]).tolist()
 
         from general.utils import save_json
-        save_json(history, self.config.basedir + self.config.model_name + '/history.json')    # todo gs
-        print('history file saved on: ', self.config.basedir + self.config.model_name + '/history.json')   # todo gs
+        _path = os.path.join(self.model_output_dir, 'history.json')
+        save_json(history, _path)    # todo gs
+        print('history file saved on: ', _path)   # todo gs
 
         return history
     
 
-    def data_performance_evaluation(self, pd_files, saveout=False, plot=False, default_ensembles=True, model_ensemble_load_files=[]):
+    def data_performance_evaluation(self, data_dir, pd_files, saveout=False, plot=False, default_ensembles=True, model_ensemble_load_files=[]):
         
         start_eval_time = time.time() 
         # ------------ Dataloader ----------#
@@ -336,7 +337,7 @@ class ImPartialModel:
 
         # dataloader full images evaluation
         batch_size = 1
-        dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files, transform=transform_eval),
+        dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files, data_dir, transform=transform_eval),
                                                       batch_size=batch_size, shuffle=False, num_workers=8) ## Batch size 1 !!!
 
         
@@ -393,11 +394,14 @@ class ImPartialModel:
             ## Save output (optional)
             if saveout:
                 prefix = pd_files.iloc[ix_file]['prefix']
-                save_output_dic = self.config.basedir + self.config.model_name + '/output_images/'
+                save_output_dic = os.path.join(self.model_output_dir, 'output_images') # todo gs
                 file_output_save = 'eval_' + prefix + '.pickle'
                 mkdir(save_output_dic)
-                print('Saving output : ', save_output_dic + file_output_save)
-                with open(save_output_dic + file_output_save, 'wb') as handle:
+
+                _path = os.path.join(save_output_dic, file_output_save)
+
+                print('Saving output: ', _path)
+                with open(_path, 'wb') as handle:
                     pickle.dump(output, handle)
                 pd_saves_out.append([prefix, file_output_save])
 
@@ -409,8 +413,9 @@ class ImPartialModel:
 
         if saveout:
             pd_saves = pd.DataFrame(data=pd_saves_out, columns=['prefix', 'output_file'])
-            pd_saves.to_csv(save_output_dic + 'pd_output_saves.csv', index=0)
-            print('pandas outputs file saved in :', save_output_dic + 'pd_output_saves.csv')
+            _path = os.path.join(save_output_dic, 'pd_output_saves.csv')
+            pd_saves.to_csv(_path, index=0)   # todo gs
+            print('pandas outputs file saved in: ', _path)
 
         return pd_summary
 

@@ -159,6 +159,8 @@ def recseg_checkpoint_ensemble_trainer(dataloader_train, dataloader_val, dataloa
     # tic_criterio_list = []
     # tic_final_list = []
 
+    output_path = config.basedir + config.model_name
+
     for epoch in range(config.EPOCHS): #config.epochs should be set super large is not supposed to be the stopping criteria
 
         history['cycle'].append(patch_sampler)
@@ -184,7 +186,7 @@ def recseg_checkpoint_ensemble_trainer(dataloader_train, dataloader_val, dataloa
                 history[key + '_val'].append(output[key])
 
 
-        if (epoch + 1) % 5 == 0:
+        if dataloader_eval and (epoch + 1) % 5 == 0:
             eval(dataloader_eval, model, optimizer, config, epoch)
 
         # tic_list.append(time.perf_counter())
@@ -209,7 +211,9 @@ def recseg_checkpoint_ensemble_trainer(dataloader_train, dataloader_val, dataloa
         if save:
             # print(model_saves_list,patch_sampler)
             # print(model_saves_list[patch_sampler])
-            model_params_save(config.basedir + config.model_name + '/' + model_saves_list[patch_sampler], model, optimizer)  # save best model
+
+            _path = os.path.join(output_path, model_saves_list[patch_sampler])
+            model_params_save(_path, model, optimizer)  # save best model    # todo gs
             epochs_saves_list[-1] = epoch
             loss_saves_list[-1] = stopper.best_loss
             print('saving best model, epoch: ', epoch, ' to : ', model_saves_list[patch_sampler])
@@ -278,9 +282,12 @@ def recseg_checkpoint_ensemble_trainer(dataloader_train, dataloader_val, dataloa
     history['val_epochs_saves_list'] = epochs_saves_list
     history['val_loss_saves_list'] = loss_saves_list
 
-    print('Training Ended, loading best model : ', config.basedir + config.model_name + '/' + model_saves_list[best_model_of_all])
-    model_params_load(config.basedir + config.model_name + '/' + model_saves_list[best_model_of_all], model, optimizer, config.DEVICE)
-    model_params_save(config.basedir + config.model_name + '/' + config.best_model, model, optimizer)  # save best model
+    best_model_of_all_path = os.path.join(output_path, model_saves_list[best_model_of_all])
+    best_model_path = os.path.join(output_path, config.best_model)
+
+    print('Training Ended, loading best model : ', best_model_of_all_path)
+    model_params_load(best_model_of_all_path, model, optimizer, config.DEVICE) # todo gs
+    model_params_save(best_model_path, model, optimizer)  # save best model         # todo gs
 
     return history
 
@@ -288,11 +295,12 @@ def recseg_checkpoint_ensemble_trainer(dataloader_train, dataloader_val, dataloa
 
 def eval(dataloader_eval, model, optimizer, config, epoch, saveout=True, default_ensembles=True, model_ensemble_load_files=[]):
 
+    output_path = config.basedir + config.model_name
+
     if default_ensembles & (len(model_ensemble_load_files) < 1):
         model_ensemble_load_files = []
         for model_file in config.val_model_saves_list:
-            model_ensemble_load_files.append(
-                config.basedir + config.model_name + '/' + model_file)
+            model_ensemble_load_files.append(os.path.join(output_path, model_file))    # todo gs
 
     if len(model_ensemble_load_files) >= 1:
         print('Evaluating average predictions of models : ')
@@ -350,11 +358,12 @@ def eval(dataloader_eval, model, optimizer, config, epoch, saveout=True, default
         output = get_impartial_outputs(predictions, config)  # output has keys: class_segmentation, factors
 
         if saveout:
-            save_output_dic = config.basedir + config.model_name + '/output_images/' + str(epoch) + '/'
+            save_output_dic = os.path.join(output_path, 'output_images', str(epoch))       # todo gs
             file_output_save = 'eval_' + str(idx) + '.pickle'
             mkdir(save_output_dic)
-            print('Saving output : ', save_output_dic + file_output_save)
-            with open(save_output_dic + file_output_save, 'wb') as handle:
+            _path = os.path.join(save_output_dic, file_output_save)
+            print('Saving output : ', _path)           # todo gs
+            with open(_path, 'wb') as handle:
                 pickle.dump(output, handle)
 
         idx += 1

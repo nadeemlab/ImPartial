@@ -76,7 +76,7 @@ if __name__== '__main__':
 
 
     if cparser.dataset == 'Vectra_2CH':
-        data_dir = '/data/natalia/intern20/Vectra_2CH/'
+        data_dir = '/nadeem_lab/Gunjan/data/impartial/Vectra_2CH/'
         files_scribbles = data_dir + 'files_2tasks1x2classes_3images_scribble_train_' + cparser.scribbles + '.csv'
         pd_files_scribbles = pd.read_csv(files_scribbles)
 

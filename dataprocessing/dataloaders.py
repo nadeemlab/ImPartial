@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+import os
 from skimage.util.shape import view_as_windows
 
 import torch
@@ -8,12 +9,12 @@ from torch.utils.data import Dataset
 class ImageBlindSpotDataset(Dataset):
 
     """ reading from Pandas file """
-    def __init__(self, pd, input_dir_tag='input_dir', input_file_tag='input_file',
+    def __init__(self, pd, data_dir, input_file_tag='input_file',      # todo gs
                  scribble_file_tag='scribble_file', transform=None, validation=False,
                  shift_crop=35, p_scribble_crop=0.5, ratio=0.95,
                  size_window=(10,10), patch_size=(128,128), npatch_image=8):
 
-        self.dirfiles = pd[input_dir_tag].values
+        self.data_dir = data_dir        # todo gs
         self.inputfiles = pd[input_file_tag].values
         self.scribblefiles = pd[scribble_file_tag].values
         self.patch_size = patch_size
@@ -44,13 +45,13 @@ class ImageBlindSpotDataset(Dataset):
             time_list.append(time.perf_counter())
 
             # input
-            npz_read = np.load(self.dirfiles[idx] + self.inputfiles[idx])
+            npz_read = np.load(os.path.join(self.data_dir, self.inputfiles[idx]))       # todo gs
             X = npz_read['image']
             if len(X.shape) <= 2:
                 X = X[..., np.newaxis]
 
             # scribbles
-            npz_read = np.load(self.dirfiles[idx] + self.scribblefiles[idx])
+            npz_read = np.load(os.path.join(self.data_dir, self.scribblefiles[idx]))        # todo gs
             S = npz_read['scribble']
             fov_mask = npz_read['val_mask']
             if not self.validation:
@@ -137,8 +138,8 @@ class ImageBlindSpotDataset(Dataset):
         new_h, new_w = self.patch_size
 
         # print(aux.shape)
-        ix = np.argmax(np.random.multinomial(1,probability_mask.flatten() / np.sum(probability_mask.flatten()),
-                                             size=self.npatch_image),axis = 1)
+        ix = np.argmax(np.random.multinomial(1, probability_mask.flatten() / np.sum(probability_mask.flatten()),
+                                             size=self.npatch_image), axis = 1)
         # print(ix)
         center_h = ix // w
         center_w = ix - center_h * w
@@ -168,9 +169,9 @@ class ImageBlindSpotDataset(Dataset):
 class ImageSegDataset(Dataset):
 
     """reading from Pandas file.    """
-    def __init__(self, pd, input_dir_tag = 'input_dir', input_file_tag = 'input_file', transform=None):
+    def __init__(self, pd, data_dir, input_file_tag='input_file', transform=None): # todo gs
 
-        self.dirfiles = pd[input_dir_tag].values
+        self.data_dir = data_dir       # todo gs
         self.inputfiles = pd[input_file_tag].values
         self.transform = transform
 
@@ -180,7 +181,7 @@ class ImageSegDataset(Dataset):
     def __getitem__(self, idx):
 
         #input
-        npz_read = np.load(self.dirfiles[idx] + self.inputfiles[idx])
+        npz_read = np.load(os.path.join(self.data_dir, self.inputfiles[idx]))     # todo gs
         X = npz_read['image']
         if len(X.shape) <= 2:
             X= X[...,np.newaxis]
