@@ -22,14 +22,12 @@
 ```
 NVIDIA GPU (Tested on NVIDIA GPU)
 CUDA CuDNN (CPU mode and CUDA without CuDNN may work with minimal modification)
-Python>=3.0, 3.8.5
 pandas>=1.2.4
 numpy>=1.20.1
 torchvision>=0.2.1
 torch>=0.5.0
-pytorch>=1.4.0
 scikit-image>=0.18.1
-scikit-learn=0.24.1
+scikit-learn>=0.24.1
 scipy>=1.6.2
 ```
 
@@ -38,6 +36,7 @@ scipy>=1.6.2
 
 ## Terminology
 ```
+
 pd_files
 pd_files_scribbles
 files_scribbles
@@ -75,7 +74,7 @@ There are two notebooks for preparing and processing a dataset.
 	2. Select the images you want to use (save_list)
 	3. Select the images from (save_list) to be used in training (train_list). Remaining images to be used in test.
 	4. Set (savedir) path to save .npz files.
-	5. Create `files.csv` which contains names(prefix) and path(input_dir) of train and test images (group)
+	5. Create `files.csv` which contains names (prefix) and path (input_dir) of train and test images (group)
   
 
 * Preprocessing.ipynb (Automated scribble generation of training image from ground-truth labels)
@@ -92,28 +91,28 @@ There are two notebooks for preparing and processing a dataset.
 
 Create the following dataset specific training configuration in main_impartial.py:
 ```
-data_dir = path to datadir containg .npz files
 n_channels = number of input image channels
 classification_tasks = a python dict of tasks and corresponding number of classes, recunstruction channels
 ```
 
 ```python
-if cparser.dataset == 'Deepcell':
-        data_dir = "/nadeem_lab/Gunjan/data/impartial/Deepcell/"
-        files_scribbles = data_dir + 'files_2tasks_10images_scribble_train_' + cparser.scribbles + '.csv'
+    if cparser.dataset == 'Deepcell':
+        scribble_fname = 'files_2tasks_10images_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
         pd_files_scribbles = pd.read_csv(files_scribbles) #scribbles
 
-        # original files with label ground truth (for final performance evaluation)
-        pd_files = pd.read_csv(data_dir + 'files.csv', index_col=0) 
         n_channels = 2
         classification_tasks = {'0': {'classes': 1, 'rec_channels': [0,1], 'ncomponents': [2, 2]},
                                 '1': {'classes': 1, 'rec_channels': [0], 'ncomponents': [1, 2]}}
-        if cparser.nepochs_sample_patches == 0:
-            cparser.nepochs_sample_patches = 10  
 ```
 
 	
 * Select/ adjust training parameters 
+  * Set input file paths in (impartial_bash.sh) file
+  ```
+    data_dir = "path to data directory containg .npz files"
+	data_dir = '/nadeem_lab/Gunjan/data/impartial/' # example
+  ```
   * Set output file paths in (impartial_bash.sh) file
   ```
     basedir_root = " path to output files "
@@ -169,8 +168,49 @@ CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py
 				> "output/path/to/logs"
 ```
 
-## Testing
-[To-Do]
+## Evaluation using Pretrained model
+
+To test the model use the following sample command. 
+Modify the basedir, dataset, model_name to test a different model. 
+Sample Premodels can be downloaded here.
+
+Example evalualtion command
+```
+CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py \
+--basedir=$basedir_root"Deepcell/s400/Impartial/" \
+--dataset="Deepcell" \
+--model_name="Im_2tasks_base64depth4relu_adam5e4_mcdrop1e4_nsave5_segCEGauss_w04501_seed42" \
+--saveout=True \
+--scribbles=400 \
+--gpu=0 \
+--optim_regw=0.0001 \
+--optim="adam" \
+--lr=0.0005 \
+--gradclip=0 \
+--seed=42 \
+--train=False \
+--udepth="4" \
+--ubase="64" \
+--activation="relu" \
+--batchnorm=False \
+--seg_loss="CE" \
+--rec_loss="gaussian" \
+--nsaves=5 \
+--mcdrop=True \
+--reset_optim=True \
+--reset_validation=False  \
+--wfore=0.45 \
+--wback=0.45 \
+--wrec=0.1 \
+--wreg=0.0 \
+--ratio=0.95  \
+--epochs=300 --batch=64 \
+--load=True 
+
+> "output/path/to/logs"
+
+```
+
 
 ## Demo with DeepCell 
 
