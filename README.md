@@ -8,15 +8,20 @@
     |
     <a href="#colabnotebook">Google CoLab Demo</a>
     |
-    <a href="#docker-file">Docker</a>
-    |
     <a href="https://github.com/nadeemlab/ImPartial/issues">Report Bug</a>
     |
     <a href="https://github.com/nadeemlab/ImPartial/issues">Request Feature</a>
   </p>
 </p>
 
+ \
+Segmenting noisy multiplex spatial tissue images constitutes a challenging task, since the characteristics of both the noise and the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary and time costs associated with manual annotations. It is therefore imperative to build algorithms that can accurately segment the noisy images based on a small number of annotations. 
 
+With ImPartial, we have developed an algorithm to improve segmentation with only a few (2-3) training images and with only few user-guided scribbles (minimal user annotation). We proposed a method that augments the segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the segmentation objective can be characterized by a mixture of distributions. This approach leverages the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and introduces a self-supervised classification objective that better aligns with the overall segmentation goal. 
+
+We demonstrate the superior performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging modalities in real clinical settings.
+
+This repository provides training and testing pipeleine using the ImPartial framework.
 
 ## Prerequisites:
 ```
@@ -37,21 +42,27 @@ scipy>=1.6.2
 ## Terminology
 ```
 
-pd_files
-pd_files_scribbles
-files_scribbles
-classification tasks
-ncomponents 
-nclasses
-rec_channels
+pd_files.csv: list of training / testing images
+pd_files_scribbles.csv: list of training images with scribbles
+nclasses: number of classes for segmentation tasks
+rec_channels: number of reconstruction channels
 ```
 
 ## Datasets
 
 | Dataset  | Description |
 | ------------- | ------------- |
-| `Deepcell`  | https://datasets.deepcell.org/  |
+| `MIBI`  | 4  2-channel mibi images, segmentation classes: cytoplasm, nuclei in cytoplasm, nuclei out of cytoplasm  |
+| `Vectra`  | 8  2-channel Vectra images, segmentation classes: cytoplasm, nuclei in cytoplasm, nuclei out of cytoplasm  |
+| `TissueNet`  | https://datasets.deepcell.org/  |
 | `Cellpose`  | https://www.cellpose.org/  |
+
+
+## Pipeline
+
+![figure1_workflow](./images/figure1_workflow.png)
+*A. Overview of the ImPartial pipeline. \
+B. Each image patch is separated into an imputation patch and a blind spot patch. The blind spot patch is fed through the U-Net to recover the component mixture $\rho^m_{\theta}(\cdot)$ and the component statistics $\tau^{m}_{\theta'}(\cdot)$, the latter statistics are averaged across the entire patch to enforce component consistency, both the component statistics and component mixture are used to compute the mixture loss for the patch. Simultaneously, a scribble containing a small number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients back to the U-Net architecture on the backward pass.*
 
 ## Data Preparation and Pre-processing
 
@@ -217,10 +228,10 @@ CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py \
 This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. 
 Here you see the results after every few epochs during training of ImPartial on Tissuenet dataset.
 
-![demo_nucleiseg_gif](./images/deepcell-label-nucleiSeg-image.gif)**Figure1**. *Nuclie segmentation.* The nuclie in input sample is give a few foreground(white) and background(red) scribbles. Image shows intermediate results after every 10th epoch. Final predictons are overlayed on ground truth.
+![demo_nucleiseg_gif](./images/deepcell-label-nucleiSeg-image.gif)**Figure2**. *Nuclie segmentation.* The nuclie in input sample is give a few foreground(white) and background(red) scribbles. Image shows intermediate results after every 10th epoch. Final predictons are overlayed on ground truth.
 
 
-![demo_cytoplasm_gif](./images/deepcell-label-cytoplasmSeg-image.gif)**Figure2**. *Cytoplasm segmentation.* The cytoplasm in input sample is give a few foreground(white) and background(red) scribbles. Image shows intermediate results after every 10th epoch. Final predictons are overlayed on ground truth.
+![demo_cytoplasm_gif](./images/deepcell-label-cytoplasmSeg-image.gif)**Figure3**. *Cytoplasm segmentation.* The cytoplasm in input sample is give a few foreground(white) and background(red) scribbles. Image shows intermediate results after every 10th epoch. Final predictons are overlayed on ground truth.
 
 ## Google CoLab:
 If you don't have access to GPU or appropriate hardware, we have also created [Google CoLab project](link) [To-Do] for your convenience. 
@@ -237,64 +248,15 @@ Please report all issues on the public forum.
 © [Nadeem Lab](https://nadeemlab.org/) - ImPartial code is distributed under **Apache 2.0 with Commons Clause** license, and is available for non-commercial academic purposes. 
 
 
-
-## Acknowledgments
-[To-Do]
-
-
 ## Reference
 If you find our work useful in your research or if you use parts of this code, please cite our paper:
 ```
-[To-Do]
-```
-
-
-
-## Data Folders:
-
-* /MIBI_2CH : 4  2-channel mibi images, segmentation classes: cytoplasm, nuclei in cytoplasm, nuclei out of cytoplasm
-* /Vectra_2CH: 8  2-channel Vectra images, segmentation classes: cytoplasm, nuclei in cytoplasm, nuclei out of cytoplasm
-
-In each dataset folder make sure to change the ‘input_dir’ column values in the .csv files for the correct path of the folder.
-(e.g., 
-
-data_dir = ‘/Data/MIBI_2CH/‘
-
-pd_file = pd.read_csv(data_dir+'files.csv',index_col=0)
-
-pd_file['input_dir'] = data_dir
-
-pd_file.to_csv(data_dir + 'files.csv')
-)
-
-
-
-
-## Examples for running training baseline models :
-
-#### Dataset MIBI_2CH with 150 scribbles:
-
-- Impartial Model : file is /Impartial/main_impartial.py -> Here change the directory of the dataset files (line ~90)
-
-```
-python main_impartial.py --basedir="/data/natalia/models/MIBI2CH/s150/Impartial/" --dataset="MIBI2CH" --model_name="Im_2tasks_base64depth4relu_adam5e4_nsave6_segCEGauss_w04501_seed42" --scribbles=150 --optim_regw=0 --optim="adam" --lr=0.0005 --gradclip=0 --seed=42 --train=True --udepth="4" --ubase="64" --activation="relu" --batchnorm=False --seg_loss="CE" --rec_loss="gaussian" --nsaves=6 --reset_optim=True  --wfore=0.45 --wback=0.45 --wrec=0.1 --ratio=0.95  --epochs=400 --batch=64 --load=False > MIBI2CH_Im_2tasks_verbose.txt
-```
-
-
-- MumfordShah Model : file is /MumfordShah/main_ms.py -> Here change the directory of the dataset files 
-
-```
-python main_ms.py --basedir="/data/natalia/models/MIBI2CH/s150/MS/" --dataset="MIBI2CH" --model_name="MS_2tasks_base64depth4relu_adam5e4_nsave6_segCErecL2_w04501_seed42" --saveout=True --scribbles=150 --optim_regw=0 --optim="adam" --lr=0.0005 --gradclip=0 --seed=42 --train=True --udepth="4" --ubase="64" --activation="relu" --batchnorm=False --seg_loss="CE" --rec_loss="L2" --nsaves=6 --reset_optim=True --wfore=0.45 --wback=0.45 --wrec=0.09 --wreg=0.01 --epochs=400 --batch=64 --load=False > MIBI2CH_MS_2tasks_verbose.txt
-```
-
-- Baseline Model : file is /Baseline/main_bs.py -> Here change the directory of the dataset files 
-
-```
-python main_bs.py --basedir="/data/natalia/models/MIBI2CH/s150/Baseline/" --dataset="MIBI2CH" --model_name="BS_2tasks_base64depth4relu_adam5e4_gclip10_nsave6_segCE_w0500_seed42" --saveout=True --scribbles=150 --gpu=1 --optim_regw=0 --optim="adam" --lr=0.0005 --gradclip=10 --seed=42 --train=True  --udepth="4" --ubase="64" --activation="relu" --batchnorm=False --seg_loss="CE" --nsaves=6 --ratio=0.95  --wfore=0.5 --wback=0.5 --epochs=400 --batch=64 --load=False > MIBI2CH_BS_2tasks_verbose.txt
-```
-
-- Denoiseg Model: file is /Denoiseg/main_denoiseg.py -> Here change the directory of the dataset files 
-
-```
-python main_denoiseg.py --basedir="/data/natalia/models/MIBI2CH/s150/DenoiSeg/" --dataset="MIBI2CH" --model_name="DS_2tasks_base64depth4relu_adam5e4_gclip10_nsave6_segCErecL2_w04501_seed42" --saveout=True --scribbles=150  --optim_regw=0 --optim="adam" --lr=0.0005 --gradclip=10 --seed=42 --train=True  --udepth="4" --ubase="64" --activation="relu" --batchnorm=False --seg_loss="CE" --rec_loss="L2" --nsaves=6  --wfore=0.45 --wback=0.45 --wrec=0.1 --epochs=400 --batch=64 --load=False > MIBI2CH_DS_2tasks_verbose.txt
+@article {Martinez2021.01.20.427458,
+	author = {Martinez, Natalia and Sapiro, Guillermo and Tannenbaum, Allen and Hollmann, Travis J. and Nadeem, Saad},
+	title = {ImPartial: Partial Annotations for Cell Instance Segmentation},
+	elocation-id = {2021.01.20.427458},
+	year = {2021},
+	doi = {10.1101/2021.01.20.427458},
+	publisher = {Cold Spring Harbor Laboratory}
+}
 ```
