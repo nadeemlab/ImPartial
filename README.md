@@ -15,7 +15,7 @@
 </p>
 
 \
-Segmenting noisy multiplex spatial tissue images is a challenging task, since the characteristics of both the noise and the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary and time costs associated with manual annotations. It is therefore important to create algorithms that can accurately segment the noisy images based on a small number of annotations. *With ImPartial, we have developed an algorithm to perform segmentation using only 2-3 training images with few user-provided scribbles. ImPartial augments the segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the segmentation objective can be characterized by a mixture of distributions. This is based on the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and hence a self-supervised classification objective that better aligns with the overall segmentation goal suffices. We demonstrate the superior performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging platform.*
+Segmenting noisy multiplex spatial tissue images is a challenging task, since the characteristics of both the noise and the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary and time costs associated with manual annotations. It is therefore important to create algorithms that can accurately segment the noisy images based on a small number of annotations. *With **ImPartial**, we have developed an algorithm to perform segmentation using only 2-3 training images with few user-provided scribbles. ImPartial augments the segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the segmentation objective can be characterized by a mixture of distributions. This is based on the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and hence a self-supervised classification objective that better aligns with the overall segmentation goal suffices. We demonstrate the superior performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging platform.*
 
 This repository provides training and testing pipeleine using the ImPartial framework.
 
@@ -220,8 +220,7 @@ CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py \
 
 ## Demo with [DeepCell Label](https://github.com/vanvalenlab/deepcell-label)
 
-This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. 
-Here you see the results after every few epochs during training of ImPartial on Tissuenet dataset.
+This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. Deeper integration **COMING SOON!!!** Here you see the results after every few epochs during training of ImPartial on Tissuenet dataset.
 
 ![demo_nucleiseg_gif](./images/deepcell-label-nucleiSeg-image.gif)**Figure2**. *Nuclie segmentation.* The nuclie in input sample is give a few foreground(white) and background(red) scribbles. Image shows intermediate results after every 10th epoch. Final predictons are overlayed on ground truth.
 
