@@ -218,7 +218,7 @@ CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py \
 ```
 
 
-## Demo with DeepCell 
+## Demo with [DeepCell-Label](https://github.com/vanvalenlab/deepcell-label)
 
 This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. 
 Here you see the results after every few epochs during training of ImPartial on Tissuenet dataset.
