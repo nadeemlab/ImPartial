@@ -6,7 +6,7 @@
     <p align="center">
     <a href="https://doi.org/10.1101/2021.01.20.427458">Read Link</a>
     |
-    <a href="#colabnotebook">Google CoLab Demo</a>
+    <a href="https://colab.research.google.com/drive/1kocZUgvi56I9-XjWiwNUzEAzswAPJB-d">Google CoLab Demo</a>
     |
     <a href="https://github.com/nadeemlab/ImPartial/issues">Report Bug</a>
     |

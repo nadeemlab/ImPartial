@@ -58,7 +58,7 @@ class ImPartialConfig(argparse.Namespace):
         self.npatches_epoch = 512 #number of patches that are considered an epoch
 
         self.BATCH_SIZE = 32 #batch size
-        self.n_workers = 32
+        self.n_workers = 2
         self.augmentations = True
         self.normstd = False #normalization
 
@@ -278,7 +278,7 @@ class ImPartialModel:
         # batch size 1 !!!      #gs
         batch_size = 1
         dataset_eval = ImageSegDataset(pd_files, data_dir, transform=transform_val)
-        self.dataloader_eval = torch.utils.data.DataLoader(dataset_eval, batch_size=batch_size, shuffle=False, num_workers=8) 
+        self.dataloader_eval = torch.utils.data.DataLoader(dataset_eval, batch_size=batch_size, shuffle=False, num_workers=2) 
 
 
 
