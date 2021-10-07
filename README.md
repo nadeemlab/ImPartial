@@ -15,11 +15,7 @@
 </p>
 
  \
-Segmenting noisy multiplex spatial tissue images constitutes a challenging task, since the characteristics of both the noise and the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary and time costs associated with manual annotations. It is therefore imperative to build algorithms that can accurately segment the noisy images based on a small number of annotations. 
-
-With ImPartial, we have developed an algorithm to improve segmentation with only a few (2-3) training images and with only few user-guided scribbles (minimal user annotation). We proposed a method that augments the segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the segmentation objective can be characterized by a mixture of distributions. This approach leverages the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and introduces a self-supervised classification objective that better aligns with the overall segmentation goal. 
-
-We demonstrate the superior performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging modalities in real clinical settings.
+Segmenting noisy multiplex spatial tissue images constitutes a challenging task, since the characteristics of both the noise and the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary and time costs associated with manual annotations. It is therefore imperative to build algorithms that can accurately segment the noisy images based on a small number of annotations. *With ImPartial, we have developed an algorithm to improve segmentation with only a few (2-3) training images and with only few user-guided scribbles (minimal user annotation). We proposed a method that augments the segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the segmentation objective can be characterized by a mixture of distributions. This approach leverages the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and introduces a self-supervised classification objective that better aligns with the overall segmentation goal. We demonstrate the superior performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging modalities in real clinical settings.*
 
 This repository provides training and testing pipeleine using the ImPartial framework.
 
@@ -61,8 +57,7 @@ rec_channels: number of reconstruction channels
 ## Pipeline
 
 ![figure1_workflow](./images/figure1_workflow.png)
-*A. Overview of the ImPartial pipeline. \
-B. Each image patch is separated into an imputation patch and a blind spot patch. The blind spot patch is fed through the U-Net to recover the component mixture and the component statistics , the latter statistics are averaged across the entire patch to enforce component consistency, both the component statistics and component mixture are used to compute the mixture loss for the patch. Simultaneously, a scribble containing a small number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients back to the U-Net architecture on the backward pass.*
+*(A) Overview of the ImPartial pipeline. (B) Each image patch is separated into an imputation patch and a blind spot patch. The blind spot patch is fed through the U-Net to recover the component mixture and the component statistics , the latter statistics are averaged across the entire patch to enforce component consistency, both the component statistics and component mixture are used to compute the mixture loss for the patch. Simultaneously, a scribble containing a small number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients back to the U-Net architecture on the backward pass.*
 
 ## Data Preparation and Pre-processing
 
