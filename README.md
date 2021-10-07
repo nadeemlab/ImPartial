@@ -15,7 +15,7 @@
 </p>
 
  \
-Segmenting noisy multiplex spatial tissue images constitutes a challenging task, since the characteristics of both the noise and the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary and time costs associated with manual annotations. It is therefore imperative to build algorithms that can accurately segment the noisy images based on a small number of annotations. *With ImPartial, we have developed an algorithm to improve segmentation with only a few (2-3) training images and with only few user-guided scribbles (minimal user annotation). We proposed a method that augments the segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the segmentation objective can be characterized by a mixture of distributions. This approach leverages the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and introduces a self-supervised classification objective that better aligns with the overall segmentation goal. We demonstrate the superior performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging modalities in real clinical settings.*
+Segmenting noisy multiplex spatial tissue images is a challenging task, since the characteristics of both the noise and the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary and time costs associated with manual annotations. It is therefore important to create algorithms that can accurately segment the noisy images based on a small number of annotations. *With ImPartial, we have developed an algorithm to perform segmentation using only 2-3 training images with few user-provided scribbles. ImPartial augments the segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the segmentation objective can be characterized by a mixture of distributions. This is based on the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and hence a self-supervised classification objective that better aligns with the overall segmentation goal suffices. We demonstrate the superior performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging platform.*
 
 This repository provides training and testing pipeleine using the ImPartial framework.
 
@@ -59,16 +59,16 @@ rec_channels: number of reconstruction channels
 ![figure1_workflow](./images/figure1_workflow.png)
 *(A) Overview of the ImPartial pipeline. (B) Each image patch is separated into an imputation patch and a blind spot patch. The blind spot patch is fed through the U-Net to recover the component mixture and the component statistics , the latter statistics are averaged across the entire patch to enforce component consistency, both the component statistics and component mixture are used to compute the mixture loss for the patch. Simultaneously, a scribble containing a small number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients back to the U-Net architecture on the backward pass.*
 
-## Data Preparation and Pre-processing
+## Data Preparation and Preprocessing
 
 ### Steps
 * Create dataset for ImPartial training
 * Select training images split into train, val, test sets
 * Use preprocessing files to generate input .npz files
-* If Ground-truth labels available:
-  * Use automated skeltonization on groud truth labels to generate scribbles .npz files
-* Without Ground-truth labels:
-  * Create scribbles using deepcell label (link) or other annotation tools 
+* If ground truth labels are available:
+  * Use automated skeltonization on ground truth labels to generate scribbles .npz files
+* If NO ground truth labels:
+  * Create scribbles using [Deepcell label](https://github.com/vanvalenlab/deepcell-label) or other annotation tools such as ImageJ
 
   
 ### Code
@@ -83,19 +83,19 @@ There are two notebooks for preparing and processing a dataset.
 	5. Create `files.csv` which contains names (prefix) and path (input_dir) of train and test images (group)
   
 
-* Preprocessing.ipynb (Automated scribble generation of training image from ground-truth labels)
+* Preprocessing.ipynb (Automated scribble generation of training image from ground truth labels)
 	1. Read files.csv
 	2. Get number of instances per segmentation class
 	3. Define number of scribbles for labels
-	4. Defines percentage validation region (val_perc = 0.4)
-	5. Scribble .npz file is saved in the input_dir path defined in pd_files (files.csv)
-	6. Scribble .csv file is also saved (contains parameters related to scribble)
+	4. Define percentage validation region (val_perc = 0.4)
+	5. Scribbles .npz file is saved in the input_dir path defined in pd_files (files.csv)
+	6. Scribbles .csv file is also saved (contains parameters related to scribbles)
 
 
 
 ## Training 
 
-Create the following dataset specific training configuration in main_impartial.py:
+Create the following dataset-specific training configuration in main_impartial.py:
 ```
 n_channels = number of input image channels
 classification_tasks = a python dict of tasks and corresponding number of classes, recunstruction channels
@@ -218,7 +218,7 @@ CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py \
 ```
 
 
-## Demo with [DeepCell-Label](https://github.com/vanvalenlab/deepcell-label)
+## Demo with [DeepCell Label](https://github.com/vanvalenlab/deepcell-label)
 
 This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. 
 Here you see the results after every few epochs during training of ImPartial on Tissuenet dataset.
