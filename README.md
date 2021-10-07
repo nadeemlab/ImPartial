@@ -14,7 +14,7 @@
   </p>
 </p>
 
- \
+\
 Segmenting noisy multiplex spatial tissue images is a challenging task, since the characteristics of both the noise and the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary and time costs associated with manual annotations. It is therefore important to create algorithms that can accurately segment the noisy images based on a small number of annotations. *With ImPartial, we have developed an algorithm to perform segmentation using only 2-3 training images with few user-provided scribbles. ImPartial augments the segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the segmentation objective can be characterized by a mixture of distributions. This is based on the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and hence a self-supervised classification objective that better aligns with the overall segmentation goal suffices. We demonstrate the superior performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging platform.*
 
 This repository provides training and testing pipeleine using the ImPartial framework.
@@ -229,10 +229,7 @@ Here you see the results after every few epochs during training of ImPartial on 
 ![demo_cytoplasm_gif](./images/deepcell-label-cytoplasmSeg-image.gif)**Figure3**. *Cytoplasm segmentation.* The cytoplasm in input sample is give a few foreground(white) and background(red) scribbles. Image shows intermediate results after every 10th epoch. Final predictons are overlayed on ground truth.
 
 ## Google CoLab:
-If you don't have access to GPU or appropriate hardware, we have also created [Google CoLab project](link) [To-Do] for your convenience. 
-Please follow the steps in the provided notebook to install the requirements and run the training and testing scripts.
-All the libraries and pretrained models have already been set up there. 
-The user can directly run ImPartial on their dataset using the instructions given in the Google CoLab project. 
+If you don't have access to GPU or appropriate hardware, we have also created [Google CoLab project](https://colab.research.google.com/drive/1kocZUgvi56I9-XjWiwNUzEAzswAPJB-d) for your convenience. Please follow the steps in the provided notebook to install the requirements and run the training and testing scripts. All the libraries and pretrained models have already been set up there. The user can directly run ImPartial on their dataset using the instructions given in the Google CoLab project. 
 
 
 ## Issues
