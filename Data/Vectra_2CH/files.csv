@@ -1,0 +1,11 @@
+,prefix,input_dir,input_file,group
+0,image0,/data/natalia/intern20/Vectra_2CH/,image0.npz,test
+1,image1,/data/natalia/intern20/Vectra_2CH/,image1.npz,train
+2,image2,/data/natalia/intern20/Vectra_2CH/,image2.npz,test
+3,image3,/data/natalia/intern20/Vectra_2CH/,image3.npz,train
+4,image4,/data/natalia/intern20/Vectra_2CH/,image4.npz,test
+5,image5,/data/natalia/intern20/Vectra_2CH/,image5.npz,train
+6,image6,/data/natalia/intern20/Vectra_2CH/,image6.npz,test
+7,image7,/data/natalia/intern20/Vectra_2CH/,image7.npz,train
+8,image8,/data/natalia/intern20/Vectra_2CH/,image8.npz,test
+9,image9,/data/natalia/intern20/Vectra_2CH/,image9.npz,train
