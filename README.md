@@ -14,8 +14,8 @@
   </p>
 </p>
 
- \
-Segmenting noisy multiplex spatial tissue images is a challenging task, since the characteristics of both the noise and the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary and time costs associated with manual annotations. It is therefore important to create algorithms that can accurately segment the noisy images based on a small number of annotations. *With ImPartial, we have developed an algorithm to perform segmentation using only 2-3 training images with few user-provided scribbles. ImPartial augments the segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the segmentation objective can be characterized by a mixture of distributions. This is based on the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and hence a self-supervised classification objective that better aligns with the overall segmentation goal suffices. We demonstrate the superior performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging platform.*
+\
+Segmenting noisy multiplex spatial tissue images is a challenging task, since the characteristics of both the noise and the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary and time costs associated with manual annotations. It is therefore important to create algorithms that can accurately segment the noisy images based on a small number of annotations. *With **ImPartial**, we have developed an algorithm to perform segmentation using as few as 2-3 training images with some user-provided scribbles. ImPartial augments the segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the segmentation objective can be characterized by a mixture of distributions. This is based on the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and hence a self-supervised classification objective that better aligns with the overall segmentation goal suffices. We demonstrate the superior performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging platform.*
 
 This repository provides training and testing pipeleine using the ImPartial framework.
 
@@ -57,7 +57,7 @@ rec_channels: number of reconstruction channels
 ## Pipeline
 
 ![figure1_workflow](./images/figure1_workflow.png)
-*(A) Overview of the ImPartial pipeline. (B) Each image patch is separated into an imputation patch and a blind spot patch. The blind spot patch is fed through the U-Net to recover the component mixture and the component statistics , the latter statistics are averaged across the entire patch to enforce component consistency, both the component statistics and component mixture are used to compute the mixture loss for the patch. Simultaneously, a scribble containing a small number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients back to the U-Net architecture on the backward pass.*
+*(A) Overview of the ImPartial pipeline. (B) Each image patch is separated into an imputation patch and a blind spot patch. The blind spot patch is fed through the U-Net to recover the component mixture and the component statistics. The latter statistics are averaged across the entire patch to enforce component consistency. Both the component statistics and component mixture are used to compute the mixture loss for the patch. Simultaneously, a scribble containing a small number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients back to the U-Net architecture on the backward pass.*
 
 ## Data Preparation and Preprocessing
 
@@ -220,19 +220,15 @@ CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py \
 
 ## Demo with [DeepCell Label](https://github.com/vanvalenlab/deepcell-label)
 
-This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. 
-Here you see the results after every few epochs during training of ImPartial on Tissuenet dataset.
+This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. **COMING SOON: We are collaborating with the [VanValen Lab](https://www.vanvalen.caltech.edu/) for a deeper integration of ImPartial with DeepCell Label**. Here you see the results after every few epochs during training of ImPartial on Tissuenet dataset.
 
-![demo_nucleiseg_gif](./images/deepcell-label-nucleiSeg-image.gif)**Figure2**. *Nuclie segmentation.* The nuclie in input sample is give a few foreground(white) and background(red) scribbles. Image shows intermediate results after every 10th epoch. Final predictons are overlayed on ground truth.
+![demo_nucleiseg_gif](./images/deepcell-label-nucleiSeg-image.gif)**Figure2**. *Nuclie segmentation.* The nuclie in input sample is give a few foreground(white) and background(red) scribbles. Image shows intermediate results after every 10th epoch. Final predictons are overlaid on ground truth.
 
 
-![demo_cytoplasm_gif](./images/deepcell-label-cytoplasmSeg-image.gif)**Figure3**. *Cytoplasm segmentation.* The cytoplasm in input sample is give a few foreground(white) and background(red) scribbles. Image shows intermediate results after every 10th epoch. Final predictons are overlayed on ground truth.
+![demo_cytoplasm_gif](./images/deepcell-label-cytoplasmSeg-image.gif)**Figure3**. *Cytoplasm segmentation.* The cytoplasm in input sample is give a few foreground(white) and background(red) scribbles. Image shows intermediate results after every 10th epoch. Final predictons are overlaid on ground truth.
 
 ## Google CoLab:
-If you don't have access to GPU or appropriate hardware, we have also created [Google CoLab project](link) [To-Do] for your convenience. 
-Please follow the steps in the provided notebook to install the requirements and run the training and testing scripts.
-All the libraries and pretrained models have already been set up there. 
-The user can directly run ImPartial on their dataset using the instructions given in the Google CoLab project. 
+If you don't have access to GPU or appropriate hardware, we have also created [Google CoLab project](https://colab.research.google.com/drive/1kocZUgvi56I9-XjWiwNUzEAzswAPJB-d) for your convenience. Please follow the steps in the provided notebook to install the requirements and run the training and testing scripts. All the libraries and pretrained models have already been set up there. The user can directly run ImPartial on their dataset using the instructions given in the Google CoLab project. 
 
 
 ## Issues
