@@ -117,12 +117,12 @@ classification_tasks = a python dict of tasks and corresponding number of classe
   * Set input file paths in (impartial_bash.sh) file
   ```
     data_dir = "path to data directory containg .npz files"
-	data_dir = '/nadeem_lab/Gunjan/data/impartial/' # example
+	data_dir = '/user/data/impartial/' # example
   ```
   * Set output file paths in (impartial_bash.sh) file
   ```
     basedir_root = " path to output files "
-	basedir_root = "/nadeem_lab/Gunjan/experiments/deepcell/models/" # example
+	basedir_root = "/user/experiments/deepcell/models/" # example
   ```
   * Set dataset name
   * Set mcdropout, checkpoint ensembles, no. of epochs etc. 
