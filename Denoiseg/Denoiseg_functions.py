@@ -1,11 +1,13 @@
 import torch
 import sys
+import numpy as np
+
 sys.path.append("../")
 from general.utils import to_np
 from scipy.special import softmax
-import numpy as np
 
-def compute_denoiseg_losses(out,input,scribble,mask,config,criterio_seg,criterio_rec):
+
+def compute_denoiseg_losses(out, input, scribble, mask, config, criterio_seg, criterio_rec):
     rec_loss_dic = {}
     seg_fore_loss_dic = {}
     seg_back_loss_dic = {}
@@ -103,7 +105,7 @@ def get_denoiseg_outputs(out, config):
             # out_seg = to_np(out_seg)
 
             ## class segmentations
-            mean_classification = np.zeros([out_seg.shape[0],nclasses,out_seg.shape[2],out_seg.shape[3]])
+            mean_classification = np.zeros([out_seg.shape[0], nclasses,out_seg.shape[2], out_seg.shape[3]])
 
             ix_seg = 0
             for ix_class in range(nclasses):
