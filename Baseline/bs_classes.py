@@ -1,24 +1,26 @@
 
 import argparse
 import sys
-sys.path.append("../")
-from general.utils import save_json,model_params_load,mkdir,to_np
+import os
 import pandas as pd
 import pickle
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+from torchvision import transforms
+
+sys.path.append("../")
+
+from general.utils import save_json,model_params_load,mkdir,to_np
 from Baseline.bs_functions import get_outputs
 from dataprocessing.dataloaders import Normalize, ToTensor, RandomFlip, ImageSegDataset,ImageBlindSpotDataset
-from torchvision import transforms
-import os
 from general.evaluation import get_performance
 
 
 
 class Config(argparse.Namespace):
 
-    def __init__(self,config_dic = None,**kwargs):
+    def __init__(self, config_dic=None, **kwargs):
 
         self.basedir = 'models/'
         self.model_name = 'vanilla_model'
@@ -145,13 +147,13 @@ class Config(argparse.Namespace):
         for k in kwargs:
             setattr(self, k, kwargs[k])
 
-    def set_values(self,config_dic):
+    def set_values(self, config_dic):
         if config_dic is not None:
             for k in config_dic.keys():
                 setattr(self, k, config_dic[k])
 
 
-    def save_json(self,save_path=None):
+    def save_json(self, save_path=None):
         config_dict = self.__dict__
         config2json = {}
         for key in config_dict.keys():
@@ -166,7 +168,8 @@ class Config(argparse.Namespace):
                 else:
                     config2json[key] = config_dict[key]
         if save_path is None:
-            save_path =  self.basedir + self.model_name + '/config.json'
+            # save_path =  self.basedir + self.model_name + '/config.json'
+            save_path = os.path.join(self.basedir, self.model_name, 'config.json')
         save_json(config2json, save_path)
         print('Saving config json file in : ', save_path)
 
@@ -199,9 +202,10 @@ class BaselineModel:
             else:
                 self.optimizer = optim.SGD(self.model.parameters(), lr=config.LEARNING_RATE)
 
+        self.model_output_dir = os.path.join(self.config.basedir, self.config.model_name)
         print('---------------- Baseline model config created ----------------------------')
         print()
-        print('Model directory:', self.config.basedir + self.config.model_name + '/')
+        print('Model directory:', self.model_output_dir)
         print()
         print('-- Config file :')
         print(self.config)
@@ -216,7 +220,7 @@ class BaselineModel:
         print()
         print()
         mkdir(self.config.basedir)
-        mkdir(self.config.basedir+self.config.model_name+'/')
+        mkdir(self.model_output_dir)
 
         self.dataloader_train = None
         self.dataloader_val = None
@@ -228,7 +232,7 @@ class BaselineModel:
             print(' Loading : ', load_file)
             model_params_load(load_file, self.model, self.optimizer,self.config.DEVICE)
 
-    def load_dataloaders(self,pd_files_scribbles):
+    def load_dataloaders(self, data_dir, pd_files_scribbles):
 
         # ------------------------- Dataloaders --------------------------------#
         print('-- Dataloaders : ')
@@ -243,7 +247,7 @@ class BaselineModel:
         transform_train = transforms.Compose(transforms_list)
 
         # dataaset train
-        dataset_train = ImageBlindSpotDataset(pd_files_scribbles, transform=transform_train, validation=False,
+        dataset_train = ImageBlindSpotDataset(pd_files_scribbles, data_dir, transform=transform_train, validation=False,
                                               ratio=self.config.ratio, size_window=self.config.size_window,
                                               p_scribble_crop=self.config.p_scribble_crop, shift_crop=self.config.shift_crop,
                                               patch_size=self.config.patch_size, npatch_image=self.config.npatch_image_sampler)
@@ -260,7 +264,7 @@ class BaselineModel:
         transform_eval = transforms.Compose(transforms_list)
 
         # dataset validation
-        dataset_val = ImageBlindSpotDataset(pd_files_scribbles, transform=transform_eval, validation=True,
+        dataset_val = ImageBlindSpotDataset(pd_files_scribbles, data_dir, transform=transform_eval, validation=True,
                                             ratio=1, size_window=self.config.size_window,
                                             p_scribble_crop=self.config.p_scribble_crop, shift_crop=self.config.shift_crop,
                                             patch_size=self.config.patch_size, npatch_image=self.config.npatch_image_sampler)
@@ -269,13 +273,12 @@ class BaselineModel:
         self.dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=self.config.BATCH_SIZE,
                                                      shuffle=False, num_workers=self.config.n_workers)
 
-    def eval(self, pd_files, default_ensembles=True, model_ensemble_load_files=[]):
+    def eval(self, pd_files, data_dir, default_ensembles=True, model_ensemble_load_files=[]):
 
         if default_ensembles & (len(model_ensemble_load_files) < 1):
             model_ensemble_load_files = []
             for model_file in self.config.val_model_saves_list:
-                model_ensemble_load_files.append(
-                    self.config.basedir + self.config.model_name + '/' + model_file)
+                model_ensemble_load_files.append(os.path.join(self.model_output_dir, model_file))
 
         if len(model_ensemble_load_files) >= 1:
             print('Evaluating average predictions of models : ')
@@ -293,7 +296,7 @@ class BaselineModel:
 
         # dataloader full images evaluation
         batch_size = 1
-        dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files, transform=transform_eval),
+        dataloader_eval = torch.utils.data.DataLoader(ImageSegDataset(pd_files, data_dir, transform=transform_eval),
                                                       batch_size=batch_size, shuffle=False, num_workers=8) ## Batch size 1 !!!
 
         # ---------- Evaluation --------------#
@@ -359,18 +362,19 @@ class BaselineModel:
                 history[key] = np.array(history[key]).tolist()
 
             from general.utils import save_json
-            save_json(history, self.config.basedir + self.config.model_name + '/history.json')
+            _path = os.path.join(self.model_output_dir, 'history.json')
+            save_json(history, _path)
             self.config.save_json()
-            print('history file saved on : ', self.config.basedir + self.config.model_name + '/history.json')
+            print('history file saved on : ', _path)
             self.history = history
             return history
         else:
             print('No train/val dataloader was loaded')
 
-    def data_performance_evaluation(self, pd_files, saveout=False, plot=False, default_ensembles=True,
+    def data_performance_evaluation(self, pd_files, data_dir, saveout=False, plot=False, default_ensembles=True,
                                     model_ensemble_load_files=[]):
 
-        output_list, gt_list = self.eval(pd_files, default_ensembles=default_ensembles,
+        output_list, gt_list = self.eval(pd_files, data_dir, default_ensembles=default_ensembles,
                                          model_ensemble_load_files=model_ensemble_load_files)
 
         th_list = np.linspace(0, 1, 21)[1:-1]
@@ -418,11 +422,13 @@ class BaselineModel:
             ## Save output (optional)
             if saveout:
                 prefix = pd_files.iloc[ix_file]['prefix']
-                save_output_dic = self.config.basedir + self.config.model_name + '/output_images/'
+                # save_output_dic = self.config.basedir + self.config.model_name + '/output_images/'
+                save_output_dic = os.path.join(self.model_output_dir, 'output_images')
                 file_output_save = 'eval_' + prefix + '.pickle'
                 mkdir(save_output_dic)
-                print('Saving output : ',save_output_dic + file_output_save)
-                with open(save_output_dic + file_output_save, 'wb') as handle:
+                _path = os.path.join(save_output_dic, file_output_save)
+                print('Saving output : ', _path)
+                with open(_path, 'wb') as handle:
                     pickle.dump(output, handle)
                 pd_saves_out.append([prefix, file_output_save])
 
@@ -434,7 +440,8 @@ class BaselineModel:
 
         if saveout:
             pd_saves = pd.DataFrame(data=pd_saves_out, columns=['prefix', 'output_file'])
-            pd_saves.to_csv(save_output_dic + 'pd_output_saves.csv', index=0)
-            print('pandas outputs file saved in :', save_output_dic + 'pd_output_saves.csv')
+            _path = os.path.join(save_output_dic, 'pd_output_saves.csv')    # todo gs
+            pd_saves.to_csv(_path, index=0)
+            print('pandas outputs file saved in :', _path)
 
         return pd_summary
