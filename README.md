@@ -17,7 +17,7 @@
 \
 Segmenting noisy multiplex spatial tissue images is a challenging task, since the characteristics of both the noise and the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary and time costs associated with manual annotations. It is therefore important to create algorithms that can accurately segment the noisy images based on a small number of annotations. *With **ImPartial**, we have developed an algorithm to perform segmentation using as few as 2-3 training images with some user-provided scribbles. ImPartial augments the segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the segmentation objective can be characterized by a mixture of distributions. This is based on the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and hence a self-supervised classification objective that better aligns with the overall segmentation goal suffices. We demonstrate the superior performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging platform.*
 
-This repository provides training and testing pipeleine using the ImPartial framework.
+This repository provides a training and testing pipeline using the ImPartial framework.
 
 ## Prerequisites:
 ```
@@ -113,7 +113,7 @@ classification_tasks = a python dict of tasks and corresponding number of classe
 ```
 
 	
-* Select/ adjust training parameters 
+* Select/adjust training parameters 
   * Set input file paths in (impartial_bash.sh) file
   ```
     data_dir = "path to data directory containg .npz files"
@@ -174,11 +174,11 @@ CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py
 				> "output/path/to/logs"
 ```
 
-## Evaluation using Pretrained model
+## Evaluation Using Pretrained Model
 
 To test the model use the following sample command. 
 Modify the basedir, dataset, model_name to test a different model. 
-Sample Premodels can be downloaded here.
+Sample pretrained models can be downloaded here.
 
 Example evalualtion command
 ```
@@ -220,12 +220,12 @@ CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py \
 
 ## Demo with [DeepCell Label](https://github.com/vanvalenlab/deepcell-label)
 
-This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. **COMING SOON: We are collaborating with the [VanValen Lab](https://www.vanvalen.caltech.edu/) for a deeper integration of ImPartial with DeepCell Label**. Here you see the results after every few epochs during training of ImPartial on Tissuenet dataset.
+This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. **COMING SOON: We are collaborating with the [VanValen Lab](https://www.vanvalen.caltech.edu/) for a deeper integration of ImPartial with DeepCell Label**. Here you see the results after every few epochs during training of ImPartial on the Tissuenet dataset.
 
-![demo_nucleiseg_gif](./images/deepcell-label-nucleiSeg-image.gif)**Figure2**. *Nuclie segmentation.* The nuclie in input sample is give a few foreground(white) and background(red) scribbles. Image shows intermediate results after every 10th epoch. Final predictons are overlaid on ground truth.
+![demo_nucleiseg_gif](./images/deepcell-label-nucleiSeg-image.gif)**Figure2**. *Nuclei segmentation.* The nuclei in the input sample is give a few foreground(white) and background(red) scribbles. The image shows the intermediate results after every 10th epoch. Final predictons are overlaid on the ground truth.
 
 
-![demo_cytoplasm_gif](./images/deepcell-label-cytoplasmSeg-image.gif)**Figure3**. *Cytoplasm segmentation.* The cytoplasm in input sample is give a few foreground(white) and background(red) scribbles. Image shows intermediate results after every 10th epoch. Final predictons are overlaid on ground truth.
+![demo_cytoplasm_gif](./images/deepcell-label-cytoplasmSeg-image.gif)**Figure3**. *Cytoplasm segmentation.* The cytoplasm in the input sample is give a few foreground (white) and background (red) scribbles. The image shows the intermediate results after every 10th epoch. Final predictons are overlaid on the ground truth.
 
 ## Google CoLab:
 If you don't have access to GPU or appropriate hardware, we have also created [Google CoLab project](https://colab.research.google.com/drive/1kocZUgvi56I9-XjWiwNUzEAzswAPJB-d) for your convenience. Please follow the steps in the provided notebook to install the requirements and run the training and testing scripts. All the libraries and pretrained models have already been set up there. The user can directly run ImPartial on their dataset using the instructions given in the Google CoLab project. 
