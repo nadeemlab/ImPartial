@@ -234,7 +234,7 @@ if __name__== '__main__':
     if cparser.train:
 
         ## load dataloader
-        im_model.load_dataloaders(pd_files_scribbles)
+        im_model.load_dataloaders(data_dir, pd_files_scribbles)
 
         history = im_model.train()
 
@@ -255,7 +255,7 @@ if __name__== '__main__':
 
     # ------------------------- Evaluation --------------------------------#
     if cparser.evaluation:
-        pd_summary = im_model.data_performance_evaluation(pd_files, saveout=cparser.saveout, plot=False, default_ensembles=True)
+        pd_summary = im_model.data_performance_evaluation(pd_files, data_dir, saveout=cparser.saveout, plot=False, default_ensembles=True)
 
         pd_summary.to_csv(model_output_pd_summary_path, index=0)
         print('Evaluation csv saved on : ', model_output_pd_summary_path)

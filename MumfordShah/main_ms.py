@@ -15,6 +15,7 @@ cparser = argparse.ArgumentParser()
 cparser.add_argument('--gpu', action='store', default=0, type=int, help='gpu')
 cparser.add_argument('--model_name', action='store', default='Denoiseg', type=str, help='model_name')
 cparser.add_argument('--basedir', action='store', default='/data/natalia/models/DenoiSeg/', type=str, help='basedir for internal model save')
+cparser.add_argument('--data_dir', action='store', default='/nadeem_lab/Gunjan/data/impartial/', type=str, help='base data dir')
 cparser.add_argument('--seed', action='store', default=42, type=int, help='randomizer seed')
 cparser.add_argument('--saveout', action='store', default=False, type=lambda x: bool(strtobool(x)), help='boolean: batchnorm')
 cparser.add_argument('--load', action='store', default=False, type=lambda x: bool(strtobool(x)), help='boolean: batchnorm')
@@ -123,7 +124,7 @@ if __name__== '__main__':
         files_scribbles = os.path.join(data_dir, scribble_fname)
         pd_files_scribbles = pd.read_csv(files_scribbles)
 
-        pd_files = pd.read_csv(data_dir + 'files.csv')
+        pd_files = pd.read_csv(os.path.join(data_dir, 'files.csv'))
         n_channels = 2
 
         classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0,1]}}
@@ -237,7 +238,7 @@ if __name__== '__main__':
     if cparser.train:
 
         ## load dataloader
-        im_model.load_dataloaders(pd_files_scribbles)
+        im_model.load_dataloaders(data_dir, pd_files_scribbles)
 
         history = im_model.train()
 
@@ -257,7 +258,7 @@ if __name__== '__main__':
 
     # ------------------------- Evaluation --------------------------------#
     if cparser.evaluation:
-        pd_summary = im_model.data_performance_evaluation(pd_files, saveout=cparser.saveout, plot=False,
+        pd_summary = im_model.data_performance_evaluation(pd_files, data_dir, saveout=cparser.saveout, plot=False,
                                                           default_ensembles=True)
 
         pd_summary.to_csv(model_output_pd_summary_path, index=0)
