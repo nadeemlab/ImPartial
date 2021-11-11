@@ -73,6 +73,9 @@ cparser.add_argument('--reset_optim', action='store', default=True, type=lambda 
 cparser.add_argument('--nepochs_sample_patches', action='store', default=10, type=int, help='minimum number of epochs before resampling image patches')
 cparser.add_argument('--reset_validation', action='store', default=False, type=lambda x: bool(strtobool(x)), help='boolean: reset optimizer') #reset optimizer between cycles
 
+##Intermediate results
+cparser.add_argument('--save_intermediates', action='store', default=False, type=lambda x: bool(strtobool(x)), help='boolean: save_intermediates?')
+
 ##MCdropout
 cparser.add_argument('--mcdrop', action='store', default=False, type=lambda x: bool(strtobool(x)), help='boolean: mc_dropout?')
 cparser.add_argument('--mcdrop_iter', action='store', default=10, type=int, help='mcdropout iterations during inference')
@@ -222,6 +225,8 @@ if __name__== '__main__':
                             nsaves = cparser.nsaves,
                             reset_optim=cparser.reset_optim,
                             reset_validation=cparser.reset_validation,
+
+                            save_intermediates = cparser.save_intermediates,
 
                             MCdrop = cparser.mcdrop,
                             MCdrop_it = cparser.mcdrop_iter)

@@ -34,6 +34,8 @@ class ImPartialConfig(argparse.Namespace):
         self.reset_optim = True
         self.reset_validation = False
 
+        self.save_intermediates = False
+
         ### MC dropout ###
         self.MCdrop = False
         self.MCdrop_it = 40

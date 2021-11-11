@@ -186,7 +186,7 @@ def recseg_checkpoint_ensemble_trainer(dataloader_train, dataloader_val, dataloa
                 history[key + '_val'].append(output[key])
 
 
-        if dataloader_eval and (epoch + 1) % 5 == 0:
+        if config.save_intermediates and dataloader_eval and (epoch + 1) % 5 == 0:
             eval(dataloader_eval, model, optimizer, config, epoch)
 
         # tic_list.append(time.perf_counter())
