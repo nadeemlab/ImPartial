@@ -220,7 +220,7 @@ CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py \
 
 ## Demo with [DeepCell Label](https://github.com/vanvalenlab/deepcell-label)
 
-This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. **COMING SOON: We are collaborating with the [VanValen Lab](https://www.vanvalen.caltech.edu/) for a deeper integration of ImPartial with DeepCell Label**. Here you see the results after every few epochs during training of ImPartial on the Tissuenet dataset.
+This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. **COMING SOON: We are collaborating with the [VanValen Lab](https://www.vanvalen.caltech.edu/) for a [deeper integration of ImPartial with DeepCell Label](https://github.com/vanvalenlab/deepcell-label/tree/impartial)**. Here you see the results after every few epochs during training of ImPartial on the Tissuenet dataset.
 
 ![demo_nucleiseg_gif](./images/deepcell-label-nucleiSeg-image.gif)**Figure2**. *Nuclei segmentation.* The nuclei in the input sample is give a few foreground(white) and background(red) scribbles. The image shows the intermediate results after every 10th epoch. Final predictons are overlaid on the ground truth.
 
