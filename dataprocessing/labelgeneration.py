@@ -2,15 +2,24 @@ import numpy as np
 from skimage import morphology
 # from preprocessing import generate_patches_syxc
 # from csbdeep.data import RawData
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
-                       radius_pointer=0, disk_scribble=False,sample_back = False):
+                       radius_pointer=0, disk_scribble=False,
+                       sample_back = False, previous_scribbles = None):
     mask_image = np.zeros_like(label_image)
     mask_image[label_image > 0] = 1.0
 
     nlabels = np.unique(label_image[label_image > 0]).shape[0]
     max_labels = np.minimum(max_labels, nlabels)
+
+    exclude_labels = []
+    if previous_scribbles is not None:
+        exclude_labels = list(np.unique(label_image[(label_image > 0) & (previous_scribbles[...,0]>0)]))
+        max_labels = np.minimum(max_labels, nlabels - len(exclude_labels))
+
+
+
 
     ### Set the instance scribble mask mask_sk
     mask_sk = morphology.skeletonize(mask_image) * mask_image
@@ -51,6 +60,25 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
 
     foreground = np.zeros_like(labels_image_res)
     background = np.zeros_like(labels_image_res)
+
+    ## remove from labels_image_res labels to exclude:
+    if len(exclude_labels) > 0:
+
+        label_aux = np.zeros_like(labels_image_res)
+        for label in exclude_labels:
+            label_aux[labels_image_res == label] = 1
+
+        labels_image_res = labels_image_res * (1 - label_aux)
+        fov_image_res = fov_image_res * (1 - label_aux) #dont know if this is necessary
+    #
+    # plt.figure(figsize=(15, 5))
+    # plt.subplot(1,3,1)
+    # plt.imshow(fov_image_res)
+    # plt.subplot(1, 3, 2)
+    # plt.imshow(labels_image_res)
+    # plt.subplot(1, 3, 3)
+    # plt.imshow(label_image)
+    # plt.show()
 
     while nbudget > 0:
 
@@ -101,7 +129,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
                 labels_image_res = labels_image_res * (1 - label_aux)
                 fov_image_res = fov_image_res * (1 - label_aux)
         else:
-            #print('NO labels')
+            # print('NO labels')
             if (np.sum(fov_image_res*bb_image)>0):
                 back_aux = morphology.skeletonize(bb_image*(1-mask_image)*fov_image_res) ## box with background
                 if radius_pointer > 0:
@@ -121,17 +149,31 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
 
         foreground[foreground>0] = 1
         background[background>0] = 1
-        mask_scribbles = np.zeros([mask_image.shape[0], mask_image.shape[1], 2])
-        mask_scribbles[..., 0] = np.array(foreground)  # fore
-        mask_scribbles[..., 1] = np.array(background)   # back
 
-    return mask_scribbles, max_labels - nbudget, nlabels
+        print('budget : ', nbudget)
+
+    mask_scribbles = np.zeros([mask_image.shape[0], mask_image.shape[1], 2])
+    mask_scribbles[..., 0] = np.array(foreground)  # fore
+    mask_scribbles[..., 1] = np.array(background)   # back
+
+    if previous_scribbles is not None:
+        print('Merging with previous scribbles')
+        mask_scribbles = mask_scribbles + previous_scribbles
+        mask_scribbles[mask_scribbles>0] = 1
+
+
+    nscribbles = np.unique(label_image[(label_image > 0) & (mask_scribbles[...,0]>0)]).shape[0] - len(exclude_labels)
+
+
+
+    return mask_scribbles, nscribbles, nlabels
 
 
 def get_scribbles(train_masks, n_labels_total, fov_box=(32, 32),
                   radius_pointer=0,
                   disk_scribble=False,
-                  sample_back = False):
+                  sample_back = False,
+                  previous_scribbles = None):
 
     nlabels_budget = n_labels_total + 0
 
@@ -141,6 +183,7 @@ def get_scribbles(train_masks, n_labels_total, fov_box=(32, 32),
         label_image = np.array(train_masks[i])
         nlabels_total_array[i] = np.unique(label_image).shape[0]-1
     print('total labels per sample (image): ' ,nlabels_total_array)
+    ## order based on number of labels so that the last has the more number of labels if more scribbles are needed for the budget
     ix_order = np.argsort(nlabels_total_array)
 
     Y_out_dic = {}
@@ -151,12 +194,20 @@ def get_scribbles(train_masks, n_labels_total, fov_box=(32, 32),
         i = ix_order[ix]
         label_image = np.array(train_masks[i])
         n_labels_i = np.maximum(2, int(nlabels_budget / (len(train_masks) - ix)))  # budget for i
+
+        if previous_scribbles is not None:
+            previous_scribbles_i = np.array(previous_scribbles[i])
+        else:
+            previous_scribbles_i = None
+
         print(i,nlabels_budget,n_labels_i)
         mask_scribbles, nscribbles, nlabels = get_scribbles_mask(label_image, fov_box=fov_box,
                                                                  max_labels=n_labels_i,
                                                                  radius_pointer=radius_pointer,
                                                                  disk_scribble=disk_scribble,
-                                                                 sample_back = sample_back)
+                                                                 sample_back = sample_back,
+                                                                 previous_scribbles = previous_scribbles_i)
+
         nlabels_budget -= nscribbles
         Y_out_dic[i]= mask_scribbles
         nlabels_dic[i] = nscribbles
@@ -171,6 +222,7 @@ def get_scribbles(train_masks, n_labels_total, fov_box=(32, 32),
         Y_out.append(Y_out_dic[i])
         nlabels_list.append(nlabels_dic[i])
         nlabels_total_list.append(nlabels_total_dic[i])
+
     return Y_out, nlabels_list, nlabels_total_list
 
 # def get_dataset(pd_scribbles,n_patches_per_image_train=30,n_patches_per_image_val=8,patch_size=(128, 128),
