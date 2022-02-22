@@ -230,11 +230,12 @@ This is a proof of concept demo of integration of ImPartial with DeepCell-Label 
 ## Manual Scribbles Using ImageJ
 
 As shown in the below clip, here are the steps for generating manual scribbles:
-* Provide foreground (red) and background(green) scribbles for cytoplasm segmentation task.
+* Provide foreground (red) and background (green) scribbles for cytoplasm segmentation task.
 * Save the overlay image as png
 * The png image is used as an input for "/notebooks/Cellpose/preprocessing_manual_scribble_npz.ipynb" notebook to generate .npz file which contains foreground and background scribbles and validation mask
 
-<video src='./images/manual-scribble-demo.mov' width=480/></video>
+<video src="./images/manual-scribble-demo.mov" width="480"/></video>
+
 **Figure4**. *giving manual scribble using ImageJ.* 
 
 * After the first iteration of training via Impartial we visualize the results and see the outputs in "visualize_output" notebook. We see the segmentation results (probability maps) and analyse error (Entropy maps) if any. 
