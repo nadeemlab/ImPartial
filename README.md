@@ -227,6 +227,20 @@ This is a proof of concept demo of integration of ImPartial with DeepCell-Label 
 
 ![demo_cytoplasm_gif](./images/deepcell-label-cytoplasmSeg-image.gif)**Figure3**. *Cytoplasm segmentation.* The cytoplasm in the input sample is give a few foreground (white) and background (red) scribbles. The image shows the intermediate results after every 10th epoch. Final predictons are overlaid on the ground truth.
 
+## Manual Scribbles Using ImageJ
+
+As shown in the below clip, here are the steps for generating manual scribbles:
+* Provide foreground (red) and background(green) scribbles for cytoplasm segmentation task.
+* Save the overlay image as png
+* The png image is used as an input for "/notebooks/Cellpose/preprocessing_manual_scribble_npz.ipynb" notebook to generate .npz file which contains foreground and background scribbles and validation mask
+
+<video src='./images/manual-scribble-demo.mov' width=480/></video>
+**Figure4**. *giving manual scribble using ImageJ.* 
+
+* After the first iteration of training via Impartial we visualize the results and see the outputs in "visualize_output" notebook. We see the segmentation results (probability maps) and analyse error (Entropy maps) if any. 
+
+* To minimize the percentage in error we can run the second iteration of training by giving a few additional scribbles in the erroneous regions.
+
 ## Google CoLab:
 If you don't have access to GPU or appropriate hardware, we have also created [Google CoLab project](https://colab.research.google.com/drive/1kocZUgvi56I9-XjWiwNUzEAzswAPJB-d) for your convenience. Please follow the steps in the provided notebook to install the requirements and run the training and testing scripts. All the libraries and pretrained models have already been set up there. The user can directly run ImPartial on their dataset using the instructions given in the Google CoLab project. 
 
