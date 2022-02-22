@@ -234,7 +234,7 @@ As shown in the below clip, here are the steps for generating manual scribbles:
 * Save the overlay image as png
 * The png image is used as an input for "/notebooks/Cellpose/preprocessing_manual_scribble_npz.ipynb" notebook to generate .npz file which contains foreground and background scribbles and validation mask
 
-<video src="./images/manual-scribble-demo.mov" width="480"/></video>
+![demo_cytoplasm_gif](./images/manual_scribble_demo.gif)
 
 **Figure4**. *giving manual scribble using ImageJ.* 
 
