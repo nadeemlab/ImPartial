@@ -69,6 +69,10 @@ cparser.add_argument('--nsaves', action='store', default=1, type=int, help='nsav
 cparser.add_argument('--reset_optim', action='store', default=True, type=lambda x: bool(strtobool(x)), help='boolean: reset optimizer') #reset optimizer between cycles
 cparser.add_argument('--nepochs_sample_patches', action='store', default=10, type=int, help='minimum number of epochs before resampling image patches')
 
+##Intermediate results
+cparser.add_argument('--save_intermediates', action='store', default=False, type=lambda x: bool(strtobool(x)), help='boolean: save_intermediates?')
+
+
 ##MCdropout
 cparser.add_argument('--mcdrop', action='store', default=False, type=lambda x: bool(strtobool(x)), help='boolean: mc_dropout?')
 cparser.add_argument('--mcdrop_iter', action='store', default=10, type=int, help='mcdropout iterations during inference')
@@ -207,6 +211,8 @@ if __name__== '__main__':
                             GPU_ID=cparser.gpu,
                             nsaves=cparser.nsaves,
                             reset_optim=cparser.reset_optim,
+                            
+                            save_intermediates = cparser.save_intermediates,
 
                             MCdrop=cparser.mcdrop,
                             MCdrop_it=cparser.mcdrop_iter)

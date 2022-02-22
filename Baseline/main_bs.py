@@ -69,6 +69,9 @@ cparser.add_argument('--nsaves', action='store', default=1, type=int, help='nsav
 cparser.add_argument('--reset_optim', action='store', default=True, type=lambda x: bool(strtobool(x)), help='boolean: reset optimizer') #reset optimizer between cycles
 cparser.add_argument('--nepochs_sample_patches', action='store', default=10, type=int, help='minimum number of epochs before resampling image patches')
 
+##Intermediate results
+cparser.add_argument('--save_intermediates', action='store', default=False, type=lambda x: bool(strtobool(x)), help='boolean: save_intermediates?')
+
 ##MCdropout
 cparser.add_argument('--mcdrop', action='store', default=False, type=lambda x: bool(strtobool(x)), help='boolean: mc_dropout?')
 cparser.add_argument('--mcdrop_iter', action='store', default=10, type=int, help='mcdropout iterations during inference')
@@ -161,6 +164,18 @@ if __name__== '__main__':
         else:
             classification_tasks = {'0': {'classes': 1, 'ncomponents': [1, 1], 'rec_channels': [0,1]}}
 
+    if cparser.dataset == 'DAPI1CH':
+        scribble_fname = 'files_1task1class_17images_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
+        pd_files_scribbles = pd.read_csv(files_scribbles)
+
+        pd_files = pd.read_csv(os.path.join(data_dir, 'files.csv'))
+        n_channels = 1
+
+        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0]}}
+
+        if cparser.nepochs_sample_patches == 0:
+            cparser.nepochs_sample_patches = 10
 
     print('loaded :', files_scribbles)
     print('Total images  train: ', len(pd_files_scribbles),'; test: ', len(pd_files)-len(pd_files_scribbles))
@@ -223,6 +238,8 @@ if __name__== '__main__':
                     nsaves = cparser.nsaves,
                     reset_optim=cparser.reset_optim,
 
+                    save_intermediates = cparser.save_intermediates,
+                    
                     MCdrop = cparser.mcdrop,
                     MCdrop_it=cparser.mcdrop_iter)
 
