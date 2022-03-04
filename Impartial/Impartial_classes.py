@@ -8,6 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 import torch
+from torch import nn
 from torchvision import transforms
 
 sys.path.append("../")
@@ -186,7 +187,11 @@ class ImPartialModel:
                      batchnorm=config.batchnorm, dropout=self.config.drop_encoder_decoder,
                      dropout_lastconv=self.config.drop_last_conv, p_drop=self.config.p_drop)
 
-        self.model = self.model.to(config.DEVICE)
+        if torch.cuda.device_count() > 1:
+            print("Let's use", torch.cuda.device_count(), "GPUs!")
+            self.model = nn.DataParallel(self.model)
+
+        self.model.to(config.DEVICE)
 
         from torch import optim
         if config.optimizer == 'adam':
