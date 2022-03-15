@@ -56,7 +56,7 @@ rec_channels: number of reconstruction channels
 
 ## Pipeline
 
-![figure1_workflow](./images/figure1_workflow.png)
+![figure1_workflow](./images/figure1_workflow_novariance.png)
 *(A) Overview of the ImPartial pipeline. (B) Each image patch is separated into an imputation patch and a blind spot patch. The blind spot patch is fed through the U-Net to recover the component mixture and the component statistics. The latter statistics are averaged across the entire patch to enforce component consistency. Both the component statistics and component mixture are used to compute the mixture loss for the patch. Simultaneously, a scribble containing a small number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients back to the U-Net architecture on the backward pass.*
 
 ## Data Preparation and Preprocessing
@@ -235,7 +235,7 @@ As shown in the below clip, here are the steps for generating manual scribbles:
 * The png image is used as an input for "/notebooks/Cellpose/preprocessing_manual_scribble_npz.ipynb" notebook to generate .npz file which contains foreground and background scribbles and validation mask
 
 ![demo_cytoplasm_gif](./images/manual_scribble_demo.gif)
-
+m
 **Figure4**. *giving manual scribble using ImageJ.* 
 
 * After the first iteration of training via Impartial we visualize the results and see the outputs in "visualize_output" notebook. We see the segmentation results (probability maps) and analyse error (Entropy maps) if any. 
