@@ -2,7 +2,7 @@
 <br />
 <p align="center">
     <img src="./images/impartial-logo.png" width="50%">
-    <h3 align="center"><strong>ImPartial: Interactive deep learning whole-cell segmentation using partial annotations</strong></h3>
+    <h3 align="center"><strong>ImPartial: Interactive deep learning whole-cell segmentation and thresholding using partial annotations</strong></h3>
     <p align="center">
     <a href="https://doi.org/10.1101/2021.01.20.427458">Read Link</a>
     |
@@ -235,8 +235,7 @@ As shown in the below clip, here are the steps for generating manual scribbles:
 * The png image is used as an input for "/notebooks/Cellpose/preprocessing_manual_scribble_npz.ipynb" notebook to generate .npz file which contains foreground and background scribbles and validation mask
 
 ![demo_cytoplasm_gif](./images/manual_scribble_demo.gif)
-m
-**Figure4**. *giving manual scribble using ImageJ.* 
+**Figure4**. *Manual scribbles using ImageJ.* 
 
 * After the first iteration of training via Impartial we visualize the results and see the outputs in "visualize_output" notebook. We see the segmentation results (probability maps) and analyse error (Entropy maps) if any. 
 
