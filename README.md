@@ -2,7 +2,7 @@
 <br />
 <p align="center">
     <img src="./images/impartial-logo.png" width="50%">
-    <h3 align="center"><strong>ImPartial: Interactive deep learning whole-cell segmentation and thresholding using partial annotations</strong></h3>
+    <h3 align="center"><strong>Interactive deep learning whole-cell segmentation and thresholding using partial annotations</strong></h3>
     <p align="center">
     <a href="https://doi.org/10.1101/2021.01.20.427458">Read Link</a>
     |
