@@ -293,7 +293,9 @@ def recseg_checkpoint_ensemble_trainer(dataloader_train, dataloader_val, dataloa
 
 
 
-def eval(dataloader_eval, model, optimizer, config, epoch, saveout=True, default_ensembles=True, model_ensemble_load_files=[]):
+def eval(dataloader_eval, model, optimizer, config, epoch, saveout=True, default_ensembles=True, model_ensemble_load_files=None):
+
+    model_ensemble_load_files = model_ensemble_load_files or []
 
     output_path = config.basedir + config.model_name
 

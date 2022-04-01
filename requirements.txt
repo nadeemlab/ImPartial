@@ -6,3 +6,4 @@ scikit-image>=0.18.1
 scikit-learn>=0.24.1
 scipy>=1.6.2
 matplotlib==3.5.1
+roifile==2022.3.18

@@ -1,131 +1,216 @@
-import sys
+import collections
+from typing import Optional
+
+import torch
+import torch.nn as nn
 import numpy as np
 from scipy.special import softmax
-import torch
+
+from Impartial.Impartial_classes import ImPartialConfig
 
 
-def compute_impartial_losses(out, input, scribble, mask, config, criterio_seg, criterio_rec, criterio_reg=None):
-    rec_loss_dic = {}
-    seg_fore_loss_dic = {}
-    seg_back_loss_dic = {}
-    reg_loss_dic = {}
+def compute_impartial_losses(
+        out: torch.Tensor,
+        input: torch.Tensor,
+        scribble: torch.Tensor,
+        mask: torch.Tensor,
+        config: ImPartialConfig,
+        criterio_seg: nn.Module,
+        criterio_rec: Optional[nn.Module] = None,
+        criterio_reg: Optional[nn.Module] = None
+):
+    """
+    Compute mixed losses.
 
-    total_loss = {}
-    total_loss['rec'] = 0
-    total_loss['seg_fore'] = 0
-    total_loss['seg_back'] = 0
-    total_loss['reg'] = 0
+    Args:
+        out: Output of model evaluation, post-processed using get_impartial_outputs().
+            (batch_size, sum((task.n_classes + 1) * task.n_components + task.n_components * task.n_rec_channels), h, w)
+        input: Input image used for the reconstruction loss. (batch_size, config.n_channels , h, w)
+        scribble: Scribbles for all tasks. (batch_size, sum(tasks.n_classes + 1), h, w)
+        mask: Mask used for the reconstruction loss. (batch_size, config.n_channels , h, w)
+        config: Impartial configuration used to get classification_tasks and weights.
+        criterio_seg: Scribble loss function.
+        criterio_rec: Reconstruction loss function.
+        criterio_reg: Regularization loss function.
 
-    ix = 0 #out channel index
-    ix_scribbles = 0 #scribbles index
-    for class_tasks_key in config.classification_tasks.keys():
-        classification_tasks = config.classification_tasks[class_tasks_key]
-        seg_fore_loss_dic[class_tasks_key] = 0
-        seg_back_loss_dic[class_tasks_key] = 0
+    """
+    total_loss = collections.defaultdict(int)
 
-        nclasses = int(classification_tasks['classes']) #number of classes
-        rec_channels = classification_tasks['rec_channels'] #list with channels to reconstruct
-        nrec_channels = len(rec_channels)
+    seg_fore_loss = collections.defaultdict(int)
+    seg_back_loss = collections.defaultdict(int)
+    rec_loss = collections.defaultdict(int)
+    reg_loss = collections.defaultdict(int)
 
-        ncomponents = np.array(classification_tasks['ncomponents'])
-        if len(out.shape)<= 4:
-            out_seg = torch.nn.Softmax(dim=1)(out[:, ix:ix + np.sum(ncomponents),...]) # batch_size x channels x h x w
-        else:
-            out_seg = torch.nn.Softmax(dim=2)(out[:, :, ix:ix + np.sum(ncomponents), ...])  #predictions x batch_size x channels x h x w
-            out_seg = torch.mean(out_seg,0)
-        ix += np.sum(ncomponents)
+    outputs = outputs_by_task(config.classification_tasks, out)
+    from_npz = False
+    if from_npz:
+        scribbles = scribbles_by_task(config.classification_tasks, scribble)
+    else:
+        scribbles = {'0': scribble}
 
-        ## foreground scribbles loss for each class ##
-        ix_seg = 0
-        for ix_class in range(nclasses):
-            out_seg_class = torch.sum(out_seg[:, ix_seg:ix_seg + ncomponents[ix_class], ...], 1) #batch_size x h x w
-            scribbles_class = scribble[:, ix_scribbles, ...] #batch_size x h x w
-            num_scribbles = torch.sum(scribbles_class, [1, 2]) #batch_size
-            ix_scribbles += 1
-            ix_seg += ncomponents[ix_class]
+    for key, task in config.classification_tasks.items():
+        # Foreground scribbles loss for each class
+        seg_fore_loss[key] = weighted_scribble_loss(
+            outputs=outputs[key]['segmentation']['classes'],
+            scribbles=scribbles[key]['classes'],
+            weights=task['weight_classes'],
+            criterion=criterio_seg
+        )
+        total_loss['seg_fore'] += seg_fore_loss[key] * config.weight_tasks[key]
 
-            if torch.sum(num_scribbles) > 0:
-                seg_class_loss = criterio_seg(out_seg_class, scribbles_class) * scribbles_class #batch_size x h x w
-                seg_class_loss = torch.sum(seg_class_loss, [1, 2]) / torch.max(num_scribbles,torch.ones_like(num_scribbles)) #batch_size
-                seg_class_loss = torch.sum(seg_class_loss)/torch.sum(torch.min(num_scribbles,torch.ones_like(num_scribbles)))
-                seg_fore_loss_dic[class_tasks_key] += classification_tasks['weight_classes'][ix_class]*seg_class_loss #mean of nonzero nscribbles across batch samples
+        # Background
+        seg_back_loss[key] = scribble_loss(
+            output=outputs[key]['segmentation']['background'],  # batch_size x h x w
+            scribble=scribbles[key]['background'],  # batch_size x h x w
+            criterion=criterio_seg
+        )
+        total_loss['seg_back'] += seg_back_loss[key] * config.weight_tasks[key]
 
-        total_loss['seg_fore'] += seg_fore_loss_dic[class_tasks_key] * config.weight_tasks[class_tasks_key]
+        # Reconstruction
+        if criterio_rec:
+            rec_loss[key] = reconstruction_loss(
+                input=input,
+                output=outputs[key]["reconstruction"],
+                out_seg=outputs[key]["segmented"],
+                mask=mask,
+                task=task,
+                criterion=criterio_rec,
+                config=config
+            )
+            total_loss['rec'] += rec_loss[key] * config.weight_tasks[key]
 
-        ## background ##
-        out_seg_back = torch.sum(out_seg[:, ix_seg:ix_seg + ncomponents[ix_class+1], ...],1)  # batch_size x h x w
-        scribbles_back = scribble[:, ix_scribbles, ...]  # batch_size x h x w
-        num_scribbles = torch.sum(scribbles_back, [1, 2])  # batch_size
-        ix_scribbles += 1
-        ix_seg += ncomponents[ix_class+1]
+        # Regularization loss (MS penalty)
+        if criterio_reg:
+            reg_loss[key] = criterio_reg(outputs[key]["segmented"])
+            total_loss['reg'] += reg_loss[key] * config.weight_tasks[key]
 
-        if torch.sum(num_scribbles) > 0:
-            seg_back_loss = criterio_seg(out_seg_back, scribbles_back) * scribbles_back  # batch_size x h x w
-            seg_back_loss = torch.sum(seg_back_loss, [1, 2]) / torch.max(num_scribbles,torch.ones_like(num_scribbles))  # batch_size
-            seg_back_loss_dic[class_tasks_key] += torch.sum(seg_back_loss) / torch.sum(torch.min(num_scribbles,torch.ones_like(num_scribbles)))  # mean of nonzero nscribbles across batch samples
-
-        total_loss['seg_back'] += seg_back_loss_dic[class_tasks_key] * config.weight_tasks[class_tasks_key]
-
-        ## Regularization loss (MS penalty)
-        if criterio_reg is not None:
-            ## Regularization
-            reg_loss_dic[class_tasks_key] = criterio_reg(out_seg)
-            total_loss['reg'] += reg_loss_dic[class_tasks_key] * config.weight_tasks[class_tasks_key]
-
-        ## Reconstruction ##
-        rec_loss_dic[class_tasks_key] = 0
-
-        if (nrec_channels > 0) & (criterio_rec is not None):
-            for ix_ch in range(nrec_channels):
-                ch = rec_channels[ix_ch]
-                # channel to reconstruct for this class object
-                num_mask = torch.sum(1 - mask[:, ch, :, :], [1, 2]) #size batch
-
-                if config.mean:  # mean values per fore+back
-                    # mean_values = torch.mean(out[:, ix:ix + np.sum(ncomponents), ...], [2, 3]) #batch x (nfore*nclasses + nback)
-                    if len(out.shape) <= 4:
-                        mean_values = torch.sum(out[:, ix: ix + np.sum(ncomponents), ...]*out_seg,[2, 3])  # batch x (nfore*nclasses + nback)
-                    else:
-                        mean_values = torch.sum(torch.mean(out[:, :, ix: ix + np.sum(ncomponents), ...],0)*out_seg, [2, 3])  # prediction x batch x (nfore*nclasses + nback)
-                    mean_values = mean_values/torch.sum(out_seg,[2, 3])
-                    ix += np.sum(ncomponents)
-                else:
-                    mean_values = torch.zeros([out_seg.shape[0], np.sum(ncomponents)])
-                    mean_values = mean_values.to(config.DEVICE)
-                mean_values = torch.unsqueeze(torch.unsqueeze(mean_values, -1), -1)
-
-                if config.std:  # logstd values per fore+back
-                    # std_values = torch.mean(out[:, ix:ix + np.sum(ncomponents), ...],[2, 3])  # assume this is log(std)
-                    if len(out.shape) <= 4:
-                        std_values = torch.sum(out[:, ix:ix + np.sum(ncomponents), ...]*out_seg, [2, 3])
-                    else:
-                        std_values = torch.sum(torch.mean(out[:, :, ix: ix + np.sum(ncomponents), ...],0)*out_seg, [2, 3])
-                    std_values = std_values/torch.sum(out_seg,[2, 3])
-                    ix += np.sum(ncomponents)
-                else:
-                    std_values = torch.zeros([out_seg.shape[0], np.sum(ncomponents)])  # assume this is log(std)
-                    std_values = std_values.to(config.DEVICE)
-                std_values = torch.unsqueeze(torch.unsqueeze(std_values, -1), -1)
-
-                mean_x = torch.sum(mean_values * out_seg, 1)
-                std_x = torch.sum(std_values * out_seg, 1)
-                rec_x = criterio_rec(input[:, ch, ...], mean=mean_x, logstd=std_x) * (1 - mask[:, ch, :, :])
-                rec_loss_dic[class_tasks_key] += torch.mean(torch.sum(rec_x, [1, 2]) / num_mask) * classification_tasks['weight_rec_channels'][ix_ch] #average over al channels
-
-            total_loss['rec'] += rec_loss_dic[class_tasks_key] * config.weight_tasks[class_tasks_key]
-
-    ## Additional losses for reference
-    total_loss['seg_fore_classes'] = seg_fore_loss_dic
-    total_loss['seg_back_classes'] = seg_back_loss_dic
-    total_loss['rec_channels'] = rec_loss_dic
-    total_loss['reg_classes'] = reg_loss_dic
+    # Additional losses for reference
+    total_loss['seg_fore_classes'] = seg_fore_loss
+    total_loss['seg_back_classes'] = seg_back_loss
+    total_loss['rec_channels'] = rec_loss
+    total_loss['reg_classes'] = reg_loss
 
     return total_loss
+
+
+def outputs_by_task(tasks, outputs):
+    """
+    Returns model outputs corresponding to each task
+    """
+    res = {}
+
+    out_idx = 0
+    for k, t in tasks.items():
+        step = np.sum(t['ncomponents'])
+
+        out = outputs[:, out_idx:out_idx + step, ...]
+        out_seg = torch.nn.Softmax(dim=1)(out)
+
+        idx = 0
+        seg_classes = []
+        for n in t['ncomponents'][:-1]:
+            seg_classes.append(out_seg[:, idx:idx + n, ...])
+            idx += n
+        seg = {
+            "classes": seg_classes,
+            "background": out_seg[:, idx:idx + t['ncomponents'][-1], ...]
+        }
+        out_idx += step
+
+        res[k] = {
+            "segmentation": seg,
+            "reconstruction": outputs[:, out_idx:out_idx + step, ...],
+            "segmented": out_seg
+        }
+        out_idx += step
+
+    return res
+
+
+def scribbles_by_task(tasks, scribbles):
+    """
+    Return scribbles for each task.
+    """
+    res = {}
+
+    scr_idx = 0
+    for k, t in tasks.items():
+        class_scribbles = []
+        for i in range(t['classes']):
+            class_scribbles.append(scribbles[:, scr_idx, ...])
+            scr_idx += 1
+
+        res[k] = {
+            "classes": class_scribbles,
+            "background": scribbles[:, scr_idx, ...]
+        }
+        scr_idx += 1
+
+    return res
+
+
+def weighted_scribble_loss(outputs, scribbles, weights, criterion):
+    """
+    Compute a weighted average of scribble losses.
+    """
+    return sum(weights[i] * scribble_loss(
+            output=outputs[i],  # batch_size x h x w
+            scribble=scr,  # batch_size x h x w
+            criterion=criterion
+        ) for i, scr in enumerate(scribbles)
+    )
+
+
+def scribble_loss(output, scribble, criterion):
+    """
+    Compute scribble loss.
+
+    Args:
+        output: (batch_size, components, h, w)
+        scribble: (batch_size, h, w)
+    """
+    batch_size = torch.sum(scribble, [1, 2])  # batch_size
+    if torch.sum(batch_size) > 0:
+        loss = criterion(torch.sum(output, 1), scribble) * scribble  # batch_size x h x w
+        loss = torch.sum(loss, [1, 2]) / torch.max(batch_size, torch.ones_like(batch_size))
+        # mean of nonzero nscribbles across batch samples
+        return torch.sum(loss) / torch.sum(torch.min(batch_size, torch.ones_like(batch_size)))
+
+    return 0
+
+
+def reconstruction_loss(input, output, out_seg, mask, task, criterion, config):
+    """
+    Compute reconstruction loss.
+    """
+    # channel to reconstruct for this class object
+    def get_mean(zeros=False):
+        if zeros:
+            ts = torch.zeros([out_seg.shape[0], out_seg.shape[1]]).to(config.DEVICE)
+        else:
+            ts = torch.sum(output * out_seg, [2, 3]) / torch.sum(out_seg, [2, 3]) # batch x (nfore*nclasses + nback)
+        return torch.sum(torch.unsqueeze(torch.unsqueeze(ts, -1), -1) * out_seg, 1)
+
+    mean_x = get_mean(not config.mean)
+    std_x = get_mean(not config.std)
+
+    loss = 0
+    rec_channels = task['rec_channels']  # list with channels to reconstruct
+    for i, ch in enumerate(rec_channels):
+        mask_inv = 1 - mask[:, ch, :, :]
+        num_mask = torch.sum(mask_inv, [1, 2])  # size batch
+
+        rec_x = criterion(input[:, ch, ...], mean=mean_x, logstd=std_x) * mask_inv
+        # average over al channels
+        loss += torch.mean(torch.sum(rec_x, [1, 2]) / num_mask) * task['weight_rec_channels'][i]
+
+    return loss
+
 
 def get_impartial_outputs(out, config):
     output = {}
 
-    if len(out.shape) <= 4: #there are no multiple predictions as in MCdropout or Ensemble: dims are batchxchannelsxwxh
+    if len(out.shape) <= 4:  # there are no multiple predictions as in MCdropout or Ensemble: dims are batchxchannelsxwxh
         ix = 0
         for class_tasks_key in config.classification_tasks.keys():
             output_task = {}
@@ -136,15 +221,15 @@ def get_impartial_outputs(out, config):
             nrec_channels = len(rec_channels)
 
             ncomponents = np.array(classification_tasks['ncomponents'])
-            out_seg = softmax(out[:, ix:ix + np.sum(ncomponents), ...],axis = 1)
+            out_seg = softmax(out[:, ix:ix + np.sum(ncomponents), ...], axis=1)
             ix += np.sum(ncomponents)
 
             ## class segmentations
-            out_classification = np.zeros([out_seg.shape[0],nclasses,out_seg.shape[2],out_seg.shape[3]])
+            out_classification = np.zeros([out_seg.shape[0], nclasses, out_seg.shape[2], out_seg.shape[3]])
 
             ix_seg = 0
             for ix_class in range(nclasses):
-                out_classification[:,ix_class,...] = np.sum(out_seg[:, ix_seg:ix_seg + ncomponents[ix_class], ...], 1)
+                out_classification[:, ix_class, ...] = np.sum(out_seg[:, ix_seg:ix_seg + ncomponents[ix_class], ...], 1)
                 ix_seg += ncomponents[ix_class]
             output_task['class_segmentation'] = out_classification
 
@@ -162,7 +247,7 @@ def get_impartial_outputs(out, config):
                         ix += np.sum(ncomponents)
             output_task['factors'] = output_factors
 
-            #task
+            # task
             output[class_tasks_key] = output_task
     else:
         ix = 0
@@ -173,21 +258,22 @@ def get_impartial_outputs(out, config):
             classification_tasks = config.classification_tasks[class_tasks_key]
             nclasses = int(classification_tasks['classes'])  # number of classes
             rec_channels = classification_tasks['rec_channels']  # list with channels to reconstruct
-            nrec_channels = len(rec_channels)
             ncomponents = np.array(classification_tasks['ncomponents'])
 
-            out_seg = softmax(out[:, :, ix:ix + np.sum(ncomponents), ...], axis=2)  #size : predictions, batch, channels , h, w
+            out_seg = softmax(out[:, :, ix:ix + np.sum(ncomponents), ...],
+                              axis=2)  # size : predictions, batch, channels , h, w
             ix += np.sum(ncomponents)
 
             ## class segmentations
-            mean_classification = np.zeros([out_seg.shape[1],nclasses,out_seg.shape[-2],out_seg.shape[-1]])
+            mean_classification = np.zeros([out_seg.shape[1], nclasses, out_seg.shape[-2], out_seg.shape[-1]])
             variance_classification = np.zeros([out_seg.shape[1], nclasses, out_seg.shape[-2], out_seg.shape[-1]])
 
             ix_seg = 0
             for ix_class in range(nclasses):
-                aux = np.sum(out_seg[:,:, ix_seg:ix_seg + ncomponents[ix_class], ...], 2) #size : predictions, batch, h, w
-                mean_classification[:,ix_class,...] = np.mean(aux,axis=0) #batch, h, w
-                variance_classification[:,ix_class,...] = np.var(aux,axis=0)
+                aux = np.sum(out_seg[:, :, ix_seg:ix_seg + ncomponents[ix_class], ...],
+                             2)  # size : predictions, batch, h, w
+                mean_classification[:, ix_class, ...] = np.mean(aux, axis=0)  # batch, h, w
+                variance_classification[:, ix_class, ...] = np.var(aux, axis=0)
                 ix_seg += ncomponents[ix_class]
             output_task['class_segmentation'] = mean_classification
             output_task['class_segmentation_variance'] = variance_classification
@@ -197,20 +283,22 @@ def get_impartial_outputs(out, config):
             output_factors['components'] = np.mean(out_seg, axis=0)
             output_factors['components_variance'] = np.var(out_seg, axis=0)
 
-            if nrec_channels > 0:
-                for ch in rec_channels:
-                    if config.mean:
-                        output_factors['mean_ch' + str(ch)] = np.mean(out[:, :, ix:ix + np.sum(ncomponents), ...], axis=0)
-                        output_factors['mean_variance_ch' + str(ch)] = np.var(out[:, :, ix:ix + np.sum(ncomponents), ...], axis=0)
-                        ix += np.sum(ncomponents)
+            for ch in rec_channels:
+                if config.mean:
+                    output_factors['mean_ch' + str(ch)] = np.mean(out[:, :, ix:ix + np.sum(ncomponents), ...], axis=0)
+                    output_factors['mean_variance_ch' + str(ch)] = np.var(out[:, :, ix:ix + np.sum(ncomponents), ...],
+                                                                          axis=0)
+                    ix += np.sum(ncomponents)
 
-                    if config.std:
-                        output_factors['logstd_ch' + str(ch)] = np.mean(out[:, :, ix:ix + np.sum(ncomponents), ...], axis=0)
-                        output_factors['logstd_variance_ch' + str(ch)] = np.var(out[:, :, ix:ix + np.sum(ncomponents), ...], axis=0)
-                        ix += np.sum(ncomponents)
+                if config.std:
+                    output_factors['logstd_ch' + str(ch)] = np.mean(out[:, :, ix:ix + np.sum(ncomponents), ...], axis=0)
+                    output_factors['logstd_variance_ch' + str(ch)] = np.var(out[:, :, ix:ix + np.sum(ncomponents), ...],
+                                                                            axis=0)
+                    ix += np.sum(ncomponents)
+
             output_task['factors'] = output_factors
 
-            #task
+            # task
             output[class_tasks_key] = output_task
 
     return output

@@ -103,21 +103,27 @@ class ImPartialConfig(argparse.Namespace):
             DEVICE = torch.device('cpu')
         self.DEVICE = DEVICE
 
-        self.n_output = 0
-        for key in self.classification_tasks.keys():
-            ncomponents = np.sum(np.array(self.classification_tasks[key]['ncomponents']))
-            nrec = len(self.classification_tasks[key]['rec_channels'])
-            nclasses = self.classification_tasks[key]['classes']
-            self.n_output += ncomponents #components of the task
-            if self.mean:
-                self.n_output += ncomponents * nrec
-            if self.std:
-                self.n_output += ncomponents * nrec
+        def get_output_size():
+            output_size = 0
+            for task in self.classification_tasks.values():
+                ncomponents = np.sum(np.array(task['ncomponents']))
+                output_size += ncomponents #components of the task
 
-            if 'weight_classes' not in self.classification_tasks[key].keys():
-                self.classification_tasks[key]['weight_classes'] = [1/nclasses for _ in range(nclasses)]
-            if 'weight_rec_channels' not in self.classification_tasks[key].keys():
-                self.classification_tasks[key]['weight_rec_channels'] = [1/nrec for _ in range(nrec)]
+                nrec = len(task['rec_channels'])
+                output_size += ncomponents * nrec
+
+            return output_size
+
+        self.n_output = get_output_size()
+
+        for task in self.classification_tasks.values():
+            nclasses = task['classes']
+            nrec = len(task['rec_channels'])
+
+            if 'weight_classes' not in task.keys():
+                task['weight_classes'] = [1/nclasses for _ in range(nclasses)]
+            if 'weight_rec_channels' not in task.keys():
+                task['weight_rec_channels'] = [1/nrec for _ in range(nrec)]
 
         if self.weight_tasks is None:
             self.weight_tasks = {}
