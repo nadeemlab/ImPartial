@@ -220,26 +220,12 @@ CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py \
 
 ## Demo with [DeepCell Label](https://github.com/vanvalenlab/deepcell-label)
 
-This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. **COMING SOON: We are collaborating with the [VanValen Lab](https://www.vanvalen.caltech.edu/) for a [deeper integration of ImPartial with DeepCell Label](https://github.com/vanvalenlab/deepcell-label/tree/impartial)**. Here you see the results after every few epochs during training of ImPartial on the Tissuenet dataset.
+This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. Here you see the results after every few epochs during training of ImPartial on the Tissuenet dataset.
 
 ![demo_nucleiseg_gif](./images/deepcell-label-nucleiSeg-image.gif)**Figure2**. *Nuclei segmentation.* The nuclei in the input sample is give a few foreground(white) and background(red) scribbles. The image shows the intermediate results after every 10th epoch. Final predictons are overlaid on the ground truth.
 
 
 ![demo_cytoplasm_gif](./images/deepcell-label-cytoplasmSeg-image.gif)**Figure3**. *Cytoplasm segmentation.* The cytoplasm in the input sample is give a few foreground (white) and background (red) scribbles. The image shows the intermediate results after every 10th epoch. Final predictons are overlaid on the ground truth.
-
-## Manual Scribbles Using ImageJ
-
-As shown in the below clip, here are the steps for generating manual scribbles:
-* Provide foreground (red) and background (green) scribbles for cytoplasm segmentation task.
-* Save the overlay image as png
-* The png image is used as an input for "/notebooks/Cellpose/preprocessing_manual_scribble_npz.ipynb" notebook to generate .npz file which contains foreground and background scribbles and validation mask
-
-![demo_cytoplasm_gif](./images/manual_scribble_demo.gif)
-**Figure4**. *Manual scribbles using ImageJ.* 
-
-* After the first iteration of training via Impartial we visualize the results and see the outputs in "visualize_output" notebook. We see the segmentation results (probability maps) and analyse error (Entropy maps) if any. 
-
-* To minimize the percentage in error we can run the second iteration of training by giving a few additional scribbles in the erroneous regions.
 
 ## Google CoLab:
 If you don't have access to GPU or appropriate hardware, we have also created [Google CoLab project](https://colab.research.google.com/drive/1kocZUgvi56I9-XjWiwNUzEAzswAPJB-d) for your convenience. Please follow the steps in the provided notebook to install the requirements and run the training and testing scripts. All the libraries and pretrained models have already been set up there. The user can directly run ImPartial on their dataset using the instructions given in the Google CoLab project. 
