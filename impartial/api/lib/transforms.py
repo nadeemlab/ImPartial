@@ -4,21 +4,20 @@ import math
 import pathlib
 from typing import Tuple
 
+import torch
 import numpy as np
 import openslide
-import torch
-from monai.apps.deepgrow.transforms import AddInitialSeedPointd
-from monai.config import KeysCollection
-from monai.transforms import CenterSpatialCrop, MapTransform, Transform
 from PIL import Image
 import skimage
 from skimage.filters.thresholding import threshold_otsu
 from skimage.morphology import remove_small_objects
 
-from Impartial.Impartial_classes import ImPartialConfig
-from Impartial.Impartial_functions import outputs_by_task
+from monai.apps.deepgrow.transforms import AddInitialSeedPointd
+from monai.config import KeysCollection
+from monai.transforms import CenterSpatialCrop, MapTransform, Transform
+
+from impartial.Impartial_classes import ImPartialConfig
 from dataprocessing.dataloaders import random_crop, compute_probability_map, blind_spot_patch
-from dataprocessing import dataloaders
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class LoadPNGFile(MapTransform):
         res = copy.deepcopy(data)
 
         img = skimage.io.imread(data["image_path"])
-        res["image"] = np.array(img)[..., np.newaxis].astype("float32")
+        res["image"] = img[..., np.newaxis].astype("float32")
 
         return res
 
@@ -118,53 +117,14 @@ class BlindSpotPatch(MapTransform):
         self.size_window = size_window
 
     def __call__(self, data):
-        res = copy.deepcopy(data)
+        d = dict(data)
 
-        input, mask = blind_spot_patch(res["image"][..., np.newaxis])
+        input, mask = blind_spot_patch(d["image"][np.newaxis, ...])
 
-        res["input"] = input[..., 0]
-        res["mask"] = mask[..., 0]
+        d["input"] = input[..., 0]
+        d["mask"] = mask[..., 0]
 
-        return res
-
-
-class RandomFlip(MapTransform):
-    def __init__(
-            self, keys: KeysCollection
-    ):
-        super().__init__(keys)
-
-    def __call__(self, data):
-        res = copy.deepcopy(data)
-
-        res.update(dataloaders.RandomFlip()(res))
-
-        return res
-
-
-class ToTensor(MapTransform):
-    def __init__(
-            self, keys: KeysCollection
-    ):
-        super().__init__(keys)
-
-    def __call__(self, data):
-        res = copy.deepcopy(data)
-
-        for key in self.keys:
-            res[key] = torch.from_numpy(data[key].astype(np.float32))
-
-        return res
-
-
-class DoNothing(MapTransform):
-    def __init__(
-            self, keys: KeysCollection
-    ):
-        super().__init__(keys)
-
-    def __call__(self, data):
-        return copy.deepcopy(data)
+        return d
 
 
 class GetImpartialOutputs(MapTransform):
@@ -175,16 +135,30 @@ class GetImpartialOutputs(MapTransform):
         super().__init__(keys)
 
     def __call__(self, data):
-        res = copy.deepcopy(data)
+        d = dict(data)
 
-        outputs = outputs_by_task(
-            tasks=self.iconfig.classification_tasks,
-            outputs=torch.unsqueeze(res["pred"], 0)
-        )
+        # tasks = self.iconfig.classification_tasks
+        # d["output"] = outputs_by_task(tasks, torch.unsqueeze(d["pred"], 0))
+        d["output"] = d["pred"][:4, ...]
 
-        res["output"] = np.sum(outputs["0"]["segmentation"]["classes"][0].cpu().numpy(), 1)
+        return d
 
-        return res
+
+class AddForegroundOutput(MapTransform):
+    def __init__(
+            self, keys: KeysCollection, iconfig: ImPartialConfig
+    ):
+        self.iconfig = iconfig
+        super().__init__(keys)
+
+    def __call__(self, data):
+        d = dict(data)
+
+        # assume 1 task and 1 class only
+        step = self.iconfig.classification_tasks["0"]["ncomponents"][0]
+        for key in self.key_iterator(d):
+            d[key] = torch.sum(d[key][:step, ...], dim=0)
+        return d
 
 
 class LoadImagePatchd(MapTransform):

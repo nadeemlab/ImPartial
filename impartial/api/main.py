@@ -1,19 +1,20 @@
+
+
 import logging
 import os
 from distutils.util import strtobool
 from typing import Dict
-
-from monailabel.config import settings
-from monailabel.datastore.local import LocalDatastore
-
-import lib.configs
 
 from monailabel.interfaces.app import MONAILabelApp
 from monailabel.interfaces.config import TaskConfig
 from monailabel.interfaces.datastore import Datastore
 from monailabel.interfaces.tasks.infer import InferTask
 from monailabel.interfaces.tasks.train import TrainTask
+from monailabel.datastore.local import LocalDatastore
 from monailabel.utils.others.class_utils import get_class_names
+from monailabel.config import settings
+
+import lib.configs
 
 logger = logging.getLogger(__name__)
 

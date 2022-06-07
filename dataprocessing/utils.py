@@ -7,6 +7,7 @@ import cv2 as cv
 import numpy as np
 from PIL import Image
 from scipy import ndimage
+from skimage import morphology, measure
 
 
 def rois_to_mask(zip_path, size, sample_rate=1):
@@ -30,6 +31,61 @@ def rois_to_mask(zip_path, size, sample_rate=1):
         cv.fillPoly(mask, pts=[contour], color=255)
 
     return mask
+
+
+def rois_to_labels(zip_path, size, sample_rate=1):
+    rois = roifile.roiread(zip_path)
+
+    roi_samples = random.sample(rois, int(len(rois) * sample_rate))
+    roi_contours = [get_contour(roi) for roi in roi_samples]
+
+    return np.stack((
+        generate_foreground_scribble(roi_contours, size),
+        generate_background_scribble(roi_contours, size)
+    ), 2)
+
+
+def generate_foreground_scribble(contours, size):
+    foreground_scribble = np.zeros(size).astype(np.uint8)
+
+    for c in contours:
+        mask = np.zeros(size).astype(np.uint8)
+        cv.fillPoly(mask, pts=[c], color=1)
+
+        eroded = morphology.binary_erosion(mask, footprint=np.ones((5, 5))).astype(np.uint8)
+        skeletonized = morphology.skeletonize(eroded).astype(np.uint8)
+
+        foreground_contours = np.zeros(eroded.shape)
+        for c in measure.find_contours(eroded):
+            c = c.astype(np.uint32)
+            foreground_contours[c[:, 0], c[:, 1]] = 1
+
+        foreground_scribble += skeletonized + foreground_contours.astype(np.uint8)
+
+    return np.clip(foreground_scribble, 0, 1)
+
+
+def generate_background_scribble(contours, size):
+    mask = np.zeros(size).astype(np.uint8)
+    for c in contours:
+        cv.polylines(mask, pts=[c], color=1, isClosed=True)
+
+    return mask
+
+
+def get_contour(roi):
+    if roi.integer_coordinates is not None:
+        coord = roi.integer_coordinates
+        coord[:, 0] += roi.left
+        coord[:, 1] += roi.top
+
+    elif roi.multi_coordinates is not None:
+        coord = ImagejRoi.path2coords(roi.multi_coordinates)[0]
+
+    else:
+        raise RuntimeError("ROI type not supported")
+
+    return np.asarray(coord).astype(np.int32)
 
 
 def read_files(path):
@@ -75,21 +131,22 @@ def validation_mask(scribble, val_split):
     # remove borders
     val_size = [int(scribble_mask.shape[0] * val_split / 2),
                 int(scribble_mask.shape[1] * val_split / 2)]  # validation region
-    scribble_mask[-val_size[0]:, :] = 0
-    scribble_mask[:, -val_size[1]:] = 0
-    scribble_mask[0:val_size[0], :] = 0
-    scribble_mask[:, 0:val_size[1]] = 0
+    # scribble_mask[-val_size[0]:, :] = 0
+    # scribble_mask[:, -val_size[1]:] = 0
+    # scribble_mask[0:val_size[0], :] = 0
+    # scribble_mask[:, 0:val_size[1]] = 0
 
     val_center = np.random.multinomial(
         n=1,
-        pvals=scribble_mask.flatten() / np.sum(scribble_mask.flatten()),
-        size=1).flatten()
+        pvals=scribble_mask.flatten() / np.sum(scribble_mask),
+        size=1
+    ).flatten()
 
     center = np.argmax(val_center)
-    row = int(np.floor(center / scribble_mask.shape[1]))
-    col = int(center - row * scribble_mask.shape[1])
+    row = np.clip(int(np.floor(center / scribble_mask.shape[1])), val_size[1], scribble_mask.shape[1] - val_size[1])
+    col = np.clip(int(center - row * scribble_mask.shape[1]), val_size[1], scribble_mask.shape[1] - val_size[1])
 
-    mask = np.zeros([scribble_mask.shape[0], scribble_mask.shape[1]])
+    mask = np.zeros(scribble_mask.shape)
     mask[row - val_size[0]:row + val_size[0], col - val_size[1]:col + val_size[1]] = 1
 
     return mask.astype(np.uint8)
@@ -97,7 +154,7 @@ def validation_mask(scribble, val_split):
 
 def transform_dataset(dataset_dir, output_dir):
     """
-    Transform PNG images of any size and a zip file
+    Transform PNG images of any size with corresponding zip files
     containing a list of ImageJ ROIs files into a
     list of 400 x 400 images with the corresponding
     binary mask label built from the ROIs zip

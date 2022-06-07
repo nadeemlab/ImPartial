@@ -5,8 +5,9 @@ import torch
 import torch.nn as nn
 import numpy as np
 from scipy.special import softmax
+import matplotlib.pyplot as plt
 
-from Impartial.Impartial_classes import ImPartialConfig
+from impartial.Impartial_classes import ImPartialConfig
 
 
 def compute_impartial_losses(
@@ -32,7 +33,6 @@ def compute_impartial_losses(
         criterio_seg: Scribble loss function.
         criterio_rec: Reconstruction loss function.
         criterio_reg: Regularization loss function.
-
     """
     total_loss = collections.defaultdict(int)
 
@@ -42,11 +42,14 @@ def compute_impartial_losses(
     reg_loss = collections.defaultdict(int)
 
     outputs = outputs_by_task(config.classification_tasks, out)
+
     from_npz = False
     if from_npz:
         scribbles = scribbles_by_task(config.classification_tasks, scribble)
     else:
-        scribbles = {'0': scribble}
+        # assumes ImPartial was configured with
+        # one task only "0"
+        scribbles = {"0": scribble}
 
     for key, task in config.classification_tasks.items():
         # Foreground scribbles loss for each class
@@ -91,6 +94,30 @@ def compute_impartial_losses(
     total_loss['reg_classes'] = reg_loss
 
     return total_loss
+
+
+def save_outputs(out):
+    for it, task in out.items():
+        for ic, c in enumerate(task["segmentation"]["classes"]):
+            batch = c.detach().numpy()
+            plt.imsave(f"/tmp/task_{it}_class_{ic}.png", np.hstack(np.hstack(batch)))
+        batch = task["segmentation"]["background"].detach().numpy()
+        plt.imsave(f"/tmp/task_{it}_background.png", np.hstack(np.hstack(batch)))
+
+
+def save_patches():
+    for i, (im, s, m) in enumerate(zip(images, scribbles, validation_masks)):
+        plt.imsave(f"/tmp/{i}_full_image.png", im)
+        plt.imsave(f"/tmp/{i}_full_scribble.png", np.sum(s, 2))
+        plt.imsave(f"/tmp/{i}_full_mask.png", m)
+
+    for i, patch in enumerate(training_list):
+        plt.imsave(f"/tmp/{i}_image.png", patch[0][..., 0])
+        plt.imsave(f"/tmp/{i}_scribble.png", np.sum(patch[1], 2))
+
+    for i, patch in enumerate(validation_list):
+        plt.imsave(f"/tmp/{i}_val_image.png", patch[0][..., 0])
+        plt.imsave(f"/tmp/{i}_val_scribble.png", np.sum(patch[1], 2))
 
 
 def outputs_by_task(tasks, outputs):
@@ -169,6 +196,15 @@ def scribble_loss(output, scribble, criterion):
         output: (batch_size, components, h, w)
         scribble: (batch_size, h, w)
     """
+    if len(output.shape) != 4:
+        raise RuntimeError(f"'output' should have 4 dims (batch_size, components, h, w), "
+                           f"got {len(output.shape)} {tuple(output.shape)}")
+    if len(scribble.shape) != 3:
+        raise RuntimeError(f"'scribble' should have 3 dims (batch_size, h, w), "
+                           f"got {len(scribble.shape)} {tuple(scribble.shape)}")
+    if output.shape[0] != scribble.shape[0] or output.shape[-2:] != scribble.shape[-2:]:
+        raise RuntimeError(f"'scribble' ({scribble.shape}) and 'output' ({output.shape}) dims mismatch")
+
     batch_size = torch.sum(scribble, [1, 2])  # batch_size
     if torch.sum(batch_size) > 0:
         loss = criterion(torch.sum(output, 1), scribble) * scribble  # batch_size x h x w
@@ -198,10 +234,9 @@ def reconstruction_loss(input, output, out_seg, mask, task, criterion, config):
     rec_channels = task['rec_channels']  # list with channels to reconstruct
     for i, ch in enumerate(rec_channels):
         mask_inv = 1 - mask[:, ch, :, :]
-        num_mask = torch.sum(mask_inv, [1, 2])  # size batch
-
         rec_x = criterion(input[:, ch, ...], mean=mean_x, logstd=std_x) * mask_inv
         # average over al channels
+        num_mask = torch.sum(mask_inv, [1, 2])  # size batch
         loss += torch.mean(torch.sum(rec_x, [1, 2]) / num_mask) * task['weight_rec_channels'][i]
 
     return loss
