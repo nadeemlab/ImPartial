@@ -16,7 +16,7 @@ from skimage.filters.thresholding import threshold_otsu
 from skimage.morphology import remove_small_objects
 
 from Impartial.Impartial_classes import ImPartialConfig
-from Impartial.Impartial_functions import outputs_by_task
+from Impartial.Impartial_functions import outputs_by_task, save_outputs
 from dataprocessing.dataloaders import random_crop, compute_probability_map, blind_spot_patch
 from dataprocessing import dataloaders
 
@@ -33,7 +33,7 @@ class LoadPNGFile(MapTransform):
         res = copy.deepcopy(data)
 
         img = skimage.io.imread(data["image_path"])
-        res["image"] = np.array(img)[..., np.newaxis].astype("float32")
+        res["image"] = img[..., np.newaxis].astype("float32")
 
         return res
 
@@ -177,14 +177,31 @@ class GetImpartialOutputs(MapTransform):
     def __call__(self, data):
         res = copy.deepcopy(data)
 
-        outputs = outputs_by_task(
-            tasks=self.iconfig.classification_tasks,
-            outputs=torch.unsqueeze(res["pred"], 0)
-        )
+        # Note: assume one task only
+        task = self.iconfig.classification_tasks["0"]
 
-        res["output"] = np.sum(outputs["0"]["segmentation"]["classes"][0].cpu().numpy(), 1)
+        step = np.sum(task['ncomponents'])
+        res["output"] = res['pred'][:step, ...]
 
         return res
+
+
+class AddForegroundOutput(MapTransform):
+    def __init__(
+            self, keys: KeysCollection, iconfig: ImPartialConfig
+    ):
+        self.iconfig = iconfig
+        super().__init__(keys)
+
+    def __call__(self, data):
+        d = dict(data)
+
+        # assume 1 task and 1 class only
+        step = self.iconfig.classification_tasks["0"]["ncomponents"][0]
+        for key in self.key_iterator(d):
+            d[key] = torch.sum(d[key][:step, ...], dim=0)
+        return d
+
 
 
 class LoadImagePatchd(MapTransform):

@@ -6,11 +6,13 @@ from typing import Any, Callable, Dict, Sequence
 
 from PIL import Image
 import numpy as np
+from monai.transforms import ScaleIntensityRangePercentilesd, ToTensord, LoadImaged, AsChannelFirst, AsChannelFirstd, \
+    AddChannel, AddChanneld, Activationsd, AsDiscreted, ToNumpyd
 from roifile import ImagejRoi
 from skimage import measure
 
-from dataprocessing.dataloaders import ToTensor
-from lib.transforms import GetImpartialOutputs, LoadPNGFile, PercentileNormalization
+# from dataprocessing.dataloaders import ToTensor
+from lib.transforms import GetImpartialOutputs, LoadPNGFile, PercentileNormalization, AddForegroundOutput
 
 from monailabel.interfaces.tasks.infer import InferTask, InferType
 
@@ -54,13 +56,27 @@ class Impartial(InferTask):
 
     def pre_transforms(self, data=None) -> Sequence[Callable]:
         return [
-            LoadPNGFile(keys="image"),
-            PercentileNormalization(keys="image"),
-            ToTensor(keys="image")
+            LoadImaged(keys="image"),
+            ScaleIntensityRangePercentilesd(
+                keys="image",
+                lower=10,
+                upper=90,
+                b_min=0,
+                b_max=1,
+                clip=True
+            ),
+            ToTensord(keys="image"),
+            AddChanneld(keys="image")
         ]
 
     def post_transforms(self, data=None) -> Sequence[Callable]:
-        return [GetImpartialOutputs(keys="image", iconfig=self.iconfig)]
+        return [
+            GetImpartialOutputs(keys="pred", iconfig=self.iconfig),
+            Activationsd(keys="output", softmax=True),
+            AddForegroundOutput(keys="output", iconfig=self.iconfig),
+            AsDiscreted(keys="output", threshold=0.5),
+            ToNumpyd(keys="output")
+        ]
 
     def writer(self, data, extension=None, dtype=None):
         writer = PNGWriter(label=self.output_label_key, json=self.output_json_key)
@@ -86,7 +102,7 @@ class PNGWriter:
 
         output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.zip")
 
-        img = (data["output"][0, ...] < 0.507).astype(np.uint8)
+        img = data["output"].astype(np.uint8)
 
         for contour in measure.find_contours(img, level=0.9999):
             roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])

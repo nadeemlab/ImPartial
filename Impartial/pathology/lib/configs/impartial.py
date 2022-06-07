@@ -47,6 +47,18 @@ class Vectra2Ch1taskConfig(BaseImpartialConfig):
         )
 
 
+class DAPI1CHConfig(BaseImpartialConfig):
+    def __init__(self):
+        super().__init__(
+            unet_base=64,
+            BATCH_SIZE=8,
+            n_channels=1,
+            classification_tasks={
+                '0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [2, 2]}
+            }
+        )
+
+
 class Impartial(TaskConfig):
     def init(self, name: str, model_dir: str, conf: Dict[str, str], planner: Any, **kwargs):
         super().init(name, model_dir, conf, planner, **kwargs)
@@ -62,8 +74,7 @@ class Impartial(TaskConfig):
         ]
 
         # Impartial config
-        self.iconfig = Vectra2Ch1taskConfig()
-
+        self.iconfig = DAPI1CHConfig()
 
         # Network
         self.network = UNet(
@@ -80,7 +91,7 @@ class Impartial(TaskConfig):
 
         # overwrite the last published model with
         # a brand new one
-        torch.save(self.network.state_dict(), self.path[1])
+        # torch.save(self.network.state_dict(), self.path[1])
 
     def infer(self) -> Union[InferTask, Dict[str, InferTask]]:
         task: InferTask = lib.infers.Impartial(
@@ -109,7 +120,7 @@ class Impartial(TaskConfig):
                 "dataset_limit": 0,
                 "dataset_randomize": True,
                 "early_stop_patience": self.iconfig.patience,
-                "pretrained": False,
+                "pretrained": True,
                 "name": 'train02_Vectra2ch1task'
             },
         )

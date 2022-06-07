@@ -25,7 +25,6 @@ from scipy import ndimage as ndi
 from skimage import measure, morphology
 
 logger = logging.getLogger(__name__)
-ENV = "prod"
 
 
 class Impartial(BasicTrainTask):
@@ -178,9 +177,6 @@ class Impartial(BasicTrainTask):
         return generate_patches(train_datalist), generate_patches(val_datalist)
 
     def _create_evaluator(self, context: Context):
-        if ENV == "prod":
-            return None
-
         evaluator = super()._create_evaluator(context)
         evaluator.prepare_batch = impartial_prepare_val_batch
 
