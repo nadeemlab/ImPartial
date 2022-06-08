@@ -119,7 +119,7 @@ def sample_patches(
     data_list = []
     for image, scribble, mask in sorted(zip(images, scribbles, fov_masks), key=lambda k: random.random()):
         if len(image.shape) <= 2:
-            image = mask[..., np.newaxis]
+            image = image[..., np.newaxis]
 
         if not validation:
             mask = 1 - mask
@@ -144,7 +144,7 @@ def sample_patches(
 
 
 def compute_probability_map(scribble, p_scribble_crop):
-    probability_map = np.sum(scribble, axis=-1)
+    probability_map = np.sum(scribble, axis=-1).astype(np.float64)
     probability_map[probability_map > 0] = p_scribble_crop / np.sum(probability_map > 0)
     probability_map[probability_map == 0] = (1 - p_scribble_crop) / np.sum(probability_map == 0)
 
@@ -158,7 +158,7 @@ def random_crop(X, S, probability_mask, patch_size, npatch_image, shift_crop):
     ix = np.argmax(
         np.random.multinomial(
             n=1,
-            pvals=probability_mask.flatten() / np.sum(probability_mask.flatten()),
+            pvals=probability_mask.flatten() / np.sum(probability_mask),
             size=npatch_image
         ),
         axis=1

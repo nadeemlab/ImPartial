@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from scipy.special import softmax
+import matplotlib.pyplot as plt
 
 from Impartial.Impartial_classes import ImPartialConfig
 
@@ -42,6 +43,7 @@ def compute_impartial_losses(
     reg_loss = collections.defaultdict(int)
 
     outputs = outputs_by_task(config.classification_tasks, out)
+    save_outputs(outputs)
     from_npz = False
     if from_npz:
         scribbles = scribbles_by_task(config.classification_tasks, scribble)
@@ -92,6 +94,33 @@ def compute_impartial_losses(
 
     return total_loss
 
+
+def save_outputs(out):
+    for it, task in out.items():
+        for ic, c in enumerate(task["segmentation"]["classes"]):
+            batch = c.detach().numpy()
+            plt.imsave(f"/tmp/task_{it}_class_{ic}.png", np.hstack(np.hstack(batch)))
+            # for isa, sample in enumerate(np.rollaxis(c.detach().numpy(), 0)):
+            #     plt.imsave(f"/tmp/task_{it}_class_{ic}_sample_{isa}.png", np.hstack(sample))
+        batch = task["segmentation"]["background"].detach().numpy()
+        plt.imsave(f"/tmp/task_{it}_background.png", np.hstack(np.hstack(batch)))
+        # for isa, sample in enumerate(np.rollaxis(task["segmentation"]["background"].detach().numpy(), 0)):
+        #     plt.imsave(f"/tmp/task_{it}_background_sample_{isa}.png", np.hstack(sample))
+
+
+def save_patches():
+    for i, (im, s, m) in enumerate(zip(images, scribbles, validation_masks)):
+        plt.imsave(f"/tmp/{i}_full_image.png", im)
+        plt.imsave(f"/tmp/{i}_full_scribble.png", np.sum(s, 2))
+        plt.imsave(f"/tmp/{i}_full_mask.png", m)
+
+    for i, patch in enumerate(training_list):
+        plt.imsave(f"/tmp/{i}_image.png", patch[0][..., 0])
+        plt.imsave(f"/tmp/{i}_scribble.png", np.sum(patch[1], 2))
+
+    for i, patch in enumerate(validation_list):
+        plt.imsave(f"/tmp/{i}_val_image.png", patch[0][..., 0])
+        plt.imsave(f"/tmp/{i}_val_scribble.png", np.sum(patch[1], 2))
 
 def outputs_by_task(tasks, outputs):
     """

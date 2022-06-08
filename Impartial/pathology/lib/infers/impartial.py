@@ -6,13 +6,19 @@ from typing import Any, Callable, Dict, Sequence
 
 from PIL import Image
 import numpy as np
-from monai.transforms import ScaleIntensityRangePercentilesd, ToTensord, LoadImaged, AsChannelFirst, AsChannelFirstd, \
-    AddChannel, AddChanneld, Activationsd, AsDiscreted, ToNumpyd
+from monai.transforms import (
+    LoadImaged,
+    ScaleIntensityRangePercentilesd,
+    ToTensord,
+    AddChanneld,
+    Activationsd,
+    AsDiscreted,
+    ToNumpyd
+)
 from roifile import ImagejRoi
 from skimage import measure
 
-# from dataprocessing.dataloaders import ToTensor
-from lib.transforms import GetImpartialOutputs, LoadPNGFile, PercentileNormalization, AddForegroundOutput
+from lib.transforms import GetImpartialOutputs, AddForegroundOutput
 
 from monailabel.interfaces.tasks.infer import InferTask, InferType
 
@@ -59,8 +65,8 @@ class Impartial(InferTask):
             LoadImaged(keys="image"),
             ScaleIntensityRangePercentilesd(
                 keys="image",
-                lower=10,
-                upper=90,
+                lower=1,
+                upper=98,
                 b_min=0,
                 b_max=1,
                 clip=True

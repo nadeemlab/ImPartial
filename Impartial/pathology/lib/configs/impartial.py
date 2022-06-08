@@ -53,6 +53,7 @@ class DAPI1CHConfig(BaseImpartialConfig):
             unet_base=64,
             BATCH_SIZE=8,
             n_channels=1,
+            npatches_epoch=512,
             classification_tasks={
                 '0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [2, 2]}
             }

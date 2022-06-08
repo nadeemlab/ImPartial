@@ -120,7 +120,7 @@ class BlindSpotPatch(MapTransform):
     def __call__(self, data):
         res = copy.deepcopy(data)
 
-        input, mask = blind_spot_patch(res["image"][..., np.newaxis])
+        input, mask = blind_spot_patch(res["image"][np.newaxis, ...])
 
         res["input"] = input[..., 0]
         res["mask"] = mask[..., 0]
