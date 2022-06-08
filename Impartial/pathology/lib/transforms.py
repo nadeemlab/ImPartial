@@ -118,53 +118,14 @@ class BlindSpotPatch(MapTransform):
         self.size_window = size_window
 
     def __call__(self, data):
-        res = copy.deepcopy(data)
+        d = dict(data)
 
-        input, mask = blind_spot_patch(res["image"][np.newaxis, ...])
+        input, mask = blind_spot_patch(d["image"][np.newaxis, ...])
 
-        res["input"] = input[..., 0]
-        res["mask"] = mask[..., 0]
+        d["input"] = input[..., 0]
+        d["mask"] = mask[..., 0]
 
-        return res
-
-
-class RandomFlip(MapTransform):
-    def __init__(
-            self, keys: KeysCollection
-    ):
-        super().__init__(keys)
-
-    def __call__(self, data):
-        res = copy.deepcopy(data)
-
-        res.update(dataloaders.RandomFlip()(res))
-
-        return res
-
-
-class ToTensor(MapTransform):
-    def __init__(
-            self, keys: KeysCollection
-    ):
-        super().__init__(keys)
-
-    def __call__(self, data):
-        res = copy.deepcopy(data)
-
-        for key in self.keys:
-            res[key] = torch.from_numpy(data[key].astype(np.float32))
-
-        return res
-
-
-class DoNothing(MapTransform):
-    def __init__(
-            self, keys: KeysCollection
-    ):
-        super().__init__(keys)
-
-    def __call__(self, data):
-        return copy.deepcopy(data)
+        return d
 
 
 class GetImpartialOutputs(MapTransform):
@@ -175,15 +136,12 @@ class GetImpartialOutputs(MapTransform):
         super().__init__(keys)
 
     def __call__(self, data):
-        res = copy.deepcopy(data)
+        d = dict(data)
 
-        # Note: assume one task only
-        task = self.iconfig.classification_tasks["0"]
+        tasks = self.iconfig.classification_tasks
+        d["output"] =  outputs_by_task(tasks, torch.unsqueeze(d["pred"], 0))
 
-        step = np.sum(task['ncomponents'])
-        res["output"] = res['pred'][:step, ...]
-
-        return res
+        return d
 
 
 class AddForegroundOutput(MapTransform):
@@ -201,7 +159,6 @@ class AddForegroundOutput(MapTransform):
         for key in self.key_iterator(d):
             d[key] = torch.sum(d[key][:step, ...], dim=0)
         return d
-
 
 
 class LoadImagePatchd(MapTransform):

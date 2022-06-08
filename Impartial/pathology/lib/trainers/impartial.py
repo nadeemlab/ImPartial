@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 
 class Impartial(BasicTrainTask):
+    VAL_KEY_METRIC = "val_loss"
+
     def __init__(
             self,
             model_dir,
@@ -129,12 +131,12 @@ class Impartial(BasicTrainTask):
     def val_inferer(self, context: Context):
         return SimpleInferer()
 
-    def val_additional_metrics(self, context: Context):
-        def ot(d):
-            return d[0]['pred'].flatten(), (d[0]['label'] > 0).flatten()
-
-        # return {"val_roc_auc": ROCAUC(output_transform=ot), "val_loss": ImpartialLossMetric()}
-        return {"val_roc_auc": ROCAUC(output_transform=ot)}
+    # def val_additional_metrics(self, context: Context):
+    #     def ot(d):
+    #         return d[0]['pred'].flatten(), (d[0]['label'] > 0).flatten()
+    #
+    #     # return {"val_roc_auc": ROCAUC(output_transform=ot), "val_loss": ImpartialLossMetric()}
+    #     return {"val_roc_auc": ROCAUC(output_transform=ot)}
 
     def partition_datalist(self, context: Context, shuffle=False):
         datalist = context.datalist
@@ -177,12 +179,15 @@ class Impartial(BasicTrainTask):
 
     def _create_evaluator(self, context: Context):
         evaluator = super()._create_evaluator(context)
-        evaluator.prepare_batch = impartial_prepare_val_batch
+        evaluator.prepare_batch = impartial_prepare_batch
 
         return evaluator
 
     def train_key_metric(self, context: Context):
         return None
+
+    def val_key_metric(self, context):
+        return {"val_loss": ImpartialLossMetric(self.iconfig)}
 
     def _create_trainer(self, context: Context):
         train_handlers: List = self.train_handlers(context)
@@ -266,24 +271,38 @@ def impartial_prepare_batch(batchdata, device: Optional[Union[str, torch.device]
     )
 
 
-def impartial_prepare_val_batch(batchdata, device: Optional[Union[str, torch.device]] = None,
-                                non_blocking: bool = False):
-    if not isinstance(batchdata, dict):
-        raise AssertionError("impartial_prepare_val_batch expects dict input data.")
-    return (
-        batchdata["input"].to(device=device, non_blocking=non_blocking),
-        batchdata["label"].to(device=device, non_blocking=non_blocking)
-    )
-
-
 class ImpartialPerformanceMetric(IgniteMetric):
     # TODO: implement a metric that compute all ImPartial metrics
     # computed in evaluation.get_performance()
     pass
 
+from typing import Dict, Sequence, Tuple, Union, cast
+
+import torch
+
+from ignite.metrics.metric import reinit__is_reduced
+
 
 class ImpartialLossMetric(Loss):
-    def __init__(self):
-        super().__init__(loss_fn=ImpartialLoss)
-    # TODO overwrite the update() method so that it can compute
-    # the loss using ImPartial outputs
+    def __init__(self, iconfig):
+        super().__init__(loss_fn=ImpartialLoss(config=iconfig))
+
+    @reinit__is_reduced
+    def update(self, output: Sequence[Union[torch.Tensor, Dict]]) -> None:
+        out = output[0]
+
+        y_pred = torch.unsqueeze(out["pred"], 0)
+        y = {
+            "image": torch.unsqueeze(out["label"]["image"], 0),
+            "mask": torch.unsqueeze(out["label"]["mask"], 0),
+            "scribble": out["label"]["scribble"]
+        }
+
+        average_loss = self._loss_fn(y_pred, y).detach()
+
+        if len(average_loss.shape) != 0:
+            raise ValueError("loss_fn did not return the average loss.")
+
+        n = self._batch_size(y_pred)
+        self._sum += average_loss.to(self._device) * n
+        self._num_examples += n

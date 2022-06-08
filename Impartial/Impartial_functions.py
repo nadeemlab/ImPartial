@@ -43,7 +43,7 @@ def compute_impartial_losses(
     reg_loss = collections.defaultdict(int)
 
     outputs = outputs_by_task(config.classification_tasks, out)
-    save_outputs(outputs)
+
     from_npz = False
     if from_npz:
         scribbles = scribbles_by_task(config.classification_tasks, scribble)
@@ -227,10 +227,9 @@ def reconstruction_loss(input, output, out_seg, mask, task, criterion, config):
     rec_channels = task['rec_channels']  # list with channels to reconstruct
     for i, ch in enumerate(rec_channels):
         mask_inv = 1 - mask[:, ch, :, :]
-        num_mask = torch.sum(mask_inv, [1, 2])  # size batch
-
         rec_x = criterion(input[:, ch, ...], mean=mean_x, logstd=std_x) * mask_inv
         # average over al channels
+        num_mask = torch.sum(mask_inv, [1, 2])  # size batch
         loss += torch.mean(torch.sum(rec_x, [1, 2]) / num_mask) * task['weight_rec_channels'][i]
 
     return loss
