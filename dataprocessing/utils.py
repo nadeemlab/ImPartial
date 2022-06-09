@@ -75,21 +75,22 @@ def validation_mask(scribble, val_split):
     # remove borders
     val_size = [int(scribble_mask.shape[0] * val_split / 2),
                 int(scribble_mask.shape[1] * val_split / 2)]  # validation region
-    scribble_mask[-val_size[0]:, :] = 0
-    scribble_mask[:, -val_size[1]:] = 0
-    scribble_mask[0:val_size[0], :] = 0
-    scribble_mask[:, 0:val_size[1]] = 0
+    # scribble_mask[-val_size[0]:, :] = 0
+    # scribble_mask[:, -val_size[1]:] = 0
+    # scribble_mask[0:val_size[0], :] = 0
+    # scribble_mask[:, 0:val_size[1]] = 0
 
     val_center = np.random.multinomial(
         n=1,
-        pvals=scribble_mask.flatten() / np.sum(scribble_mask.flatten()),
-        size=1).flatten()
+        pvals=scribble_mask.flatten() / np.sum(scribble_mask),
+        size=1
+    ).flatten()
 
     center = np.argmax(val_center)
-    row = int(np.floor(center / scribble_mask.shape[1]))
-    col = int(center - row * scribble_mask.shape[1])
+    row = np.clip(int(np.floor(center / scribble_mask.shape[1])), val_size[1], scribble_mask.shape[1] - val_size[1])
+    col = np.clip(int(center - row * scribble_mask.shape[1]), val_size[1], scribble_mask.shape[1] - val_size[1])
 
-    mask = np.zeros([scribble_mask.shape[0], scribble_mask.shape[1]])
+    mask = np.zeros(scribble_mask.shape)
     mask[row - val_size[0]:row + val_size[0], col - val_size[1]:col + val_size[1]] = 1
 
     return mask.astype(np.uint8)

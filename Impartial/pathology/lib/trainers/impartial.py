@@ -1,28 +1,30 @@
 import logging
-from typing import Optional, Union, List
+from typing import Optional, List, Dict, Sequence, Union
+
+import numpy as np
+from scipy import ndimage as ndi
+from skimage import measure, morphology
+from PIL import Image
+import matplotlib.pyplot as plt
 
 import torch
-from PIL import Image
-from ignite.metrics import Loss
-from monai.transforms import ScaleIntensityRangePercentiles, RandFlipd, ToTensord, AsChannelFirstd
 from torch import Tensor
 from torch.nn.modules.loss import _Loss
+from ignite.metrics import Loss
+from ignite.metrics.metric import reinit__is_reduced
+
 from monai.engines import SupervisedTrainer
-from monai.handlers import CheckpointSaver, ROCAUC, IgniteMetric
+from monai.handlers import CheckpointSaver, IgniteMetric
 from monai.inferers import SimpleInferer
+from monai.transforms import ScaleIntensityRangePercentiles, RandFlipd, ToTensord, AsChannelFirstd
 from monailabel.interfaces.datastore import Datastore
 from monailabel.tasks.train.basic_train import BasicTrainTask, Context
 
 from Impartial.Impartial_functions import compute_impartial_losses
 from dataprocessing.dataloaders import sample_patches
 from dataprocessing.utils import rois_to_mask, validation_mask
-
 from general.losses import seglosses, reclosses
 from lib.transforms import GetImpartialOutputs, BlindSpotPatch
-
-import numpy as np
-from scipy import ndimage as ndi
-from skimage import measure, morphology
 
 
 logger = logging.getLogger(__name__)
@@ -67,17 +69,6 @@ class Impartial(BasicTrainTask):
     def loss_function(self, context: Context):
         return ImpartialLoss(self.iconfig)
 
-    def compute_weight_map(self, scribble):
-        labels, num_labels = ndi.label(scribble)
-        centers = ndi.center_of_mass(scribble, labels, range(1, num_labels + 1))
-
-        w = np.zeros(scribble.shape)
-
-        for (i, j) in centers:
-            w[int(i), int(j)] = 255
-
-        return ndi.gaussian_filter(w, sigma=10)
-
     def pre_process(self, request, datastore: Datastore):
         datalist = datastore.datalist().copy()
 
@@ -88,16 +79,17 @@ class Impartial(BasicTrainTask):
         for d in datalist:
             d["image"] = load_image(d["image"])
 
-            from_rois_zip = True
+            from_rois_zip = False
             if from_rois_zip:
                 scribble = rois_to_mask(d["label"], size=(400, 400))
             else:
-                scribble = np.array(Image.open(d["label"])).astype(np.uint8)
+                scribble = (np.array(Image.open(d["label"])) / 255).astype(np.uint8)
 
             use_ground_truth_labels = False
             if use_ground_truth_labels:
-                d["scribble"] = np.stack((background_scribble, 1 - d["foreground_scribble"]), 2)
-
+                foreground_scribble = (scribble / 255).astype(np.uint8)
+                background_scribble = 1 - foreground_scribble
+                d["scribble"] = np.stack((foreground_scribble, background_scribble), 2)
             else:
                 background_contours = np.zeros(scribble.shape)
                 for c in measure.find_contours(scribble):
@@ -111,7 +103,7 @@ class Impartial(BasicTrainTask):
                 for c in measure.find_contours(eroded):
                     c = c.astype(np.uint32)
                     foreground_contours[c[:, 0], c[:, 1]] = 1
-                foreground_scribble = skeletonized + foreground_contours.astype(np.uint8)
+                foreground_scribble = np.clip(skeletonized + foreground_contours.astype(np.uint8), 0, 1)
 
                 d["scribble"] = np.stack((foreground_scribble, background_scribble), 2)
 
@@ -131,13 +123,6 @@ class Impartial(BasicTrainTask):
     def val_inferer(self, context: Context):
         return SimpleInferer()
 
-    # def val_additional_metrics(self, context: Context):
-    #     def ot(d):
-    #         return d[0]['pred'].flatten(), (d[0]['label'] > 0).flatten()
-    #
-    #     # return {"val_roc_auc": ROCAUC(output_transform=ot), "val_loss": ImpartialLossMetric()}
-    #     return {"val_roc_auc": ROCAUC(output_transform=ot)}
-
     def partition_datalist(self, context: Context, shuffle=False):
         datalist = context.datalist
 
@@ -145,7 +130,7 @@ class Impartial(BasicTrainTask):
 
         images = [d["image"] for d in datalist]
         scribbles = [d["scribble"] for d in datalist]
-        validation_masks = [validation_mask(np.sum(s, 2), val_split=val_split) for s in scribbles]
+        validation_masks = [validation_mask(np.clip(np.sum(s, 2), 0, 1), val_split=val_split) for s in scribbles]
 
         nval_patches = int(val_split * self.iconfig.npatches_epoch)
         ntrain_patches = self.iconfig.npatches_epoch - nval_patches
@@ -161,6 +146,12 @@ class Impartial(BasicTrainTask):
             npatches_total=ntrain_patches
         )
 
+        for i, p in enumerate(train_patches):
+            image = np.concatenate([p[0]] * 3, -1)
+            image[..., 0] = np.maximum(image[..., 0], p[1][..., 0])
+            image[..., 1] = np.maximum(image[..., 1], p[1][..., 1])
+            plt.imsave(f"/tmp/train_patch_{i}.png", image)
+
         val_patches = sample_patches(
             images=images,
             scribbles=scribbles,
@@ -171,6 +162,12 @@ class Impartial(BasicTrainTask):
             shift_crop=self.iconfig.shift_crop,
             npatches_total=nval_patches
         )
+
+        for i, p in enumerate(val_patches):
+            image = np.concatenate([p[0]] * 3, -1)
+            image[..., 0] = np.maximum(image[..., 0], p[1][..., 0])
+            image[..., 1] = np.maximum(image[..., 1], p[1][..., 1])
+            plt.imsave(f"/tmp/val_patch_{i}.png", image)
 
         def to_dict(ds):
             return [{"image": d[0], "scribble": d[1]} for d in ds]
@@ -275,12 +272,6 @@ class ImpartialPerformanceMetric(IgniteMetric):
     # TODO: implement a metric that compute all ImPartial metrics
     # computed in evaluation.get_performance()
     pass
-
-from typing import Dict, Sequence, Tuple, Union, cast
-
-import torch
-
-from ignite.metrics.metric import reinit__is_reduced
 
 
 class ImpartialLossMetric(Loss):

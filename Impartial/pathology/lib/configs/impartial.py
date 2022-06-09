@@ -2,7 +2,6 @@ import os
 import logging
 from typing import Any, Dict, Optional, Union
 
-import torch
 from monailabel.interfaces.config import TaskConfig
 from monailabel.interfaces.tasks.infer import InferTask
 from monailabel.interfaces.tasks.train import TrainTask
@@ -51,9 +50,10 @@ class DAPI1CHConfig(BaseImpartialConfig):
     def __init__(self):
         super().__init__(
             unet_base=64,
+            EPOCHS=2,
             BATCH_SIZE=8,
             n_channels=1,
-            npatches_epoch=512,
+            npatches_epoch=32,
             classification_tasks={
                 '0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [2, 2]}
             }
