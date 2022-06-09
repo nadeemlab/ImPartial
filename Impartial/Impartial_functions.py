@@ -198,6 +198,15 @@ def scribble_loss(output, scribble, criterion):
         output: (batch_size, components, h, w)
         scribble: (batch_size, h, w)
     """
+    if len(output.shape) != 4:
+        raise RuntimeError(f"'output' should have 4 dims (batch_size, components, h, w), "
+                           f"got {len(output.shape)} {tuple(output.shape)}")
+    if len(scribble.shape) != 3:
+        raise RuntimeError(f"'scribble' should have 3 dims (batch_size, h, w), "
+                           f"got {len(scribble.shape)} {tuple(scribble.shape)}")
+    if output.shape[0] != scribble.shape[0] or output.shape[-2:] != scribble.shape[-2:]:
+        raise RuntimeError(f"'scribble' ({scribble.shape}) and 'output' ({output.shape}) dims mismatch")
+
     batch_size = torch.sum(scribble, [1, 2])  # batch_size
     if torch.sum(batch_size) > 0:
         loss = criterion(torch.sum(output, 1), scribble) * scribble  # batch_size x h x w

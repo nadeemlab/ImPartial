@@ -146,11 +146,11 @@ class Impartial(BasicTrainTask):
             npatches_total=ntrain_patches
         )
 
-        for i, p in enumerate(train_patches):
-            image = np.concatenate([p[0]] * 3, -1)
-            image[..., 0] = np.maximum(image[..., 0], p[1][..., 0])
-            image[..., 1] = np.maximum(image[..., 1], p[1][..., 1])
-            plt.imsave(f"/tmp/train_patch_{i}.png", image)
+        # for i, p in enumerate(train_patches):
+        #     image = np.concatenate([p[0]] * 3, -1)
+        #     image[..., 0] = np.maximum(image[..., 0], p[1][..., 0])
+        #     image[..., 1] = np.maximum(image[..., 1], p[1][..., 1])
+        #     plt.imsave(f"/tmp/train_patch_{i}.png", image)
 
         val_patches = sample_patches(
             images=images,
@@ -163,11 +163,11 @@ class Impartial(BasicTrainTask):
             npatches_total=nval_patches
         )
 
-        for i, p in enumerate(val_patches):
-            image = np.concatenate([p[0]] * 3, -1)
-            image[..., 0] = np.maximum(image[..., 0], p[1][..., 0])
-            image[..., 1] = np.maximum(image[..., 1], p[1][..., 1])
-            plt.imsave(f"/tmp/val_patch_{i}.png", image)
+        # for i, p in enumerate(val_patches):
+        #     image = np.concatenate([p[0]] * 3, -1)
+        #     image[..., 0] = np.maximum(image[..., 0], p[1][..., 0])
+        #     image[..., 1] = np.maximum(image[..., 1], p[1][..., 1])
+        #     plt.imsave(f"/tmp/val_patch_{i}.png", image)
 
         def to_dict(ds):
             return [{"image": d[0], "scribble": d[1]} for d in ds]
@@ -260,8 +260,8 @@ def impartial_prepare_batch(batchdata, device: Optional[Union[str, torch.device]
         {
             "image": batchdata["image"].to(device=device, non_blocking=non_blocking),
             "scribble": {
-                "classes": [batchdata["scribble"][:, :1, ...].to(device=device, non_blocking=non_blocking), ],
-                "background": batchdata["scribble"][:, -1:, ...].to(device=device, non_blocking=non_blocking),
+                "classes": [batchdata["scribble"][:, 0, ...].to(device=device, non_blocking=non_blocking), ],
+                "background": batchdata["scribble"][:, -1, ...].to(device=device, non_blocking=non_blocking),
             },
             "mask": batchdata["mask"].to(device=device, non_blocking=non_blocking)
         }
