@@ -78,10 +78,10 @@ class Impartial(InferTask):
     def post_transforms(self, data=None) -> Sequence[Callable]:
         return [
             GetImpartialOutputs(keys="pred", iconfig=self.iconfig),
-            Activationsd(keys="output", softmax=True),
-            AddForegroundOutput(keys="output", iconfig=self.iconfig),
-            AsDiscreted(keys="output", threshold=0.5),
-            ToNumpyd(keys="output")
+            # Activationsd(keys="output", softmax=True),
+            # AddForegroundOutput(keys="output", iconfig=self.iconfig),
+            # AsDiscreted(keys="output", threshold=0.5),
+            # ToNumpyd(keys="output")
         ]
 
     def writer(self, data, extension=None, dtype=None):
@@ -108,7 +108,9 @@ class PNGWriter:
 
         output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.zip")
 
-        img = data["output"].astype(np.uint8)
+        # img = data["output"].astype(np.uint8)
+        output = np.sum(data["output"]["0"]["segmentation"]["classes"][0].cpu().numpy(), 1)
+        img = (output[0, ...] < 0.507).astype(np.uint8)
 
         for contour in measure.find_contours(img, level=0.9999):
             roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
