@@ -1,17 +1,15 @@
 import logging
 from typing import Optional, List, Dict, Sequence, Union
 
-import numpy as np
-from scipy import ndimage as ndi
-from skimage import measure, morphology
-from PIL import Image
-import matplotlib.pyplot as plt
-
 import torch
 from torch import Tensor
 from torch.nn.modules.loss import _Loss
 from ignite.metrics import Loss
 from ignite.metrics.metric import reinit__is_reduced
+
+import numpy as np
+from skimage import measure, morphology
+from PIL import Image
 
 from monai.engines import SupervisedTrainer
 from monai.handlers import CheckpointSaver, IgniteMetric
@@ -130,7 +128,13 @@ class Impartial(BasicTrainTask):
 
         images = [d["image"] for d in datalist]
         scribbles = [d["scribble"] for d in datalist]
-        validation_masks = [validation_mask(np.clip(np.sum(s, 2), 0, 1), val_split=val_split) for s in scribbles]
+        validation_masks = [
+            validation_mask(
+                scribble=np.sum(s, 2),
+                val_split=val_split
+            )
+            for s in scribbles
+        ]
 
         nval_patches = int(val_split * self.iconfig.npatches_epoch)
         ntrain_patches = self.iconfig.npatches_epoch - nval_patches
@@ -146,12 +150,6 @@ class Impartial(BasicTrainTask):
             npatches_total=ntrain_patches
         )
 
-        # for i, p in enumerate(train_patches):
-        #     image = np.concatenate([p[0]] * 3, -1)
-        #     image[..., 0] = np.maximum(image[..., 0], p[1][..., 0])
-        #     image[..., 1] = np.maximum(image[..., 1], p[1][..., 1])
-        #     plt.imsave(f"/tmp/train_patch_{i}.png", image)
-
         val_patches = sample_patches(
             images=images,
             scribbles=scribbles,
@@ -162,12 +160,6 @@ class Impartial(BasicTrainTask):
             shift_crop=self.iconfig.shift_crop,
             npatches_total=nval_patches
         )
-
-        # for i, p in enumerate(val_patches):
-        #     image = np.concatenate([p[0]] * 3, -1)
-        #     image[..., 0] = np.maximum(image[..., 0], p[1][..., 0])
-        #     image[..., 1] = np.maximum(image[..., 1], p[1][..., 1])
-        #     plt.imsave(f"/tmp/val_patch_{i}.png", image)
 
         def to_dict(ds):
             return [{"image": d[0], "scribble": d[1]} for d in ds]

@@ -138,9 +138,9 @@ class GetImpartialOutputs(MapTransform):
     def __call__(self, data):
         d = dict(data)
 
-        tasks = self.iconfig.classification_tasks
-        d["output"] = outputs_by_task(tasks, torch.unsqueeze(d["pred"], 0))
-        # d["output"] = d["pred"][:4, ...]
+        # tasks = self.iconfig.classification_tasks
+        # d["output"] = outputs_by_task(tasks, torch.unsqueeze(d["pred"], 0))
+        d["output"] = d["pred"][:4, ...]
 
         return d
 

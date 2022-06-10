@@ -2,10 +2,12 @@ import base64
 import logging
 import os
 import io
-from typing import Any, Callable, Dict, Sequence
+from typing import Any, Callable, Dict, Sequence, List
 
 from PIL import Image
 import numpy as np
+from monai.data import PILReader
+from monai.data.image_reader import _copy_compatible_dict, _stack_images
 from monai.transforms import (
     LoadImaged,
     ScaleIntensityRangePercentilesd,
@@ -15,6 +17,7 @@ from monai.transforms import (
     AsDiscreted,
     ToNumpyd
 )
+from monai.utils import ensure_tuple
 from roifile import ImagejRoi
 from skimage import measure
 
@@ -62,7 +65,7 @@ class Impartial(InferTask):
 
     def pre_transforms(self, data=None) -> Sequence[Callable]:
         return [
-            LoadImaged(keys="image"),
+            LoadImaged(keys="image", reader=PNGReader),
             ScaleIntensityRangePercentilesd(
                 keys="image",
                 lower=1,
@@ -78,10 +81,10 @@ class Impartial(InferTask):
     def post_transforms(self, data=None) -> Sequence[Callable]:
         return [
             GetImpartialOutputs(keys="pred", iconfig=self.iconfig),
-            # Activationsd(keys="output", softmax=True),
-            # AddForegroundOutput(keys="output", iconfig=self.iconfig),
-            # AsDiscreted(keys="output", threshold=0.5),
-            # ToNumpyd(keys="output")
+            Activationsd(keys="output", softmax=True),
+            AddForegroundOutput(keys="output", iconfig=self.iconfig),
+            AsDiscreted(keys="output", threshold=0.5),
+            ToNumpyd(keys="output")
         ]
 
     def writer(self, data, extension=None, dtype=None):
@@ -108,12 +111,39 @@ class PNGWriter:
 
         output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.zip")
 
-        # img = data["output"].astype(np.uint8)
-        output = np.sum(data["output"]["0"]["segmentation"]["classes"][0].cpu().numpy(), 1)
-        img = (output[0, ...] < 0.507).astype(np.uint8)
+        img = (data["output"] * 255).astype(np.uint8)
+        # output = np.sum(data["output"]["0"]["segmentation"]["classes"][0].cpu().numpy(), 1)
+        # img = ((output[0, ...] > 0.5) * 255).astype(np.uint8)
 
         for contour in measure.find_contours(img, level=0.9999):
             roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
             roi.tofile(output_path)
 
         return output_path, {"b64_image": pil_to_b64(Image.fromarray(img))}
+
+
+class PNGReader(PILReader):
+    def get_data(self, img):
+        """
+        Extract data array and meta data from loaded image and return them.
+        This function returns two objects, first is numpy array of image data, second is dict of meta data.
+        It computes `spatial_shape` and stores it in meta dict.
+        When loading a list of files, they are stacked together at a new dimension as the first dimension,
+        and the meta data of the first image is used to represent the output meta data.
+
+        Args:
+            img: a PIL Image object loaded from a file or a list of PIL Image objects.
+
+        """
+        img_array: List[np.ndarray] = []
+        compatible_meta: Dict = {}
+
+        for i in ensure_tuple(img):
+            header = self._get_meta_dict(i)
+            header["spatial_shape"] = self._get_spatial_shape(i)
+            data = np.asarray(i)
+            img_array.append(data)
+            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+            _copy_compatible_dict(header, compatible_meta)
+
+        return _stack_images(img_array, compatible_meta), compatible_meta
