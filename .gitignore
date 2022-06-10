@@ -6,3 +6,6 @@ scripts/*/logs/*
 .DS_Store
 venv/
 log.txt
+datastore_v2.json
+monai-env/
+.lock

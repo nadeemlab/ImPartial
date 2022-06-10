@@ -1,0 +1,1 @@
+from .impartial import Impartial

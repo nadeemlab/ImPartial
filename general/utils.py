@@ -1,3 +1,6 @@
+import os
+import pickle
+from functools import wraps
 
 import numpy as np
 import torch
@@ -76,3 +79,29 @@ class TravellingMean:
 
     def __repr__(self):
         return '{:.3f}'.format(self._mean)
+
+
+def store_io(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        res = f(*args, **kwargs)
+        with open(os.path.join("/tmp", f"{f.__name__}.pickle"), "wb") as pf:
+            pickle.dump({
+                "args": args,
+                "kwargs": kwargs,
+                "res": res
+            }, pf)
+        return res
+    return wrapper
+
+
+def compare_io(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        with open(os.path.join("/tmp", f"{f.__name__}.pickle"), "rb") as pf:
+            stored_res = pickle.load(pf)
+            res = f(*stored_res["args"], **stored_res["kwargs"])
+            # TODO: compare stored_res and res
+            return res
+
+    return wrapper
