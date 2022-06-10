@@ -33,7 +33,6 @@ def compute_impartial_losses(
         criterio_seg: Scribble loss function.
         criterio_rec: Reconstruction loss function.
         criterio_reg: Regularization loss function.
-
     """
     total_loss = collections.defaultdict(int)
 
@@ -48,7 +47,9 @@ def compute_impartial_losses(
     if from_npz:
         scribbles = scribbles_by_task(config.classification_tasks, scribble)
     else:
-        scribbles = {'0': scribble}
+        # assumes ImPartial was configured with
+        # one task only "0"
+        scribbles = {"0": scribble}
 
     for key, task in config.classification_tasks.items():
         # Foreground scribbles loss for each class
@@ -100,12 +101,8 @@ def save_outputs(out):
         for ic, c in enumerate(task["segmentation"]["classes"]):
             batch = c.detach().numpy()
             plt.imsave(f"/tmp/task_{it}_class_{ic}.png", np.hstack(np.hstack(batch)))
-            # for isa, sample in enumerate(np.rollaxis(c.detach().numpy(), 0)):
-            #     plt.imsave(f"/tmp/task_{it}_class_{ic}_sample_{isa}.png", np.hstack(sample))
         batch = task["segmentation"]["background"].detach().numpy()
         plt.imsave(f"/tmp/task_{it}_background.png", np.hstack(np.hstack(batch)))
-        # for isa, sample in enumerate(np.rollaxis(task["segmentation"]["background"].detach().numpy(), 0)):
-        #     plt.imsave(f"/tmp/task_{it}_background_sample_{isa}.png", np.hstack(sample))
 
 
 def save_patches():
@@ -121,6 +118,7 @@ def save_patches():
     for i, patch in enumerate(validation_list):
         plt.imsave(f"/tmp/{i}_val_image.png", patch[0][..., 0])
         plt.imsave(f"/tmp/{i}_val_scribble.png", np.sum(patch[1], 2))
+
 
 def outputs_by_task(tasks, outputs):
     """
