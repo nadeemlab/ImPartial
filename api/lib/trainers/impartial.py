@@ -1,3 +1,4 @@
+import collections
 import logging
 from typing import Optional, List, Dict, Sequence, Union
 
@@ -8,8 +9,8 @@ from ignite.metrics import Loss
 from ignite.metrics.metric import reinit__is_reduced
 
 import numpy as np
-from skimage import measure, morphology
 from PIL import Image
+from skimage import measure, morphology
 
 from monai.engines import SupervisedTrainer
 from monai.handlers import CheckpointSaver, IgniteMetric
@@ -22,6 +23,7 @@ from Impartial.Impartial_functions import compute_impartial_losses
 from dataprocessing.dataloaders import sample_patches
 from dataprocessing.utils import validation_mask, rois_to_labels
 from general.losses import seglosses, reclosses
+
 from lib.transforms import GetImpartialOutputs, BlindSpotPatch
 
 
@@ -272,13 +274,23 @@ class ImpartialLossMetric(Loss):
 
     @reinit__is_reduced
     def update(self, output: Sequence[Union[torch.Tensor, Dict]]) -> None:
-        out = output[0]
+        image = torch.stack([o["label"]["image"] for o in output], 0)
+        mask = torch.stack([o["label"]["mask"] for o in output], 0)
 
-        y_pred = torch.unsqueeze(out["pred"], 0)
+        out = collections.defaultdict(list)
+        for o in output:
+            for i, c in enumerate(o["label"]["scribble"]["classes"]):
+                out[i].append(c)
+        scribble = {
+            "classes": [torch.stack(c) for c in out.values()],
+            "background": torch.stack([o["label"]["scribble"]["background"] for o in output], 0)
+        }
+
+        y_pred = torch.stack([o["pred"] for o in output], 0)
         y = {
-            "image": torch.unsqueeze(out["label"]["image"], 0),
-            "mask": torch.unsqueeze(out["label"]["mask"], 0),
-            "scribble": out["label"]["scribble"]
+            "image": image,
+            "mask": mask,
+            "scribble": scribble
         }
 
         average_loss = self._loss_fn(y_pred, y).detach()

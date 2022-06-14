@@ -6,58 +6,13 @@ from monailabel.interfaces.config import TaskConfig
 from monailabel.interfaces.tasks.infer import InferTask
 from monailabel.interfaces.tasks.train import TrainTask
 
-from Impartial_classes import ImPartialConfig
 from general.networks import UNet
+
 import lib.infers
 import lib.trainers
+from . import DAPI1CH
 
 logger = logging.getLogger(__name__)
-
-
-class BaseImpartialConfig(ImPartialConfig):
-    def __init__(self, **kwargs):
-        super().__init__(
-            config_dic=kwargs
-        )
-
-
-class Vectra2ChConfig(BaseImpartialConfig):
-    def __init__(self):
-        super().__init__(
-            unet_base=64,
-            BATCH_SIZE=8,
-            n_channels=2,
-            classification_tasks={
-                '0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [2, 2]},
-                '1': {'classes': 2, 'rec_channels': [1], 'ncomponents': [1, 1, 2]}
-            }
-        )
-
-
-class Vectra2Ch1taskConfig(BaseImpartialConfig):
-    def __init__(self):
-        super().__init__(
-            unet_base=64,
-            BATCH_SIZE=8,
-            n_channels=1,
-            classification_tasks={
-                '0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [2, 2]}
-            }
-        )
-
-
-class DAPI1CHConfig(BaseImpartialConfig):
-    def __init__(self):
-        super().__init__(
-            unet_base=64,
-            EPOCHS=2,
-            BATCH_SIZE=8,
-            n_channels=1,
-            npatches_epoch=32,
-            classification_tasks={
-                '0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [2, 2]}
-            }
-        )
 
 
 class Impartial(TaskConfig):
@@ -74,8 +29,8 @@ class Impartial(TaskConfig):
             os.path.join(self.model_dir, f"{name}.pt"),  # published
         ]
 
-        # Impartial config
-        self.iconfig = DAPI1CHConfig()
+        # ImPartial config
+        self.iconfig = DAPI1CH()
 
         # Network
         self.network = UNet(
@@ -122,7 +77,7 @@ class Impartial(TaskConfig):
                 "dataset_randomize": True,
                 "early_stop_patience": self.iconfig.patience,
                 "pretrained": True,
-                "name": 'train02_Vectra2ch1task'
+                "name": type(self.iconfig).__name__.lower()
             },
         )
         return task

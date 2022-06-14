@@ -4,21 +4,20 @@ import math
 import pathlib
 from typing import Tuple
 
+import torch
 import numpy as np
 import openslide
-import torch
-from monai.apps.deepgrow.transforms import AddInitialSeedPointd
-from monai.config import KeysCollection
-from monai.transforms import CenterSpatialCrop, MapTransform, Transform
 from PIL import Image
 import skimage
 from skimage.filters.thresholding import threshold_otsu
 from skimage.morphology import remove_small_objects
 
+from monai.apps.deepgrow.transforms import AddInitialSeedPointd
+from monai.config import KeysCollection
+from monai.transforms import CenterSpatialCrop, MapTransform, Transform
+
 from Impartial.Impartial_classes import ImPartialConfig
-from Impartial.Impartial_functions import outputs_by_task, save_outputs
 from dataprocessing.dataloaders import random_crop, compute_probability_map, blind_spot_patch
-from dataprocessing import dataloaders
 
 logger = logging.getLogger(__name__)
 

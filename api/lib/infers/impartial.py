@@ -1,11 +1,14 @@
-import base64
-import logging
 import os
 import io
+import base64
+import logging
 from typing import Any, Callable, Dict, Sequence, List
 
-from PIL import Image
 import numpy as np
+from PIL import Image
+from skimage import measure
+from roifile import ImagejRoi
+
 from monai.data import PILReader
 from monai.data.image_reader import _copy_compatible_dict, _stack_images
 from monai.transforms import (
@@ -18,12 +21,10 @@ from monai.transforms import (
     ToNumpyd
 )
 from monai.utils import ensure_tuple
-from roifile import ImagejRoi
-from skimage import measure
+from monailabel.interfaces.tasks.infer import InferTask, InferType
 
 from lib.transforms import GetImpartialOutputs, AddForegroundOutput
 
-from monailabel.interfaces.tasks.infer import InferTask, InferType
 
 logger = logging.getLogger(__name__)
 
@@ -112,8 +113,6 @@ class PNGWriter:
         output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.zip")
 
         img = (data["output"] * 255).astype(np.uint8)
-        # output = np.sum(data["output"]["0"]["segmentation"]["classes"][0].cpu().numpy(), 1)
-        # img = ((output[0, ...] > 0.5) * 255).astype(np.uint8)
 
         for contour in measure.find_contours(img, level=0.9999):
             roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
