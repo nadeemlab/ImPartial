@@ -293,7 +293,7 @@ class ImpartialLossMetric(Loss):
             "scribble": scribble
         }
 
-        average_loss = self._loss_fn(y_pred, y).detach()
+        average_loss = -self._loss_fn(y_pred, y).detach()
 
         if len(average_loss.shape) != 0:
             raise ValueError("loss_fn did not return the average loss.")
