@@ -19,7 +19,7 @@ from monai.transforms import ScaleIntensityRangePercentiles, RandFlipd, ToTensor
 from monailabel.interfaces.datastore import Datastore
 from monailabel.tasks.train.basic_train import BasicTrainTask, Context
 
-from Impartial.Impartial_functions import compute_impartial_losses
+from impartial.Impartial_functions import compute_impartial_losses
 from dataprocessing.dataloaders import sample_patches
 from dataprocessing.utils import validation_mask, rois_to_labels
 from general.losses import seglosses, reclosses

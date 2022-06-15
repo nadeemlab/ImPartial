@@ -16,7 +16,7 @@ from monai.apps.deepgrow.transforms import AddInitialSeedPointd
 from monai.config import KeysCollection
 from monai.transforms import CenterSpatialCrop, MapTransform, Transform
 
-from Impartial.Impartial_classes import ImPartialConfig
+from impartial.Impartial_classes import ImPartialConfig
 from dataprocessing.dataloaders import random_crop, compute_probability_map, blind_spot_patch
 
 logger = logging.getLogger(__name__)

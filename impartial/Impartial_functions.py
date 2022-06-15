@@ -7,7 +7,7 @@ import numpy as np
 from scipy.special import softmax
 import matplotlib.pyplot as plt
 
-from Impartial.Impartial_classes import ImPartialConfig
+from impartial.Impartial_classes import ImPartialConfig
 
 
 def compute_impartial_losses(
