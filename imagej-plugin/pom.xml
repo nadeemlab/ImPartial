@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+>
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.scijava</groupId>
+        <artifactId>pom-scijava</artifactId>
+        <version>31.1.0</version>
+        <relativePath />
+    </parent>
+
+    <groupId>org.nadeemlab.impartial</groupId>
+    <artifactId>impartial_imagej</artifactId>
+    <version>0.1</version>
+    <packaging>jar</packaging>
+
+    <name>ImPartial ImageJ plugin</name>
+    <description>ImPartial ImageJ plugin</description>
+    <url>https://github.com/nadeemlab/ImPartial</url>
+    <inceptionYear>2022</inceptionYear>
+    <organization>
+        <name>Nadeem Lab</name>
+        <url>https://nademlab.org</url>
+    </organization>
+    <licenses>
+        <license>                         <!-- FIXME: Your license here -->
+            <name>CC0</name>
+            <url>https://creativecommons.org/publicdomain/zero/1.0/</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <name>Ricardo Dodds</name>
+        </developer>
+    </developers>
+
+    <contributors>
+        <contributor>
+            <name>Gunjan Shrivastava</name>
+        </contributor>
+    </contributors>
+
+    <scm>
+        <url>https://github.com/nadeemlab/ImPartial.git</url>
+    </scm>
+
+    <issueManagement>
+        <system>None</system>
+    </issueManagement>
+
+    <ciManagement>
+        <system>None</system>
+    </ciManagement>
+
+    <mailingLists>
+        <mailingList>
+            <name>Nadeem Lab</name>
+        </mailingList>
+    </mailingLists>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>1.7</maven.compiler.source>
+        <maven.compiler.target>1.7</maven.compiler.target>
+        <license.licenseName>cc0</license.licenseName>
+        <license.copyrightOwners>MSKCC</license.copyrightOwners>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>scijava.public</id>
+            <url>https://maven.scijava.org/content/groups/public</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>net.imagej</groupId>
+            <artifactId>imagej</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>net.imglib2</groupId>
+            <artifactId>imglib2-ij</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.9.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20211205</version>
+        </dependency>
+
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.11.0</version>
+        </dependency>
+
+    </dependencies>
+
+</project>
