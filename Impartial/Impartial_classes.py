@@ -172,7 +172,6 @@ class ImPartialConfig(argparse.Namespace):
                 setattr(self, k, config_dic[k])
 
 
-
 class ImPartialModel:
     def __init__(self, config):
         self.config = config
@@ -265,7 +264,7 @@ class ImPartialModel:
         transform_val = transforms.Compose(transforms_list)
 
         # dataset validation
-        dataset_val = ImageBlindSpotDataset(pd_files_scribbles, data_dir, transform=transform_val, validation=True,
+        dataset_val = ImageBlindSpotDataset(pd_files_scribbles, data_dir, transform=transform_val, validation=False,     #gs change
                                             ratio=1, size_window=self.config.size_window,
                                             p_scribble_crop=self.config.p_scribble_crop, shift_crop=self.config.shift_crop,
                                             patch_size=self.config.patch_size, npatch_image=self.config.npatch_image_sampler)
@@ -293,13 +292,16 @@ class ImPartialModel:
         # ------------------------- losses --------------------------------#
         from general.losses import seglosses, reclosses, gradientLoss2d
 
-        criterio_seg = seglosses(type_loss=self.config.seg_loss, reduction=None)
+        criterio_seg = None
         criterio_reg = None
+        criterio_rec = None
+
+        criterio_seg = seglosses(type_loss=self.config.seg_loss, reduction=None)
+
         if 'reg' in self.config.weight_objectives.keys():
             if self.config.weight_objectives['reg'] > 0:
                 criterio_reg = gradientLoss2d(penalty=self.config.reg_loss, reduction='mean')
 
-        criterio_rec = None
         if 'rec' in self.config.weight_objectives.keys():
             if self.config.weight_objectives['rec'] > 0:
                 criterio_rec = reclosses(type_loss=self.config.rec_loss, reduction=None)
@@ -349,6 +351,11 @@ class ImPartialModel:
                                     default_ensembles=default_ensembles, model_ensemble_load_files=model_ensemble_load_files)
         
         end_eval_time = time.time() #gs
+
+        print("len(pd_files): ", len(pd_files))
+
+        # print("output_list, gt_list   sizes: ", output_list,  gt_list)
+        print("output_list, gt_list   sizes: ", len(output_list), len(gt_list))
         print('Evaluation time taken:  ', str(end_eval_time - start_eval_time))
 
         th_list = np.linspace(0, 1, 21)[1:-1]
@@ -372,6 +379,10 @@ class ImPartialModel:
 
                     Ypred_fore = output_task['class_segmentation'][0, int(ix_class), ...]
                     Ylabel = Ylabels[0, ix_labels, ...].astype('int')
+                    
+                    # print("impartial_classes_debug_Ypred_fore", Ypred_fore)
+                    # print("impartial_classes_debug_Ylabel", Ylabel)
+
 
                     if plot:
                         plt.figure(figsize=(10, 5))

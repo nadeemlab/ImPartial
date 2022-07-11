@@ -52,6 +52,7 @@ def compute_impartial_losses(out, input, scribble, mask, config, criterio_seg, c
 
         total_loss['seg_fore'] += seg_fore_loss_dic[class_tasks_key] * config.weight_tasks[class_tasks_key]
 
+
         ## background ##
         out_seg_back = torch.sum(out_seg[:, ix_seg:ix_seg + ncomponents[ix_class+1], ...],1)  # batch_size x h x w
         scribbles_back = scribble[:, ix_scribbles, ...]  # batch_size x h x w
@@ -66,11 +67,14 @@ def compute_impartial_losses(out, input, scribble, mask, config, criterio_seg, c
 
         total_loss['seg_back'] += seg_back_loss_dic[class_tasks_key] * config.weight_tasks[class_tasks_key]
 
+
+
         ## Regularization loss (MS penalty)
         if criterio_reg is not None:
             ## Regularization
             reg_loss_dic[class_tasks_key] = criterio_reg(out_seg)
             total_loss['reg'] += reg_loss_dic[class_tasks_key] * config.weight_tasks[class_tasks_key]
+
 
         ## Reconstruction ##
         rec_loss_dic[class_tasks_key] = 0
@@ -136,11 +140,11 @@ def get_impartial_outputs(out, config):
             nrec_channels = len(rec_channels)
 
             ncomponents = np.array(classification_tasks['ncomponents'])
-            out_seg = softmax(out[:, ix:ix + np.sum(ncomponents), ...],axis = 1)
+            out_seg = softmax(out[:, ix:ix + np.sum(ncomponents), ...], axis = 1)
             ix += np.sum(ncomponents)
 
             ## class segmentations
-            out_classification = np.zeros([out_seg.shape[0],nclasses,out_seg.shape[2],out_seg.shape[3]])
+            out_classification = np.zeros([out_seg.shape[0], nclasses, out_seg.shape[2], out_seg.shape[3]])
 
             ix_seg = 0
             for ix_class in range(nclasses):

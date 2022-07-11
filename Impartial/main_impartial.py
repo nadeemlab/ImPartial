@@ -182,6 +182,46 @@ if __name__== '__main__':
         if cparser.nepochs_sample_patches == 0:
             cparser.nepochs_sample_patches = 10
     
+    if cparser.dataset == 'DAPI1CH_full_img':
+        scribble_fname = 'files_1task1class_5images_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
+        pd_files_scribbles = pd.read_csv(files_scribbles)
+
+        pd_files = pd.read_csv(os.path.join(data_dir, 'files.csv'))
+        n_channels = 1
+
+        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0]}}
+
+        if cparser.nepochs_sample_patches == 0:
+            cparser.nepochs_sample_patches = 10
+    
+
+    if cparser.dataset == 'Vectra1CH':
+        scribble_fname = 'files_1task1class_35images_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
+        pd_files_scribbles = pd.read_csv(files_scribbles)
+
+        pd_files = pd.read_csv(os.path.join(data_dir, 'files.csv'))
+        n_channels = 1
+
+        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0]}}
+
+        if cparser.nepochs_sample_patches == 0:
+            cparser.nepochs_sample_patches = 10
+    
+
+    if cparser.dataset == 'Vectra1CH_DAPI1CH':
+        scribble_fname = 'files_1task1class_35images_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
+        pd_files_scribbles = pd.read_csv(files_scribbles)
+
+        pd_files = pd.read_csv(os.path.join(data_dir, 'files.csv'))
+        n_channels = 1
+
+        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0]}}
+
+        if cparser.nepochs_sample_patches == 0:
+            cparser.nepochs_sample_patches = 10
     
     
     if cparser.dataset == 'MIBI1CH_Bladder':
@@ -308,6 +348,7 @@ if __name__== '__main__':
         ## load dataloader
         im_model.load_dataloaders(data_dir, pd_files_scribbles, pd_files)
 
+        print("Start training ...")
         ## Train
         history = im_model.train()
 
@@ -324,11 +365,15 @@ if __name__== '__main__':
         print('history file saved on: ', model_output_hist_path)
 
     else:
-        history = load_json(model_output_hist_path)
+        pass
+        # history = load_json(model_output_hist_path)
 
     # ------------------------- Evaluation --------------------------------#
     if cparser.evaluation:
-        pd_summary = im_model.data_performance_evaluation(data_dir, pd_files, saveout=cparser.saveout, plot=False, default_ensembles=True)
+        print("Start evaluation ...")
+
+        # pd_summary = im_model.data_performance_evaluation(data_dir, pd_files, saveout=cparser.saveout, plot=False, default_ensembles=True)
+        pd_summary = im_model.data_performance_evaluation(data_dir, pd_files, saveout=cparser.saveout, plot=False, default_ensembles=False)
 
         pd_summary.to_csv(model_output_pd_summary_path, index=0)
         print('Evaluation csv saved on : ', model_output_pd_summary_path)
