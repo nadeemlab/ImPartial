@@ -296,6 +296,7 @@ def recseg_checkpoint_ensemble_trainer(dataloader_train, dataloader_val, dataloa
 def eval(dataloader_eval, model, optimizer, config, epoch, saveout=True, default_ensembles=True, model_ensemble_load_files=[]):
 
     output_path = config.basedir + config.model_name
+    print("model_ensemble_load_files len:", len(model_ensemble_load_files))
 
     if default_ensembles & (len(model_ensemble_load_files) < 1):
         model_ensemble_load_files = []
@@ -330,19 +331,21 @@ def eval(dataloader_eval, model, optimizer, config, epoch, saveout=True, default
         ## evaluate ensemble of checkpoints and save outputs
         if len(model_ensemble_load_files) < 1:
             model.eval()
+            print("impartial_trainig_eval_debug_no_ensemble....")
             with torch.no_grad():
                 predictions = (model(Xinput)).cpu().numpy()
         else:
             predictions = np.empty((0, batch_size, config.n_output, Xinput.shape[-2], Xinput.shape[-1]))
+            print("model_ensemble_load_files: ", model_ensemble_load_files)
             for model_save in model_ensemble_load_files:
                 if os.path.exists(model_save):
-                    print('in train: evaluation of model: ', model_save)
+                    print('impartial_trainig_eval_debug_no_ensemble ', model_save)
                     model_params_load(model_save, model, optimizer, config.DEVICE)
                     model.eval()
 
                     if config.MCdrop:
                         model.enable_dropout()
-                        print(' running mcdrop iterations: ', config.MCdrop_it)
+                        print('running mcdrop iterations: ', config.MCdrop_it)
                         start_mcdropout_time = time.time()
                         for it in range(config.MCdrop_it):
 
@@ -355,8 +358,12 @@ def eval(dataloader_eval, model, optimizer, config, epoch, saveout=True, default
                             out = to_np(model(Xinput))
                         predictions = np.vstack((predictions, out[np.newaxis, ...]))
 
+        
         output = get_impartial_outputs(predictions, config)  # output has keys: class_segmentation, factors
 
+        print("impartial_training_debug_predictions", predictions)
+        print("impartial_training_debug_output", output)
+        
         if saveout:
             save_output_dic = os.path.join(output_path, 'output_images', str(epoch))       # todo gs
             file_output_save = 'eval_' + str(idx) + '.pickle'

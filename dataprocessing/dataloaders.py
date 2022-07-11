@@ -132,7 +132,7 @@ class ImageBlindSpotDataset(Dataset):
 
         return output, mask
 
-    def random_crop(self,X,S,probability_mask):
+    def random_crop(self, X, S, probability_mask):
 
         h, w = X.shape[:2]
         new_h, new_w = self.patch_size

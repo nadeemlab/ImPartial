@@ -16,6 +16,9 @@ def get_performance(label_gt, y_pred, threshold=0.5, iou_threshold=0.5):
     pred_thresholded = y_pred > threshold
     labels_pred, _ = ndimage.label(pred_thresholded)
 
+    # print("impartial_evaluation_debug_label_gt", label_gt)
+    # print("impartial_evaluation_debug_y_pred", y_pred)
+
     # auc
     auc = roc_auc_score((label_gt > 0).flatten(), y_pred.flatten())
     # jaccard or iou semantic level

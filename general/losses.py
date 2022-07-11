@@ -27,7 +27,7 @@ class seglosses(nn.Module):
             ret = (inputs - targets) ** 2
 
         if self.reduction is not None:
-            ret = torch.mean(ret,-1) if self.reduction == 'mean' else torch.sum(ret,-1)
+            ret = torch.mean(ret, -1) if self.reduction == 'mean' else torch.sum(ret, -1)
 
         return ret
 
@@ -53,6 +53,7 @@ class reclosses(nn.Module):
             ret = torch.mean(ret,-1) if self.reduction == 'mean' else torch.sum(ret,-1)
 
         return ret
+
 
 ### This is from: https://github.com/jongcye/CNN_MumfordShah_Loss
 class gradientLoss2d(nn.Module):
