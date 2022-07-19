@@ -225,17 +225,19 @@ def reconstruction_loss(input, output, out_seg, mask, task, criterion, config):
     """
     # channel to reconstruct for this class object
 
-    input.to(device=torch.device("cuda:0"))
-    output.to(device=torch.device("cuda:0"))
-    out_seg.to(device=torch.device("cuda:0"))
-    mask.to(device=torch.device("cuda:0"))
+    device = torch.device("cuda:0")
+
+    input.to(device)
+    output.to(device)
+    out_seg.to(device)
+    mask.to(device)
 
     def get_mean(zeros=False):
         if zeros:
             ts = torch.zeros([out_seg.shape[0], out_seg.shape[1]]).to(config.DEVICE)
         else:
             ts = torch.sum(output * out_seg, [2, 3]) / torch.sum(out_seg, [2, 3]) # batch x (nfore*nclasses + nback)
-        return torch.sum(torch.unsqueeze(torch.unsqueeze(ts, -1), -1) * out_seg, 1)
+        return torch.sum(torch.unsqueeze(torch.unsqueeze(ts.to(device), -1), -1) * out_seg, 1)
 
     mean_x = get_mean(not config.mean)
     std_x = get_mean(not config.std)
