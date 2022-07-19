@@ -2,18 +2,24 @@ package org.nadeemlab.impartial;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
 import org.json.JSONObject;
 
 import okhttp3.*;
 
 
 public class MonaiLabelClient {
-    private final OkHttpClient httpClient = new OkHttpClient();
+    private final OkHttpClient httpClient = new OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build();
     private final String monaiLabelUrl = "10.0.3.62";
 //    private final String monaiLabelUrl = "localhost";
     private final Integer monaiLabelPort = 8000;
 
-    public JSONObject info() {
+    public JSONObject getInfo() {
 
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
@@ -50,6 +56,25 @@ public class MonaiLabelClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             return response.body().bytes();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public JSONObject getTrain() {
+        HttpUrl url = new HttpUrl.Builder()
+                .scheme("http")
+                .host(monaiLabelUrl)
+                .port(monaiLabelPort)
+                .addPathSegments("train/")
+                .build();
+
+        Request request = new Request.Builder()
+                .url(url)
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            return new JSONObject(response.body().string());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -148,6 +173,26 @@ public class MonaiLabelClient {
         }
     }
 
+    public JSONObject getDatastore() {
+        HttpUrl url = new HttpUrl.Builder()
+                .scheme("http")
+                .host(monaiLabelUrl)
+                .port(monaiLabelPort)
+                .addPathSegments("datastore")
+                .addQueryParameter("output", "all")
+                .build();
+
+        Request request = new Request.Builder()
+                .url(url)
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            return new JSONObject(response.body().string());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public byte[] getDatastoreLabel(String imageId) {
 
         HttpUrl url = new HttpUrl.Builder()
@@ -191,13 +236,10 @@ public class MonaiLabelClient {
     }
 
     public JSONObject downloadImage(String image) {
-//        String impartialUrl = "localhost";
-        String impartialUrl = "10.0.3.62";
-
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(impartialUrl)
-                .port(8000)
+                .host(monaiLabelUrl)
+                .port(monaiLabelPort)
                 .addPathSegments("datastore/image")
                 .addQueryParameter("image", image)
                 .build();

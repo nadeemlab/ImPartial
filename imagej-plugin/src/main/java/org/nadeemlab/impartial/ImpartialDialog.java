@@ -28,197 +28,229 @@ import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.*;
+import java.util.List;
+import java.util.concurrent.*;
 
 
 public class ImpartialDialog<T extends RealType<T>> extends JDialog {
 
-	@Parameter
-	private OpService ops;
-	@Parameter
-	private LogService log;
-	@Parameter
-	private StatusService status;
-	@Parameter
-	private CommandService cmd;
-	@Parameter
-	private ThreadService thread;
-	@Parameter
-	private DatasetIOService datasetIOService;
-	@Parameter
-	private ImageDisplayService imageDisplayService;
-	@Parameter
-	private DisplayService displayService;
-	@Parameter
-	private UIService ui;
-	@Parameter
-	private IOService io;
-	@Parameter
-	private ROIService roiService;
-	@Parameter
-	private OverlayService overlayService;
+    @Parameter
+    private OpService ops;
+    @Parameter
+    private LogService log;
+    @Parameter
+    private StatusService status;
+    @Parameter
+    private CommandService cmd;
+    @Parameter
+    private ThreadService thread;
+    @Parameter
+    private DatasetIOService datasetIOService;
+    @Parameter
+    private ImageDisplayService imageDisplayService;
+    @Parameter
+    private DisplayService displayService;
+    @Parameter
+    private UIService ui;
+    @Parameter
+    private IOService io;
+    @Parameter
+    private ROIService roiService;
+    @Parameter
+    private OverlayService overlayService;
 
-	private final MonaiLabelClient monaiClient = new MonaiLabelClient();
-	private final File labelFile;
-	private final File imageFile;
-	private final File outputFile;
-	private String imageId;
-	private final JPanel contentPanel = new JPanel();
-	protected JLabel actionLabel;
+    private final MonaiLabelClient monaiClient = new MonaiLabelClient();
+    private final JPanel contentPanel = new JPanel();
+    protected JLabel actionLabel;
+    private final File labelFile;
+    private final File imageFile;
+    private final File outputFile;
+    private String imageId;
 
-	/**
-	 * Create the dialog.
-	 */
-	public ImpartialDialog(final Context ctx) {
-		try {
-			labelFile = File.createTempFile("impartial-label-", ".zip");
-			labelFile.deleteOnExit();
+    /**
+     * Create the dialog.
+     */
+    public ImpartialDialog(final Context ctx) {
 
-			imageFile = File.createTempFile("impartial-image-", ".png");
-			imageFile.deleteOnExit();
+        try {
+            labelFile = File.createTempFile("impartial-label-", ".zip");
+            labelFile.deleteOnExit();
 
-			outputFile = File.createTempFile("impartial-output-", ".zip");
-			outputFile.deleteOnExit();
+            imageFile = File.createTempFile("impartial-image-", ".png");
+            imageFile.deleteOnExit();
 
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+            outputFile = File.createTempFile("impartial-output-", ".zip");
+            outputFile.deleteOnExit();
 
-		ctx.inject(this);
-		setBounds(100, 100, 150, 300);
-		getContentPane().setLayout(new BorderLayout());
-		contentPanel.setLayout(new FlowLayout());
-		contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
-		getContentPane().add(contentPanel, BorderLayout.CENTER);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
-		//Create a label to put messages during an action event.
-		actionLabel = new JLabel("0");
+        ctx.inject(this);
+
+        thread.setExecutorService(Executors.newScheduledThreadPool(1));
+
+        setBounds(100, 100, 150, 300);
+        getContentPane().setLayout(new BorderLayout());
+        contentPanel.setLayout(new FlowLayout());
+        contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
+        getContentPane().add(contentPanel, BorderLayout.CENTER);
+
+        //Create a label to put messages during an action event.
+        actionLabel = new JLabel("0");
 //		actionLabel.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
-		contentPanel.add(actionLabel);
+        contentPanel.add(actionLabel);
 
-		{
-			final JButton btnNextSampleButton = new JButton("Next sample");
-			btnNextSampleButton.addActionListener(new ActionListener() {
+        {
+            final JButton btnNextSampleButton = new JButton("Next sample");
+            btnNextSampleButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(final ActionEvent arg0) {
+                    showNextSample();
+                }
+            });
+            contentPanel.add(btnNextSampleButton);
+        }
+        {
+            JSONObject datastore = monaiClient.getDatastore();
 
-				@Override
-				public void actionPerformed(final ActionEvent arg0) {
-					showNextSample();
-				}
-			});
-			contentPanel.add(btnNextSampleButton);
-		}
-		{
-			final JButton btnInferButton = new JButton("Infer");
-			btnInferButton.addActionListener(new ActionListener() {
+            List<String> samplesList = new ArrayList<>();
+            for (Iterator<String> it = datastore.getJSONObject("objects").keys(); it.hasNext(); ) {
+                samplesList.add(it.next());
+            }
+            String[] samples = Arrays.copyOf(samplesList.toArray(), samplesList.size(), String[].class);
 
-				@Override
-				public void actionPerformed(final ActionEvent arg0) {
-					infer();
-				}
-			});
-			contentPanel.add(btnInferButton);
-		}
-		{
-			final JButton btnSubmitLabelButton = new JButton("Submit label");
-			btnSubmitLabelButton.addActionListener(new ActionListener() {
+            Arrays.sort(samples);
 
-				@Override
-				public void actionPerformed(final ActionEvent arg0) {
-					submitLabel();
-				}
-			});
-			contentPanel.add(btnSubmitLabelButton);
-		}
-		{
-			final JButton btnLoadLabelButton = new JButton("Load label");
-			btnLoadLabelButton.addActionListener(new ActionListener() {
+            final JComboBox selectSample = new JComboBox(samples);
+            selectSample.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(final ActionEvent e) {
+                    JComboBox cb = (JComboBox) e.getSource();
+                    imageId = (String) cb.getSelectedItem();
+                    showImage(imageId);
+                }
+            });
+            contentPanel.add(selectSample);
+        }
+        {
+            final JButton btnInferButton = new JButton("Infer");
+            btnInferButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(final ActionEvent arg0) {
+                    infer();
+                }
+            });
+            contentPanel.add(btnInferButton);
+        }
+        {
+            final JButton btnSubmitLabelButton = new JButton("Submit label");
+            btnSubmitLabelButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(final ActionEvent arg0) {
+                    submitLabel();
+                }
+            });
+            contentPanel.add(btnSubmitLabelButton);
+        }
+        {
+            final JButton btnLoadLabelButton = new JButton("Load label");
+            btnLoadLabelButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(final ActionEvent arg0) {
+                    loadLabel();
+                }
+            });
+            contentPanel.add(btnLoadLabelButton);
+        }
+        {
+            final JButton btnTrainButton = new JButton("Train");
+            btnTrainButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(final ActionEvent arg0) {
+                    train();
+                }
+            });
+            contentPanel.add(btnTrainButton);
+        }
+    }
 
-				@Override
-				public void actionPerformed(final ActionEvent arg0) {
-					loadLabel();
-				}
-			});
-			contentPanel.add(btnLoadLabelButton);
-		}
-		{
-			final JButton btnTrainButton = new JButton("Train");
-			btnTrainButton.addActionListener(new ActionListener() {
+    public void loadLabel() {
+        byte[] label = monaiClient.getDatastoreLabel(imageId);
 
-				@Override
-				public void actionPerformed(final ActionEvent arg0) {
-					train();
-				}
-			});
-			contentPanel.add(btnTrainButton);
-		}
-	}
+        try {
+            FileOutputStream stream = new FileOutputStream(labelFile);
+            stream.write(label);
+            stream.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
-	public void loadLabel()	{
-		byte[] label = monaiClient.getDatastoreLabel(imageId);
+        RoiManager.getRoiManager().runCommand("Open", labelFile.getAbsolutePath());
+    }
 
-		try {
-			FileOutputStream stream = new FileOutputStream(labelFile);
-			stream.write(label);
-			stream.close();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+    public void submitLabel() {
+        RoiManager.getRoiManager().runCommand("Save", labelFile.getAbsolutePath());
 
-		RoiManager.getRoiManager().runCommand("Open", labelFile.getAbsolutePath());
-	}
+        JSONObject res = monaiClient.putDatastoreLabel(imageId, labelFile.getAbsolutePath());
+    }
 
-	public void submitLabel() {
-		RoiManager.getRoiManager().runCommand("Save", labelFile.getAbsolutePath());
+    public void infer() {
+        byte[] output = monaiClient.postInfer("impartial", imageId);
 
-		JSONObject res = monaiClient.putDatastoreLabel(imageId, labelFile.getAbsolutePath());
-	}
+        try {
+            FileOutputStream stream = new FileOutputStream(outputFile);
+            stream.write(output);
+            stream.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
-	public void infer()	{
-		byte[] output = monaiClient.postInfer("impartial", imageId);
+        RoiManager.getRoiManager().runCommand("Open", outputFile.getAbsolutePath());
+    }
 
-		try {
-			FileOutputStream stream = new FileOutputStream(outputFile);
-			stream.write(output);
-			stream.close();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+    public void train() {
+        monaiClient.deleteTrain();
+        monaiClient.postTrain("impartial");
 
-		RoiManager.getRoiManager().runCommand("Open", outputFile.getAbsolutePath());
-	}
+        TrainProgress trainProgress = new TrainProgress(status, monaiClient);
+        trainProgress.monitorTraining();
+    }
 
-	public void train()	{
-		monaiClient.deleteTrain();
-		monaiClient.postTrain("impartial");
-	}
+    public void showNextSample() {
+        JSONObject res = monaiClient.postActiveLearning("random");
+        imageId = res.getString("id");
 
-	public void showNextSample() {
-		JSONObject res = monaiClient.postActiveLearning("random");
-		imageId = res.getString("id");
-		actionLabel.setText(imageId);
+        showImage(imageId);
+    }
 
-		byte[] imageBytes = monaiClient.getDatastoreImage(imageId);
+    private void showImage(String imageId) {
+        actionLabel.setText(imageId);
 
-		try {
-			FileOutputStream stream = new FileOutputStream(imageFile.getAbsolutePath());
-			stream.write(imageBytes);
-			stream.close();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+        byte[] imageBytes = monaiClient.getDatastoreImage(imageId);
 
-		Dataset image = null;
-		try {
-			image = datasetIOService.open(imageFile.getAbsolutePath());
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+        try {
+            FileOutputStream stream = new FileOutputStream(imageFile.getAbsolutePath());
+            stream.write(imageBytes);
+            stream.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        Dataset image = null;
+        try {
+            image = datasetIOService.open(imageFile.getAbsolutePath());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
 //		TODO: is there a way of using the same display instead
 //		of closing it and opening a new one
-		if (displayService.getActiveDisplay() != null) {
-			displayService.getActiveDisplay().close();
-		}
+        if (displayService.getActiveDisplay() != null) {
+            displayService.getActiveDisplay().close();
+        }
 
-		ui.show(image);
-	}
+        ui.show(image);
+    }
 }
