@@ -34,6 +34,10 @@ def compute_impartial_losses(
         criterio_rec: Reconstruction loss function.
         criterio_reg: Regularization loss function.
     """
+    out.to(device=torch.device("cuda:0"))
+    input.to(device=torch.device("cuda:0"))
+    mask.to(device=torch.device("cuda:0"))
+
     total_loss = collections.defaultdict(int)
 
     seg_fore_loss = collections.defaultdict(int)
@@ -220,12 +224,20 @@ def reconstruction_loss(input, output, out_seg, mask, task, criterion, config):
     Compute reconstruction loss.
     """
     # channel to reconstruct for this class object
+
+    device = torch.device("cpu")
+
+    input.to(device)
+    output.to(device)
+    out_seg.to(device)
+    mask.to(device)
+
     def get_mean(zeros=False):
         if zeros:
             ts = torch.zeros([out_seg.shape[0], out_seg.shape[1]]).to(config.DEVICE)
         else:
             ts = torch.sum(output * out_seg, [2, 3]) / torch.sum(out_seg, [2, 3]) # batch x (nfore*nclasses + nback)
-        return torch.sum(torch.unsqueeze(torch.unsqueeze(ts, -1), -1) * out_seg, 1)
+        return torch.sum(torch.unsqueeze(torch.unsqueeze(ts.to(device), -1).to(device), -1).to(device) * out_seg.to(device), 1)
 
     mean_x = get_mean(not config.mean)
     std_x = get_mean(not config.std)
@@ -234,10 +246,10 @@ def reconstruction_loss(input, output, out_seg, mask, task, criterion, config):
     rec_channels = task['rec_channels']  # list with channels to reconstruct
     for i, ch in enumerate(rec_channels):
         mask_inv = 1 - mask[:, ch, :, :]
-        rec_x = criterion(input[:, ch, ...], mean=mean_x, logstd=std_x) * mask_inv
+        rec_x = criterion(input[:, ch, ...].to(device), mean=mean_x.to(device), logstd=std_x.to(device)) * mask_inv.to(device)
         # average over al channels
-        num_mask = torch.sum(mask_inv, [1, 2])  # size batch
-        loss += torch.mean(torch.sum(rec_x, [1, 2]) / num_mask) * task['weight_rec_channels'][i]
+        num_mask = torch.sum(mask_inv, [1, 2]).to(device)  # size batch
+        loss += torch.mean(torch.sum(rec_x, [1, 2]).to(device) / num_mask) * task['weight_rec_channels'][i]
 
     return loss
 
