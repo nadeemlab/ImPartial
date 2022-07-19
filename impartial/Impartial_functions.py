@@ -34,6 +34,11 @@ def compute_impartial_losses(
         criterio_rec: Reconstruction loss function.
         criterio_reg: Regularization loss function.
     """
+    out.to(device=torch.device("cuda:0"))
+    input.to(device=torch.device("cuda:0"))
+    scribble.to(device=torch.device("cuda:0"))
+    mask.to(device=torch.device("cuda:0"))
+
     total_loss = collections.defaultdict(int)
 
     seg_fore_loss = collections.defaultdict(int)
