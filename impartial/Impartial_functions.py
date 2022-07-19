@@ -36,7 +36,6 @@ def compute_impartial_losses(
     """
     out.to(device=torch.device("cuda:0"))
     input.to(device=torch.device("cuda:0"))
-    scribble.to(device=torch.device("cuda:0"))
     mask.to(device=torch.device("cuda:0"))
 
     total_loss = collections.defaultdict(int)
@@ -225,6 +224,12 @@ def reconstruction_loss(input, output, out_seg, mask, task, criterion, config):
     Compute reconstruction loss.
     """
     # channel to reconstruct for this class object
+
+    input.to(device=torch.device("cuda:0"))
+    output.to(device=torch.device("cuda:0"))
+    out_seg.to(device=torch.device("cuda:0"))
+    mask.to(device=torch.device("cuda:0"))
+
     def get_mean(zeros=False):
         if zeros:
             ts = torch.zeros([out_seg.shape[0], out_seg.shape[1]]).to(config.DEVICE)
