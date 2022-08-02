@@ -1,10 +1,6 @@
 package org.nadeemlab.impartial;
 
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.scijava.app.StatusService;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,18 +12,21 @@ import static java.util.concurrent.TimeUnit.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.scijava.app.StatusService;
+
 
 public class TrainProgress {
     private final StatusService status;
     private final MonaiLabelClient monaiLabel;
+    private final ScheduledExecutorService scheduler =
+            Executors.newScheduledThreadPool(1);
 
     public TrainProgress(final StatusService status, final MonaiLabelClient monaiLabel) {
         this.status = status;
         this.monaiLabel = monaiLabel;
     }
-
-    private final ScheduledExecutorService scheduler =
-            Executors.newScheduledThreadPool(1);
 
     private static boolean containsWords(String input, String[] words) {
         return Arrays.stream(words).allMatch(input::contains);
@@ -52,7 +51,7 @@ public class TrainProgress {
 
                 final int maxEpochs = trainConfig.getInt("max_epochs");
 
-                JSONObject jsonProgress = monaiLabel.getTrain();
+                final JSONObject jsonProgress = monaiLabel.getTrain();
 
                 JSONArray jsonDetails = jsonProgress.getJSONArray("details");
                 List<String> details = new ArrayList<String>();
@@ -77,7 +76,8 @@ public class TrainProgress {
             }
         };
 
-        final ScheduledFuture<?> beeperHandle =
-                scheduler.scheduleAtFixedRate(beeper, 1, 1, SECONDS);
+        final ScheduledFuture<?> beeperHandle = scheduler.scheduleAtFixedRate(
+                beeper, 1, 1, SECONDS
+        );
     }
 }
