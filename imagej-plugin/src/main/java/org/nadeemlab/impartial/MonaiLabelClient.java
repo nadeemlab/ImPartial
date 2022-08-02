@@ -2,29 +2,36 @@ package org.nadeemlab.impartial;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
+import okhttp3.*;
 import org.json.JSONObject;
 
-import okhttp3.*;
-
-
 public class MonaiLabelClient {
-    private final OkHttpClient httpClient = new OkHttpClient.Builder()
+    private String host;
+    private Integer port;
+    private final OkHttpClient httpClient;
+
+    public MonaiLabelClient() {
+        httpClient = new OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build();
-    private final String monaiLabelUrl = "10.0.3.62";
-//    private final String monaiLabelUrl = "localhost";
-    private final Integer monaiLabelPort = 8000;
+    }
+
+    public void setUrl(URL url) {
+        this.host = url.getHost();
+        this.port = url.getPort();
+    }
 
     public JSONObject getInfo() {
 
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(monaiLabelUrl)
-                .port(monaiLabelPort)
+                .host(host)
+                .port(port)
                 .addPathSegments("info")
                 .build();
 
@@ -39,11 +46,11 @@ public class MonaiLabelClient {
         }
     }
 
-    public byte[] postInfer(String model, String imageId)	{
+    public byte[] postInfer(String model, String imageId) {
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(monaiLabelUrl)
-                .port(monaiLabelPort)
+                .host(host)
+                .port(port)
                 .addPathSegments("infer/" + model)
                 .addQueryParameter("image", imageId)
                 .addQueryParameter("output", "image")
@@ -64,8 +71,8 @@ public class MonaiLabelClient {
     public JSONObject getTrain() {
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(monaiLabelUrl)
-                .port(monaiLabelPort)
+                .host(host)
+                .port(port)
                 .addPathSegments("train/")
                 .build();
 
@@ -83,8 +90,8 @@ public class MonaiLabelClient {
     public String postTrain(String model) {
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(monaiLabelUrl)
-                .port(monaiLabelPort)
+                .host(host)
+                .port(port)
                 .addPathSegments("train/" + model)
                 .build();
 
@@ -100,11 +107,11 @@ public class MonaiLabelClient {
         }
     }
 
-    public String deleteTrain()	{
+    public String deleteTrain() {
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(monaiLabelUrl)
-                .port(monaiLabelPort)
+                .host(host)
+                .port(port)
                 .addPathSegments("train/")
                 .build();
 
@@ -125,8 +132,8 @@ public class MonaiLabelClient {
 //		already labeled and this endpoint returns an empty response
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(monaiLabelUrl)
-                .port(monaiLabelPort)
+                .host(host)
+                .port(port)
                 .addPathSegments("activelearning/" + strategy)
                 .build();
 
@@ -154,8 +161,8 @@ public class MonaiLabelClient {
 
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(monaiLabelUrl)
-                .port(monaiLabelPort)
+                .host(this.host)
+                .port(port)
                 .addPathSegments("datastore/label")
                 .addQueryParameter("image", imageId)
                 .addQueryParameter("tag", "final")
@@ -176,8 +183,8 @@ public class MonaiLabelClient {
     public JSONObject getDatastore() {
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(monaiLabelUrl)
-                .port(monaiLabelPort)
+                .host(this.host)
+                .port(port)
                 .addPathSegments("datastore")
                 .addQueryParameter("output", "all")
                 .build();
@@ -197,8 +204,8 @@ public class MonaiLabelClient {
 
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(monaiLabelUrl)
-                .port(monaiLabelPort)
+                .host(this.host)
+                .port(port)
                 .addPathSegments("datastore/label")
                 .addQueryParameter("label", imageId)
                 .addQueryParameter("tag", "final")
@@ -218,8 +225,8 @@ public class MonaiLabelClient {
     public byte[] getDatastoreImage(String imageId) {
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(monaiLabelUrl)
-                .port(monaiLabelPort)
+                .host(this.host)
+                .port(port)
                 .addPathSegments("datastore/image")
                 .addQueryParameter("image", imageId)
                 .build();
@@ -238,8 +245,8 @@ public class MonaiLabelClient {
     public JSONObject downloadImage(String image) {
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(monaiLabelUrl)
-                .port(monaiLabelPort)
+                .host(this.host)
+                .port(port)
                 .addPathSegments("datastore/image")
                 .addQueryParameter("image", image)
                 .build();

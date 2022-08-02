@@ -1,6 +1,5 @@
 package org.nadeemlab.impartial;
 
-
 import org.scijava.Context;
 import org.scijava.ItemIO;
 import org.scijava.command.Command;
@@ -14,9 +13,24 @@ import javax.swing.*;
 public class ImpartialCommandSwing implements Command {
 
 	@Parameter
-	private Context ctx;
+	private Context context;
 	@Parameter(type = ItemIO.OUTPUT)
 	private static ImpartialDialog dialog = null;
+
+	private void createAndShowGUI() {
+		//Create and set up the window.
+		JFrame frame = new JFrame("ImPartial");
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+		//Create and set up the content pane.
+		ImpartialDialog impartial = new ImpartialDialog(context);
+		impartial.mainPane.setOpaque(true); //content panes must be opaque
+		frame.setContentPane(impartial.mainPane);
+
+		//Display the window.
+		frame.pack();
+		frame.setVisible(true);
+	}
 
 	/**
 	 * show a dialog and give the dialog access to required IJ2 Services
@@ -24,10 +38,11 @@ public class ImpartialCommandSwing implements Command {
 	@Override
 	public void run() {
 		SwingUtilities.invokeLater(() -> {
-			if (dialog == null) {
-				dialog = new ImpartialDialog(ctx);
-			}
-			dialog.setVisible(true);
+			createAndShowGUI();
+//			if (dialog == null) {
+//				dialog = new ImpartialDialog(context);
+//			}
+//			dialog.setVisible(true);
 		});
 	}
 }

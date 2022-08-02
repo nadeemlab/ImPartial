@@ -1,6 +1,6 @@
 package org.nadeemlab.impartial;
 
-
+import org.json.JSONObject;
 import ij.plugin.frame.RoiManager;
 import io.scif.services.DatasetIOService;
 import net.imagej.Dataset;
@@ -8,8 +8,6 @@ import net.imagej.display.ImageDisplayService;
 import net.imagej.display.OverlayService;
 import net.imagej.ops.OpService;
 import net.imagej.roi.ROIService;
-import net.imglib2.type.numeric.RealType;
-import org.json.JSONObject;
 import org.scijava.Context;
 import org.scijava.app.StatusService;
 import org.scijava.command.CommandService;
@@ -21,19 +19,11 @@ import org.scijava.thread.ThreadService;
 import org.scijava.ui.UIService;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.*;
-import java.util.List;
-import java.util.concurrent.*;
 
-
-public class ImpartialDialog<T extends RealType<T>> extends JDialog {
+public class ImpartialDialog {
 
     @Parameter
     private OpService ops;
@@ -61,7 +51,9 @@ public class ImpartialDialog<T extends RealType<T>> extends JDialog {
     private OverlayService overlayService;
 
     private final MonaiLabelClient monaiClient = new MonaiLabelClient();
-    private final JPanel contentPanel = new JPanel();
+    private final DatasetPanel datasetPanel;
+    JPanel mainPane;
+
     protected JLabel actionLabel;
     private final File labelFile;
     private final File imageFile;
@@ -71,14 +63,15 @@ public class ImpartialDialog<T extends RealType<T>> extends JDialog {
     /**
      * Create the dialog.
      */
-    public ImpartialDialog(final Context ctx) {
+    public ImpartialDialog(final Context context) {
+        context.inject(this);
 
         try {
-            labelFile = File.createTempFile("impartial-label-", ".zip");
-            labelFile.deleteOnExit();
-
             imageFile = File.createTempFile("impartial-image-", ".png");
             imageFile.deleteOnExit();
+
+            labelFile = File.createTempFile("impartial-label-", ".zip");
+            labelFile.deleteOnExit();
 
             outputFile = File.createTempFile("impartial-output-", ".zip");
             outputFile.deleteOnExit();
@@ -87,93 +80,26 @@ public class ImpartialDialog<T extends RealType<T>> extends JDialog {
             throw new RuntimeException(e);
         }
 
-        ctx.inject(this);
+        mainPane = new JPanel();
+        mainPane.setLayout(new BoxLayout(mainPane, BoxLayout.PAGE_AXIS));
 
-        thread.setExecutorService(Executors.newScheduledThreadPool(1));
+        ServerPanel serverPanel = new ServerPanel(this, monaiClient);
+        mainPane.add(serverPanel);
 
-        setBounds(100, 100, 150, 300);
-        getContentPane().setLayout(new BorderLayout());
-        contentPanel.setLayout(new FlowLayout());
-        contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
-        getContentPane().add(contentPanel, BorderLayout.CENTER);
+        datasetPanel = new DatasetPanel(this, monaiClient);
+        mainPane.add(datasetPanel);
 
-        //Create a label to put messages during an action event.
-        actionLabel = new JLabel("0");
-//		actionLabel.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
-        contentPanel.add(actionLabel);
+        ModelPanel modelPanel = new ModelPanel(this);
+        mainPane.add(modelPanel);
 
-        {
-            final JButton btnNextSampleButton = new JButton("Next sample");
-            btnNextSampleButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(final ActionEvent arg0) {
-                    showNextSample();
-                }
-            });
-            contentPanel.add(btnNextSampleButton);
-        }
-        {
-            JSONObject datastore = monaiClient.getDatastore();
+    }
 
-            List<String> samplesList = new ArrayList<>();
-            for (Iterator<String> it = datastore.getJSONObject("objects").keys(); it.hasNext(); ) {
-                samplesList.add(it.next());
-            }
-            String[] samples = Arrays.copyOf(samplesList.toArray(), samplesList.size(), String[].class);
+    public void setImageId(String imageId) {
+        this.imageId = imageId;
+    }
 
-            Arrays.sort(samples);
-
-            final JComboBox selectSample = new JComboBox(samples);
-            selectSample.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(final ActionEvent e) {
-                    JComboBox cb = (JComboBox) e.getSource();
-                    imageId = (String) cb.getSelectedItem();
-                    showImage(imageId);
-                }
-            });
-            contentPanel.add(selectSample);
-        }
-        {
-            final JButton btnInferButton = new JButton("Infer");
-            btnInferButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(final ActionEvent arg0) {
-                    infer();
-                }
-            });
-            contentPanel.add(btnInferButton);
-        }
-        {
-            final JButton btnSubmitLabelButton = new JButton("Submit label");
-            btnSubmitLabelButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(final ActionEvent arg0) {
-                    submitLabel();
-                }
-            });
-            contentPanel.add(btnSubmitLabelButton);
-        }
-        {
-            final JButton btnLoadLabelButton = new JButton("Load label");
-            btnLoadLabelButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(final ActionEvent arg0) {
-                    loadLabel();
-                }
-            });
-            contentPanel.add(btnLoadLabelButton);
-        }
-        {
-            final JButton btnTrainButton = new JButton("Train");
-            btnTrainButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(final ActionEvent arg0) {
-                    train();
-                }
-            });
-            contentPanel.add(btnTrainButton);
-        }
+    public void connect() {
+        datasetPanel.populateSampleList();
     }
 
     public void loadLabel() {
@@ -194,6 +120,33 @@ public class ImpartialDialog<T extends RealType<T>> extends JDialog {
         RoiManager.getRoiManager().runCommand("Save", labelFile.getAbsolutePath());
 
         JSONObject res = monaiClient.putDatastoreLabel(imageId, labelFile.getAbsolutePath());
+    }
+
+    public void showImage() {
+        byte[] imageBytes = monaiClient.getDatastoreImage(imageId);
+
+        try {
+            FileOutputStream stream = new FileOutputStream(imageFile.getAbsolutePath());
+            stream.write(imageBytes);
+            stream.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        Dataset image = null;
+        try {
+            image = datasetIOService.open(imageFile.getAbsolutePath());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+//		TODO: is there a way of using the same display instead
+//		of closing it and opening a new one
+        if (displayService.getActiveDisplay() != null) {
+            displayService.getActiveDisplay().close();
+        }
+
+        ui.show(image);
     }
 
     public void infer() {
@@ -221,36 +174,7 @@ public class ImpartialDialog<T extends RealType<T>> extends JDialog {
     public void showNextSample() {
         JSONObject res = monaiClient.postActiveLearning("random");
         imageId = res.getString("id");
-
-        showImage(imageId);
+        showImage();
     }
 
-    private void showImage(String imageId) {
-        actionLabel.setText(imageId);
-
-        byte[] imageBytes = monaiClient.getDatastoreImage(imageId);
-
-        try {
-            FileOutputStream stream = new FileOutputStream(imageFile.getAbsolutePath());
-            stream.write(imageBytes);
-            stream.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        Dataset image = null;
-        try {
-            image = datasetIOService.open(imageFile.getAbsolutePath());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-//		TODO: is there a way of using the same display instead
-//		of closing it and opening a new one
-        if (displayService.getActiveDisplay() != null) {
-            displayService.getActiveDisplay().close();
-        }
-
-        ui.show(image);
-    }
 }
