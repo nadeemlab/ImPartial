@@ -17,6 +17,7 @@ public class DatasetPanel extends JPanel implements ListSelectionListener {
     private JList list;
     private JButton openButton;
     private JButton loadLabelButton;
+    private JButton submitLabelButton;
     private DefaultListModel listModel;
     private JTextArea sampleInfo;
     private static final String hireString = "Hire";
@@ -65,6 +66,16 @@ public class DatasetPanel extends JPanel implements ListSelectionListener {
         });
         loadLabelButton.setEnabled(false);
 
+        submitLabelButton = new JButton("submit label");
+        submitLabelButton.setActionCommand("submit");
+        submitLabelButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                controller.submitLabel();
+            }
+        });
+        submitLabelButton.setEnabled(false);
+
         sampleInfo = new JTextArea(5, 20);
         sampleInfo.setEditable(false);
         sampleInfo.setOpaque(false);
@@ -74,6 +85,7 @@ public class DatasetPanel extends JPanel implements ListSelectionListener {
         add(sampleInfo);
         add(openButton);
         add(loadLabelButton);
+        add(submitLabelButton);
     }
 
     public void populateSampleList() {
@@ -123,6 +135,7 @@ public class DatasetPanel extends JPanel implements ListSelectionListener {
             controller.setImageId(imageId);
             openButton.setEnabled(true);
             loadLabelButton.setEnabled(hasLabels);
+            submitLabelButton.setEnabled(hasLabels);
         }
     }
 }
