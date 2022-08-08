@@ -13,6 +13,14 @@ def pixel_sharing_bipartite(lab1, lab2):
 
 
 def get_performance(label_gt, y_pred, threshold=0.5, iou_threshold=0.5):
+    """
+    Compute the model performance based on the model output `y_pre`
+    and the ground truth `label_gt`
+
+    Args:
+        label_gt (w, h): discrete/binary mask with ground trugh data
+        y_pred (w, h): probability mask from model output
+    """
     pred_thresholded = y_pred > threshold
     labels_pred, _ = ndimage.label(pred_thresholded)
 

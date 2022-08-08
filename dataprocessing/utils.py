@@ -15,7 +15,7 @@ def rois_to_mask(zip_path, size, sample_rate=1):
     mask = np.zeros(size).astype(np.uint8)
 
     for roi in random.sample(rois, int(len(rois) * sample_rate)):
-        if roi.integer_coordinates:
+        if roi.integer_coordinates is not None:
             coord = roi.integer_coordinates
             coord[:, 0] += roi.left
             coord[:, 1] += roi.top
