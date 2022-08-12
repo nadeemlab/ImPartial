@@ -119,7 +119,7 @@ public class ImpartialDialog {
     public void submitLabel() {
         RoiManager.getRoiManager().runCommand("Save", labelFile.getAbsolutePath());
 
-        JSONObject res = monaiClient.putDatastoreLabel(imageId, labelFile.getAbsolutePath());
+        monaiClient.putDatastoreLabel(imageId, labelFile.getAbsolutePath());
     }
 
     public void showImage() {

@@ -2,7 +2,7 @@ package org.nadeemlab.impartial;
 
 import org.json.JSONObject;
 
-import java.awt.FlowLayout;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.Arrays;
@@ -19,12 +19,7 @@ public class DatasetPanel extends JPanel implements ListSelectionListener {
     private JButton loadLabelButton;
     private JButton submitLabelButton;
     private DefaultListModel listModel;
-    private JTextArea sampleInfo;
-    private static final String hireString = "Hire";
-    private static final String fireString = "Fire";
     private final static String newline = "\n";
-    private JButton fireButton;
-    private JTextField employeeName;
 
     DatasetPanel(ImpartialDialog controller, MonaiLabelClient monaiClient) {
         this.controller = controller;
@@ -44,7 +39,12 @@ public class DatasetPanel extends JPanel implements ListSelectionListener {
         list.addListSelectionListener(this);
         list.setVisibleRowCount(5);
 
-        JScrollPane listScrollPane = new JScrollPane(list);
+        JScrollPane listScroller = new JScrollPane(list);
+        listScroller.setPreferredSize(new Dimension(150, 80));
+        listScroller.setBorder(BorderFactory.createLineBorder(Color.black));
+
+        JPanel buttonsPanel = new JPanel();
+        buttonsPanel.setLayout(new BoxLayout(buttonsPanel, BoxLayout.PAGE_AXIS));
 
         openButton = new JButton("open");
         openButton.setActionCommand("open");
@@ -76,16 +76,12 @@ public class DatasetPanel extends JPanel implements ListSelectionListener {
         });
         submitLabelButton.setEnabled(false);
 
-        sampleInfo = new JTextArea(5, 20);
-        sampleInfo.setEditable(false);
-        sampleInfo.setOpaque(false);
-        sampleInfo.setBorder(BorderFactory.createEmptyBorder());
+        buttonsPanel.add(openButton);
+        buttonsPanel.add(loadLabelButton);
+        buttonsPanel.add(submitLabelButton);
 
-        add(listScrollPane);
-        add(sampleInfo);
-        add(openButton);
-        add(loadLabelButton);
-        add(submitLabelButton);
+        add(listScroller);
+        add(buttonsPanel);
     }
 
     public void populateSampleList() {
@@ -100,14 +96,8 @@ public class DatasetPanel extends JPanel implements ListSelectionListener {
         }
     }
 
-    private void updateImageInfo(String imageName, boolean hasLabels) {
-        this.sampleInfo.setText("name: " + imageName + newline +
-                "labeled: " + (hasLabels ? "yes" : "no"));
-    }
-
     private JSONObject getSampleInfo(String sampleId) {
         JSONObject datastore = monaiClient.getDatastore();
-
         return datastore.getJSONObject("objects").getJSONObject(sampleId);
     }
 
@@ -129,8 +119,6 @@ public class DatasetPanel extends JPanel implements ListSelectionListener {
                     .getJSONObject("info")
                     .getString("name");
             boolean hasLabels = sampleInfo.has("labels");
-
-            updateImageInfo(imageName, hasLabels);
 
             controller.setImageId(imageId);
             openButton.setEnabled(true);

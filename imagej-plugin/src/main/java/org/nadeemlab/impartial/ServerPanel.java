@@ -1,6 +1,7 @@
 package org.nadeemlab.impartial;
 
 import javax.swing.*;
+import javax.swing.plaf.BorderUIResource;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.net.MalformedURLException;
@@ -12,7 +13,7 @@ public class ServerPanel extends JPanel {
     private JLabel statusLabel;
     private JTextField monaiUrl;
 
-    private String defaultUrl = "http://10.0.3.62:8000";
+    private String defaultUrl = "http://10.0.3.117:8000";
 
     ServerPanel(ImpartialDialog controller, MonaiLabelClient monaiClient) {
         this.controller = controller;
@@ -28,7 +29,7 @@ public class ServerPanel extends JPanel {
 
         JPanel addressBar = new JPanel();
 
-        monaiUrl = new JTextField(defaultUrl, 50);
+        monaiUrl = new JTextField(defaultUrl, 15);
 
         JButton connectButton = new JButton("connect");
         connectButton.setActionCommand("connect");

@@ -37,12 +37,6 @@ public class ImpartialCommandSwing implements Command {
 	 */
 	@Override
 	public void run() {
-		SwingUtilities.invokeLater(() -> {
-			createAndShowGUI();
-//			if (dialog == null) {
-//				dialog = new ImpartialDialog(context);
-//			}
-//			dialog.setVisible(true);
-		});
+		SwingUtilities.invokeLater(this::createAndShowGUI);
 	}
 }
