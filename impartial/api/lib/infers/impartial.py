@@ -23,7 +23,7 @@ from monai.transforms import (
 from monai.utils import ensure_tuple
 from monailabel.interfaces.tasks.infer import InferTask, InferType
 
-from lib.transforms import GetImpartialOutputs, AddForegroundOutput
+from lib.transforms import GetImpartialOutputs, AggregateComponentOutputs, ComputeEntropy
 
 
 logger = logging.getLogger(__name__)
@@ -81,15 +81,16 @@ class Impartial(InferTask):
 
     def post_transforms(self, data=None) -> Sequence[Callable]:
         return [
-            GetImpartialOutputs(keys="pred", iconfig=self.iconfig),
+            GetImpartialOutputs(iconfig=self.iconfig),
             Activationsd(keys="output", softmax=True),
-            AddForegroundOutput(keys="output", iconfig=self.iconfig),
-            AsDiscreted(keys="output", threshold=0.5),
-            ToNumpyd(keys="output")
+            AggregateComponentOutputs(keys="output", iconfig=self.iconfig),
+            ComputeEntropy(),
+            # AsDiscreted(keys="output", threshold=0.5),
+            ToNumpyd(keys=("output", "entropy"))
         ]
 
     def writer(self, data, extension=None, dtype=None):
-        writer = PNGWriter(label=self.output_label_key, json=self.output_json_key)
+        writer = ZIPFileWriter(label=self.output_label_key, json=self.output_json_key)
         return writer(data)
 
 
@@ -99,7 +100,11 @@ def pil_to_b64(i):
     return base64.b64encode(buff.getvalue()).decode("utf-8")
 
 
-class PNGWriter:
+def np_to_b64(i):
+    return pil_to_b64(Image.fromarray((i * 255).astype(np.uint8)))
+
+
+class ZIPFileWriter:
     def __init__(self, label, json):
         self.label = label
         self.json = json
@@ -112,13 +117,13 @@ class PNGWriter:
 
         output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.zip")
 
-        img = (data["output"] * 255).astype(np.uint8)
+        prob_map = data["output"]
 
-        for contour in measure.find_contours(img, level=0.9999):
+        for contour in measure.find_contours((prob_map > 0.5).astype(np.uint8), level=0.9999):
             roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
             roi.tofile(output_path)
 
-        return output_path, {"b64_image": pil_to_b64(Image.fromarray(img))}
+        return output_path, {"output": np_to_b64(prob_map), "entropy": np_to_b64(data["entropy"])}
 
 
 class PNGReader(PILReader):
@@ -132,7 +137,6 @@ class PNGReader(PILReader):
 
         Args:
             img: a PIL Image object loaded from a file or a list of PIL Image objects.
-
         """
         img_array: List[np.ndarray] = []
         compatible_meta: Dict = {}

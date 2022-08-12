@@ -196,3 +196,19 @@ def generate_validation_masks(dataset_dir):
         mask = validation_mask(label, 0.3)
 
         Image.fromarray(mask * 255).save(os.path.join(masks_dir, l))
+
+
+def compute_entropy(output: np.ndarray):
+    """
+    Computes the entropy of a probability map.
+    Args:
+        output (w, h): prediction of the model
+
+    Returns:
+        entropy (w, h): entropy of the probability map
+    """
+    # output = output[task]['class_segmentation'][0, ix_class, ...]
+    res = -output * np.log(np.maximum(output, 1e-5))
+    res += -(1 - output) * np.log(np.maximum(1 - output, 1e-5))
+
+    return res
