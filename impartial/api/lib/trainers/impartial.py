@@ -118,7 +118,7 @@ class Impartial(BasicTrainTask):
         ]
 
     def train_post_transforms(self, context: Context):
-        return [GetImpartialOutputs(keys="image", iconfig=self.iconfig)]
+        return [GetImpartialOutputs(iconfig=self.iconfig)]
 
     def val_inferer(self, context: Context):
         return SimpleInferer()

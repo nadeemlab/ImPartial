@@ -169,7 +169,7 @@ class ComputeEntropy(Transform):
     def __call__(self, data):
         d = dict(data)
 
-        d["entropy"] = compute_entropy(data["output"])
+        d["entropy"] = compute_entropy(data["output"].cpu())
 
         return d
 
