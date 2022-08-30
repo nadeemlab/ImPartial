@@ -1,13 +1,22 @@
 package org.nadeemlab.impartial;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
+import com.google.gson.Gson;
+
 import ij.plugin.frame.RoiManager;
+
+import ij.ImagePlus;
+import ij.plugin.PlugIn;
+import ij.process.FloatProcessor;
+
 import io.scif.services.DatasetIOService;
 import net.imagej.Dataset;
 import net.imagej.display.ImageDisplayService;
 import net.imagej.display.OverlayService;
 import net.imagej.ops.OpService;
 import net.imagej.roi.ROIService;
+import net.imagej.lut.LUTService;
 import org.scijava.Context;
 import org.scijava.app.StatusService;
 import org.scijava.command.CommandService;
@@ -17,6 +26,7 @@ import org.scijava.log.LogService;
 import org.scijava.plugin.Parameter;
 import org.scijava.thread.ThreadService;
 import org.scijava.ui.UIService;
+import java.util.Base64;
 
 import javax.swing.*;
 import java.io.File;
@@ -35,6 +45,8 @@ public class ImpartialDialog {
     private CommandService cmd;
     @Parameter
     private ThreadService thread;
+    @Parameter
+    private LUTService lutService;
     @Parameter
     private DatasetIOService datasetIOService;
     @Parameter
@@ -58,6 +70,7 @@ public class ImpartialDialog {
     private final File labelFile;
     private final File imageFile;
     private final File outputFile;
+    private final File entropyFile;
     private String imageId;
 
     /**
@@ -75,6 +88,9 @@ public class ImpartialDialog {
 
             outputFile = File.createTempFile("impartial-output-", ".zip");
             outputFile.deleteOnExit();
+
+            entropyFile = File.createTempFile("impartial-entropy-", ".png");
+            entropyFile.deleteOnExit();
 
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -149,6 +165,7 @@ public class ImpartialDialog {
         ui.show(image);
     }
 
+	/*
     public void infer() {
         byte[] output = monaiClient.postInfer("impartial", imageId);
 
@@ -161,7 +178,80 @@ public class ImpartialDialog {
         }
 
         RoiManager.getRoiManager().runCommand("Open", outputFile.getAbsolutePath());
+
+        
+        JSONObject res = monaiClient.postInferEntropy("impartial", imageId);
+        byte[] imageBytes = Base64.getDecoder().decode(res.getString("b64_image"));
+
+        try {
+            FileOutputStream stream = new FileOutputStream(entropyFile.getAbsolutePath());
+            stream.write(imageBytes);
+            stream.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        Dataset image = null;
+        try {
+            image = datasetIOService.open(entropyFile.getAbsolutePath());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        if (displayService.getActiveDisplay() != null) {
+            displayService.getActiveDisplay().close();
+        }
+
+        ui.show(image);
     }
+	*/
+		
+	float[][] convertToFloat(JSONArray arr1) {
+		int img_size = arr1.length();
+		float[][] data = new float[img_size][img_size];
+        for(int i = 0; i<img_size; i++){
+            JSONArray jsa1 = arr1.getJSONArray(i);
+            for(int j = 0; j<img_size; j++){
+				double d = (double) jsa1.get(j);				
+                data[i][j] = (float)d;
+            }
+        }
+		return data;
+	}
+	
+    public void infer() {
+        byte[] output = monaiClient.postInfer("impartial", imageId);
+
+        try {
+            FileOutputStream stream = new FileOutputStream(outputFile);
+            stream.write(output);
+            stream.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        RoiManager.getRoiManager().runCommand("Open", outputFile.getAbsolutePath());
+
+        
+        JSONObject res = monaiClient.postInferEntropy("impartial", imageId);
+		// JSONArray arr1 = res.getJSONArray("prob");
+		JSONArray arr1 = res.getJSONArray("entropy");
+		
+		// FloatProcessor ip = new FloatProcessor(500, 500);
+		FloatProcessor ip = new FloatProcessor(convertToFloat(arr1));
+		ImagePlus imp = new ImagePlus("Entropy", ip);
+		// imp.setLut(lutService.findLUTs().get("Green.lut"));
+		imp.show();
+		
+		
+		JSONArray arr2 = res.getJSONArray("prob");
+		
+		FloatProcessor ip2 = new FloatProcessor(convertToFloat(arr2));
+		ImagePlus imp2 = new ImagePlus("Probability Map", ip2);
+		imp2.show();
+		
+    }
+	
 
     public void train() {
         monaiClient.deleteTrain();

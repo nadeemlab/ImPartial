@@ -1,3 +1,5 @@
+from copyreg import pickle
+from email.mime import base
 import os
 import io
 import base64
@@ -8,6 +10,7 @@ import numpy as np
 from PIL import Image
 from skimage import measure
 from roifile import ImagejRoi
+import pickle
 
 from monai.data import PILReader
 from monai.data.image_reader import _copy_compatible_dict, _stack_images
@@ -84,13 +87,13 @@ class Impartial(InferTask):
             GetImpartialOutputs(keys="pred", iconfig=self.iconfig),
             Activationsd(keys="output", softmax=True),
             AddForegroundOutput(keys="output", iconfig=self.iconfig),
-            AsDiscreted(keys="output", threshold=0.5),
+            # AsDiscreted(keys="output", threshold=0.5),
             ToNumpyd(keys="output")
         ]
 
     def writer(self, data, extension=None, dtype=None):
-        writer = PNGWriter(label=self.output_label_key, json=self.output_json_key)
-        return writer(data)
+        wtr = PNGWriter(label=self.output_label_key, json=self.output_json_key)
+        return wtr(data)
 
 
 def pil_to_b64(i):
@@ -105,21 +108,34 @@ class PNGWriter:
         self.json = json
 
     def __call__(self, data):
+
         base_dir, input_file = os.path.split(data["image_path"])
         output_dir = os.path.join(base_dir, "outputs")
-
+        
         os.makedirs(output_dir, exist_ok=True)
 
-        output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.zip")
+        pickle_dir = os.path.join(base_dir, "pickle_dir")
+        os.makedirs(pickle_dir, exist_ok=True)
+        file_output_save = 'monai_data_output.pickle'
+        _path = os.path.join(pickle_dir, file_output_save)
 
+        with open(_path, 'wb') as handle:
+            pickle.dump(data, handle)
+
+        entropy = -data["output"] * np.log(np.maximum(data["output"], 1e-5))
+        entropy += -(1-data["output"]) * np.log(np.maximum(1-data["output"], 1e-5))
+
+
+        # img_ent = (entropy * 255).astype(np.uint8)
         img = (data["output"] * 255).astype(np.uint8)
+        img_prob = data["output"]
 
+        output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.zip")
         for contour in measure.find_contours(img, level=0.9999):
             roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
             roi.tofile(output_path)
 
-        return output_path, {"b64_image": pil_to_b64(Image.fromarray(img))}
-
+        return output_path, {"b64_image": pil_to_b64(Image.fromarray(img)), "prob":img_prob.tolist(), "entropy": entropy.tolist()}
 
 class PNGReader(PILReader):
     def get_data(self, img):

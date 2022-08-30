@@ -68,6 +68,31 @@ public class MonaiLabelClient {
         }
     }
 
+
+    public JSONObject postInferEntropy(String model, String imageId) {
+        HttpUrl url = new HttpUrl.Builder()
+                .scheme("http")
+                .host(host)
+                .port(port)
+                .addPathSegments("infer/" + model)
+                .addQueryParameter("image", imageId)
+                .addQueryParameter("output", "json")
+                .build();
+
+        Request request = new Request.Builder()
+                .url(url)
+                .post(RequestBody.create(new byte[0]))
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            return new JSONObject(response.body().string());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+
     public JSONObject getTrain() {
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
