@@ -85,12 +85,16 @@ class Impartial(InferTask):
             Activationsd(keys="output", softmax=True),
             AggregateComponentOutputs(keys="output", iconfig=self.iconfig),
             ComputeEntropy(),
-            # AsDiscreted(keys="output", threshold=0.5),
+            # AsDiscreted(keys="output", threshold=data.get("threshold", 0.5)),
             ToNumpyd(keys=("output", "entropy"))
         ]
 
     def writer(self, data, extension=None, dtype=None):
-        writer = ZIPFileWriter(label=self.output_label_key, json=self.output_json_key)
+        writer = ZIPFileWriter(
+            label=self.output_label_key,
+            json=self.output_json_key,
+            threshold=data.get("threshold", 0.5)
+        )
         return writer(data)
 
 
@@ -105,9 +109,10 @@ def np_to_b64(i):
 
 
 class ZIPFileWriter:
-    def __init__(self, label, json):
+    def __init__(self, label, json, threshold):
         self.label = label
         self.json = json
+        self.threshold = threshold
 
     def __call__(self, data):
         base_dir, input_file = os.path.split(data["image_path"])
@@ -119,11 +124,11 @@ class ZIPFileWriter:
 
         prob_map = data["output"]
 
-        for contour in measure.find_contours((prob_map > 0.5).astype(np.uint8), level=0.9999):
+        for contour in measure.find_contours((prob_map > self.threshold).astype(np.uint8), level=0.9999):
             roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
             roi.tofile(output_path)
 
-        return output_path, {"output": np_to_b64(prob_map), "entropy": np_to_b64(data["entropy"])}
+        return output_path, {"output": prob_map.tolist(), "entropy": data["entropy"].tolist()}
 
 
 class PNGReader(PILReader):

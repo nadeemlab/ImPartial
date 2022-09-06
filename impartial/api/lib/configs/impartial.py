@@ -73,6 +73,7 @@ class Impartial(TaskConfig):
                 "max_epochs": self.iconfig.EPOCHS,
                 "train_batch_size": self.iconfig.BATCH_SIZE,
                 "dataset_max_region": (10240, 10240),
+                "npatches_epoch": self.iconfig.npatches_epoch,
                 "dataset_limit": 0,
                 "dataset_randomize": True,
                 "early_stop_patience": self.iconfig.patience,

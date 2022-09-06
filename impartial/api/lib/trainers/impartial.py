@@ -139,7 +139,8 @@ class Impartial(BasicTrainTask):
         ]
 
         nval_patches = int(val_split * self.iconfig.npatches_epoch)
-        ntrain_patches = self.iconfig.npatches_epoch - nval_patches
+        npatches_epoch = context.request["npatches_epoch"]
+        ntrain_patches = npatches_epoch - nval_patches
 
         train_patches = sample_patches(
             images=images,

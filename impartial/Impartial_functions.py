@@ -223,7 +223,8 @@ def reconstruction_loss(input, output, out_seg, mask, task, criterion, config):
 
     def get_mean(zeros=False):
         if zeros:
-            ts = torch.zeros([out_seg.shape[0], out_seg.shape[1]]).to(out_seg.get_device())
+            device = out_seg.get_device() if out_seg.get_device() >= 0 else torch.device("cpu")
+            ts = torch.zeros([out_seg.shape[0], out_seg.shape[1]]).to(device)
         else:
             ts = torch.sum(output * out_seg, [2, 3]) / torch.sum(out_seg, [2, 3]) # batch x (nfore*nclasses + nback)
         return torch.sum(torch.unsqueeze(torch.unsqueeze(ts, -1), -1) * out_seg, 1)
