@@ -46,7 +46,39 @@ public class MonaiLabelClient {
         }
     }
 
-    public byte[] postInfer(String model, String imageId) {
+    public JSONObject postInferJson(String model, String imageId, JSONObject params) {
+        RequestBody body = new MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("params", params.toString())
+            .build();
+
+        HttpUrl url = new HttpUrl.Builder()
+                .scheme("http")
+                .host(host)
+                .port(port)
+                .addPathSegments("infer/" + model)
+                .addQueryParameter("image", imageId)
+                .addQueryParameter("output", "json")
+                .build();
+
+        Request request = new Request.Builder()
+                .url(url)
+                .post(body)
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            return  new JSONObject(response.body().string());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public byte[] postInferBytes(String model, String imageId, JSONObject params) {
+        RequestBody body = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("params", params.toString())
+                .build();
+
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
                 .host(host)
@@ -58,9 +90,8 @@ public class MonaiLabelClient {
 
         Request request = new Request.Builder()
                 .url(url)
-                .post(RequestBody.create(new byte[0]))
+                .post(body)
                 .build();
-
         try (Response response = httpClient.newCall(request).execute()) {
             return response.body().bytes();
         } catch (IOException e) {
@@ -87,7 +118,11 @@ public class MonaiLabelClient {
         }
     }
 
-    public String postTrain(String model) {
+    public String postTrain(String model, JSONObject params) {
+        final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+
+        RequestBody body = RequestBody.create(params.toString(), JSON);
+
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
                 .host(host)
@@ -97,7 +132,7 @@ public class MonaiLabelClient {
 
         Request request = new Request.Builder()
                 .url(url)
-                .post(RequestBody.create(new byte[0]))
+                .post(body)
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
