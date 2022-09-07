@@ -1,13 +1,22 @@
 package org.nadeemlab.impartial;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
+import com.google.gson.Gson;
+
 import ij.plugin.frame.RoiManager;
+
+import ij.ImagePlus;
+import ij.plugin.PlugIn;
+import ij.process.FloatProcessor;
+
 import io.scif.services.DatasetIOService;
 import net.imagej.Dataset;
 import net.imagej.display.ImageDisplayService;
 import net.imagej.display.OverlayService;
 import net.imagej.ops.OpService;
 import net.imagej.roi.ROIService;
+import net.imagej.lut.LUTService;
 import org.scijava.Context;
 import org.scijava.app.StatusService;
 import org.scijava.command.CommandService;
@@ -17,6 +26,7 @@ import org.scijava.log.LogService;
 import org.scijava.plugin.Parameter;
 import org.scijava.thread.ThreadService;
 import org.scijava.ui.UIService;
+import java.util.Base64;
 
 import javax.swing.*;
 import java.io.File;
@@ -35,6 +45,8 @@ public class ImpartialDialog {
     private CommandService cmd;
     @Parameter
     private ThreadService thread;
+    @Parameter
+    private LUTService lutService;
     @Parameter
     private DatasetIOService datasetIOService;
     @Parameter
@@ -58,6 +70,7 @@ public class ImpartialDialog {
     private final File labelFile;
     private final File imageFile;
     private final File outputFile;
+    private final File entropyFile;
     private String imageId;
 
     /**
@@ -75,6 +88,9 @@ public class ImpartialDialog {
 
             outputFile = File.createTempFile("impartial-output-", ".zip");
             outputFile.deleteOnExit();
+
+            entropyFile = File.createTempFile("impartial-entropy-", ".png");
+            entropyFile.deleteOnExit();
 
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -149,6 +165,20 @@ public class ImpartialDialog {
         ui.show(image);
     }
 
+		
+	float[][] convertToFloat(JSONArray arr1) {
+		int img_size = arr1.length();
+		float[][] data = new float[img_size][img_size];
+        for(int i = 0; i<img_size; i++){
+            JSONArray jsa1 = arr1.getJSONArray(i);
+            for(int j = 0; j<img_size; j++){
+				double d = (double) jsa1.get(j);				
+                data[i][j] = (float)d;
+            }
+        }
+		return data;
+	}
+	
     public void infer() {
         byte[] output = monaiClient.postInfer("impartial", imageId);
 
@@ -159,9 +189,23 @@ public class ImpartialDialog {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
+        
         RoiManager.getRoiManager().runCommand("Open", outputFile.getAbsolutePath());
+        
+        JSONObject res = monaiClient.postInferEntropy("impartial", imageId);
+		JSONArray arr_entropy = res.getJSONArray("entropy");
+		
+		FloatProcessor ip_entropy = new FloatProcessor(convertToFloat(arr_entropy));
+		ImagePlus imp_entropy = new ImagePlus("Entropy", ip_entropy);
+		imp_entropy.show();
+		
+		JSONArray arr_prob = res.getJSONArray("prob");
+		FloatProcessor ip_prob = new FloatProcessor(convertToFloat(arr_prob));
+		ImagePlus imp_prob = new ImagePlus("Probability Map", ip_prob);
+		imp_prob.show();
+		
     }
+	
 
     public void train() {
         monaiClient.deleteTrain();
