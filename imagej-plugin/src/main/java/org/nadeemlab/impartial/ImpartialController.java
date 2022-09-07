@@ -1,6 +1,7 @@
 package org.nadeemlab.impartial;
 
 import ij.ImagePlus;
+import ij.gui.ImageWindow;
 import ij.io.Opener;
 import ij.plugin.frame.RoiManager;
 import ij.process.FloatProcessor;
@@ -26,7 +27,6 @@ import org.scijava.ui.UIService;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -39,8 +39,7 @@ import java.util.stream.StreamSupport;
 public class ImpartialController {
     private final JFrame mainFrame;
     private final ImpartialContentPane contentPane;
-    private final JDialog imageDialog;
-    private final JLabel imageLabel = new JLabel();
+    private ImageWindow imageWindow;
     private File imageFile;
     private File labelFile;
     private File outputFile;
@@ -67,9 +66,6 @@ public class ImpartialController {
         contentPane = new ImpartialContentPane(this);
         contentPane.setOpaque(true); //content panes must be opaque
         mainFrame.setContentPane(contentPane);
-
-        imageDialog = new JDialog(mainFrame, false);
-        imageDialog.add(imageLabel);
 
         mainFrame.pack();
         mainFrame.setVisible(true);
@@ -132,34 +128,29 @@ public class ImpartialController {
         }
     }
 
-    public void displayStoredImage() {
-        final ImagePlus imp = new Opener().openImage(imageFile.getAbsolutePath());
-        setDialogImage(imp.getBufferedImage());
-    }
+    private void displayImage(ImagePlus imp) {
+        if (imageWindow == null)
+            imageWindow = new ImageWindow(imp);
+        else {
+            imageWindow.setImage(
+                    imp.resize(imageWindow.getCanvas().getWidth(), imageWindow.getCanvas().getHeight(), "none")
+            );
+            imageWindow.pack();
+        }
 
-    public void setDialogImage(BufferedImage img) {
-        imageLabel.setIcon(new ImageIcon(img));
-        imageDialog.setTitle(contentPane.getSelectedImageId());
-        imageDialog.pack();
-
-        if (!imageDialog.isVisible()) {
+        if (!imageWindow.isVisible()) {
             Point mainFrameLocation = mainFrame.getLocation();
-            imageDialog.setLocation(
+            imageWindow.setLocation(
                     mainFrameLocation.x + mainFrame.getSize().width,
                     mainFrameLocation.y
             );
-            imageDialog.setVisible(true);
+            imageWindow.setVisible(true);
         }
     }
 
-    public void displayStoredDataset() {
-        Dataset image;
-        try {
-            image = datasetIOService.open(imageFile.getAbsolutePath());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        ui.show(image);
+    public void displayStoredImage() {
+        final ImagePlus imp = new Opener().openImage(imageFile.getAbsolutePath());
+        displayImage(imp);
     }
 
     public void setMonaiClientUrl(URL url) {
@@ -175,8 +166,6 @@ public class ImpartialController {
     }
 
     public void loadLabel() {
-        displayStoredDataset();
-
         String imageId = contentPane.getSelectedImageId();
         byte[] label = monaiClient.getDatastoreLabel(imageId);
 
@@ -189,6 +178,14 @@ public class ImpartialController {
         }
 
         RoiManager.getRoiManager().runCommand("Open", labelFile.getAbsolutePath());
+
+        Point imageWindowLocation = imageWindow.getLocation();
+        RoiManager.getRoiManager().setLocation(
+                imageWindowLocation.x + imageWindow.getSize().width,
+                imageWindowLocation.y
+        );
+
+
     }
 
     public void submitLabel() {
@@ -206,7 +203,6 @@ public class ImpartialController {
         monaiClient.deleteTrain();
 
         JSONObject params = contentPane.getTrainParams();
-
         monaiClient.postTrain("impartial", params);
 
         TrainProgress.monitorTraining(this);
@@ -225,6 +221,7 @@ public class ImpartialController {
         LocalDateTime time = LocalDateTime.now();
         modelOutput.put("time", time.format(formatter));
 
+
         modelOutputs.put(imageId, modelOutput);
 
         contentPane.updateInferInfo(
@@ -232,6 +229,8 @@ public class ImpartialController {
                 modelOutput.getString("time")
         );
         contentPane.updateInferView(true);
+
+        displayInfer();
     }
 
     public void displayInfer() {
@@ -255,13 +254,14 @@ public class ImpartialController {
 
         ImagePlus output = ImageJFunctions.wrapFloat(labeling.getIndexImg(), "output");
 
-        imageLabel.setIcon(new ImageIcon(output.getBufferedImage()));
+        displayImage(output);
     }
+
 
     public void displayEntropy() {
         String imageId = contentPane.getSelectedImageId();
         ImagePlus entropy = jsonArrayToImp(modelOutputs.get(imageId).getJSONArray("entropy"));
-        imageLabel.setIcon(new ImageIcon(entropy.getBufferedImage()));
+        displayImage(entropy);
     }
 
     public ImagePlus jsonArrayToImp(JSONArray input) {

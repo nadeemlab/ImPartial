@@ -5,10 +5,10 @@ import java.awt.*;
 import java.util.Hashtable;
 
 public class InferPanel extends JPanel {
-    private ImpartialController controller;
+    private final ImpartialController controller;
     private JButton inferButton;
     private JLabel trainInfo;
-    private JSlider thresholdSlider = new JSlider(JSlider.HORIZONTAL, 0, 100, 50);
+    private final JSlider thresholdSlider = new JSlider(JSlider.HORIZONTAL, 0, 100, 50);
 
     InferPanel(ImpartialController controller) {
         this.controller = controller;
@@ -91,16 +91,10 @@ public class InferPanel extends JPanel {
     }
 
     public void updateInferView(int epoch, String time) {
-//        inferRadioButton.setEnabled(true);
-//        entropyRadioButton.setEnabled(true);
-
         trainInfo.setText("last run " + time + ", epoch " + epoch);
     }
 
     public void disableInferView() {
-//        inferRadioButton.setEnabled(false);
-//        entropyRadioButton.setEnabled(false);
-
         trainInfo.setText("last run never");
     }
 

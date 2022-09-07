@@ -1,7 +1,5 @@
 package org.nadeemlab.impartial;
 
-import org.json.JSONObject;
-
 import javax.swing.*;
 import java.awt.*;
 import java.util.Arrays;
@@ -63,14 +61,12 @@ public class DatasetPanel extends JPanel {
         inferRadioButton = new JRadioButton("infer");
         inferRadioButton.addActionListener(e -> {
             controller.displayInfer();
-//            thresholdSlider.setEnabled(true);
         });
         inferRadioButton.setEnabled(false);
 
         entropyRadioButton = new JRadioButton("entropy");
         entropyRadioButton.addActionListener(e -> {
             controller.displayEntropy();
-//            thresholdSlider.setEnabled(false);
         });
         entropyRadioButton.setEnabled(false);
 

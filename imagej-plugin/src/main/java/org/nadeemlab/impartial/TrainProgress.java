@@ -1,6 +1,9 @@
 package org.nadeemlab.impartial;
 
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -8,16 +11,15 @@ import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import static java.util.concurrent.TimeUnit.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 
 public class TrainProgress {
-    public TrainProgress() {}
+    public TrainProgress() {
+    }
 
     private static boolean containsWords(String input, String[] words) {
         return Arrays.stream(words).allMatch(input::contains);

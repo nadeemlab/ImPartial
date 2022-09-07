@@ -3,7 +3,7 @@ package org.nadeemlab.impartial;
 import javax.swing.*;
 
 public class LabelPanel extends JPanel {
-    private ImpartialController controller;
+    private final ImpartialController controller;
 
     LabelPanel(ImpartialController controller) {
         this.controller = controller;
