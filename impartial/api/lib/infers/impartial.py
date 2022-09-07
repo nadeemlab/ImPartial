@@ -114,19 +114,9 @@ class PNGWriter:
         
         os.makedirs(output_dir, exist_ok=True)
 
-        pickle_dir = os.path.join(base_dir, "pickle_dir")
-        os.makedirs(pickle_dir, exist_ok=True)
-        file_output_save = 'monai_data_output.pickle'
-        _path = os.path.join(pickle_dir, file_output_save)
-
-        with open(_path, 'wb') as handle:
-            pickle.dump(data, handle)
-
         entropy = -data["output"] * np.log(np.maximum(data["output"], 1e-5))
         entropy += -(1-data["output"]) * np.log(np.maximum(1-data["output"], 1e-5))
 
-
-        # img_ent = (entropy * 255).astype(np.uint8)
         img = (data["output"] * 255).astype(np.uint8)
         img_prob = data["output"]
 
@@ -136,6 +126,7 @@ class PNGWriter:
             roi.tofile(output_path)
 
         return output_path, {"b64_image": pil_to_b64(Image.fromarray(img)), "prob":img_prob.tolist(), "entropy": entropy.tolist()}
+
 
 class PNGReader(PILReader):
     def get_data(self, img):

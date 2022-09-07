@@ -165,46 +165,6 @@ public class ImpartialDialog {
         ui.show(image);
     }
 
-	/*
-    public void infer() {
-        byte[] output = monaiClient.postInfer("impartial", imageId);
-
-        try {
-            FileOutputStream stream = new FileOutputStream(outputFile);
-            stream.write(output);
-            stream.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        RoiManager.getRoiManager().runCommand("Open", outputFile.getAbsolutePath());
-
-        
-        JSONObject res = monaiClient.postInferEntropy("impartial", imageId);
-        byte[] imageBytes = Base64.getDecoder().decode(res.getString("b64_image"));
-
-        try {
-            FileOutputStream stream = new FileOutputStream(entropyFile.getAbsolutePath());
-            stream.write(imageBytes);
-            stream.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        Dataset image = null;
-        try {
-            image = datasetIOService.open(entropyFile.getAbsolutePath());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        if (displayService.getActiveDisplay() != null) {
-            displayService.getActiveDisplay().close();
-        }
-
-        ui.show(image);
-    }
-	*/
 		
 	float[][] convertToFloat(JSONArray arr1) {
 		int img_size = arr1.length();
@@ -229,26 +189,20 @@ public class ImpartialDialog {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
+        
         RoiManager.getRoiManager().runCommand("Open", outputFile.getAbsolutePath());
-
         
         JSONObject res = monaiClient.postInferEntropy("impartial", imageId);
-		// JSONArray arr1 = res.getJSONArray("prob");
-		JSONArray arr1 = res.getJSONArray("entropy");
+		JSONArray arr_entropy = res.getJSONArray("entropy");
 		
-		// FloatProcessor ip = new FloatProcessor(500, 500);
-		FloatProcessor ip = new FloatProcessor(convertToFloat(arr1));
-		ImagePlus imp = new ImagePlus("Entropy", ip);
-		// imp.setLut(lutService.findLUTs().get("Green.lut"));
-		imp.show();
+		FloatProcessor ip_entropy = new FloatProcessor(convertToFloat(arr_entropy));
+		ImagePlus imp_entropy = new ImagePlus("Entropy", ip_entropy);
+		imp_entropy.show();
 		
-		
-		JSONArray arr2 = res.getJSONArray("prob");
-		
-		FloatProcessor ip2 = new FloatProcessor(convertToFloat(arr2));
-		ImagePlus imp2 = new ImagePlus("Probability Map", ip2);
-		imp2.show();
+		JSONArray arr_prob = res.getJSONArray("prob");
+		FloatProcessor ip_prob = new FloatProcessor(convertToFloat(arr_prob));
+		ImagePlus imp_prob = new ImagePlus("Probability Map", ip_prob);
+		imp_prob.show();
 		
     }
 	
