@@ -24,10 +24,10 @@ public class TrainPanel extends JPanel {
         JPanel configPanel = new JPanel();
         configPanel.setLayout(new BoxLayout(configPanel, BoxLayout.PAGE_AXIS));
 
-        epochsPanel = createParamPanel("epochs", 100);
+        epochsPanel = createParamPanel("epochs", 10);
         epochsPanel.setToolTipText("max number of epochs to train");
 
-        patchesPanel = createParamPanel("patches", 4096);
+        patchesPanel = createParamPanel("patches", 200);
         patchesPanel.setToolTipText("number of patches sampled per epoch");
 
         patiencePanel = createParamPanel("patience", 10);

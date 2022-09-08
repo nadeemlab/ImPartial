@@ -75,6 +75,10 @@
             <id>scijava.public</id>
             <url>https://maven.scijava.org/content/groups/public</url>
         </repository>
+        <repository>
+            <id>Clojars</id>
+            <url>https://clojars.org/repo/</url>
+        </repository>
     </repositories>
 
     <dependencies>

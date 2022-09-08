@@ -4,14 +4,13 @@ package org.nadeemlab.impartial;
 import org.json.JSONObject;
 
 import javax.swing.*;
+import java.util.List;
 
 public class ImpartialContentPane extends JPanel {
     ImpartialController controller;
-
     private final DatasetPanel datasetPanel;
     private final TrainPanel trainPanel;
     private final InferPanel inferPanel;
-
 
     /**
      * Create the dialog.
@@ -30,9 +29,6 @@ public class ImpartialContentPane extends JPanel {
         inferPanel = new InferPanel(controller);
         mainPanel.add(inferPanel);
 
-        LabelPanel labelPanel = new LabelPanel(controller);
-        mainPanel.add(labelPanel);
-
         trainPanel = new TrainPanel(controller);
         mainPanel.add(trainPanel);
 
@@ -47,20 +43,16 @@ public class ImpartialContentPane extends JPanel {
         return datasetPanel.getSelectedImageId();
     }
 
-    public void updateInferInfo(int epoch, String time) {
-        inferPanel.updateInferView(epoch, time);
+    public void setEnabledInferAndEntropy(boolean enable) {
+        datasetPanel.setEnabledInferAndEntropy(enable);
     }
 
-    public void disableInferInfo() {
-        inferPanel.disableInferView();
+    public void setSelectedInfer(boolean b) {
+        datasetPanel.setSelectedInfer(b);
     }
 
-    public void updateInferView(boolean enable) {
-        datasetPanel.updateInferView(enable);
-    }
-
-    public void enableInferButton() {
-        inferPanel.enableInfer();
+    public void setEnabledInfer(boolean b) {
+        inferPanel.setEnabledInfer(b);
     }
 
     public float getThreshold() {
@@ -69,5 +61,31 @@ public class ImpartialContentPane extends JPanel {
 
     public JSONObject getTrainParams() {
         return trainPanel.getTrainParams();
+    }
+
+    public void inferPerformed(int epoch, String time) {
+        setTextInfer("last run " + time + ", epoch " + epoch);
+        setEnabledInferAndEntropy(true);
+        setSelectedInfer(true);
+    }
+
+    public List<String> getSelectedViews() {
+        return datasetPanel.getSelected();
+    }
+
+    public void setEnabledLabel(boolean b) {
+        datasetPanel.setEnabledLabel(b);
+    }
+
+    public void setTextInfer(String s) {
+        inferPanel.setTextInfer(s);
+    }
+
+    public void setSelectedAll(boolean b) {
+        datasetPanel.setSelectedAll(b);
+    }
+
+    public void setEnabledSubmit(boolean b) {
+        datasetPanel.setEnabledSubmit(b);
     }
 }

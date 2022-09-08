@@ -7,7 +7,7 @@ import java.util.Hashtable;
 public class InferPanel extends JPanel {
     private final ImpartialController controller;
     private JButton inferButton;
-    private JLabel trainInfo;
+    private JLabel inferInfo;
     private final JSlider thresholdSlider = new JSlider(JSlider.HORIZONTAL, 0, 100, 50);
 
     InferPanel(ImpartialController controller) {
@@ -32,12 +32,12 @@ public class InferPanel extends JPanel {
         inferButton.setEnabled(false);
         inferButton.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        trainInfo = new JLabel("last run never");
-        trainInfo.setEnabled(false);
-        trainInfo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        inferInfo = new JLabel("last run never");
+        inferInfo.setEnabled(false);
+        inferInfo.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         panel.add(thresholdSlider);
-        panel.add(trainInfo);
+        panel.add(inferInfo);
         panel.add(inferButton);
 
         return panel;
@@ -69,7 +69,7 @@ public class InferPanel extends JPanel {
             JSlider source = (JSlider) e.getSource();
             int value = source.getValue();
             thresholdValue.setText("threshold " + normalizeValue(value));
-            controller.displayInfer();
+            controller.updateDisplay();
         });
 
         thresholdSlider.setPreferredSize(new Dimension(150, 50));
@@ -90,15 +90,11 @@ public class InferPanel extends JPanel {
         return normalizeValue(thresholdSlider.getValue());
     }
 
-    public void updateInferView(int epoch, String time) {
-        trainInfo.setText("last run " + time + ", epoch " + epoch);
+    public void setEnabledInfer(boolean b) {
+        inferButton.setEnabled(b);
     }
 
-    public void disableInferView() {
-        trainInfo.setText("last run never");
-    }
-
-    public void enableInfer() {
-        inferButton.setEnabled(true);
+    public void setTextInfer(String s) {
+        inferInfo.setText(s);
     }
 }

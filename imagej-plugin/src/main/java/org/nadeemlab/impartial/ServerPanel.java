@@ -10,8 +10,8 @@ public class ServerPanel extends JPanel {
     private JLabel statusLabel;
     private JTextField monaiUrl;
 
-//    private String defaultUrl = "http://10.0.3.117:8000";
-    private String defaultUrl = "http://localhost:8000";
+    private String defaultUrl = "http://10.0.3.117:8000";
+//    private String defaultUrl = "http://localhost:8000";
 
     ServerPanel(ImpartialController controller) {
         this.controller = controller;

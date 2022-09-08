@@ -35,12 +35,6 @@ public class TrainProgress {
 
     public static void monitorTraining(ImpartialController controller) {
         final Runnable beeper = () -> {
-            final JSONObject trainConfig = controller.getInfo()
-                    .getJSONObject("trainers")
-                    .getJSONObject("impartial")
-                    .getJSONObject("config");
-
-            final int maxEpochs = trainConfig.getInt("max_epochs");
 
             final JSONObject jsonProgress = controller.getTrain();
 
@@ -57,8 +51,9 @@ public class TrainProgress {
                     .reduce((first, second) -> second)
                     .orElse(0);
 
+            final int maxEpochs = controller.getMaxEpochs();
             String message = lastEpoch > 0 ? "Epoch: " + lastEpoch : "Initializing...";
-            controller.showStatus(lastEpoch, maxEpochs, message);
+            controller.showStatus(lastEpoch, maxEpochs , message);
 
             if (Objects.equals(jsonProgress.getString("status"), "DONE")) {
                 controller.showStatus(maxEpochs, maxEpochs, "Training done after " + lastEpoch + " epochs");

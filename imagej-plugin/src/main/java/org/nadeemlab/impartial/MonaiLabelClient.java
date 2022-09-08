@@ -1,24 +1,24 @@
 package org.nadeemlab.impartial;
 
+import okhttp3.*;
+import org.json.JSONObject;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
-import okhttp3.*;
-import org.json.JSONObject;
-
 public class MonaiLabelClient {
+    private final OkHttpClient httpClient;
     private String host;
     private Integer port;
-    private final OkHttpClient httpClient;
 
     public MonaiLabelClient() {
         httpClient = new OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build();
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .build();
     }
 
     public void setUrl(URL url) {
@@ -46,11 +46,11 @@ public class MonaiLabelClient {
         }
     }
 
-    public JSONObject postInferJson(String model, String imageId, JSONObject params) {
+    public JSONObject postInferJson(String model, String imageId, JSONObject params) throws IOException {
         RequestBody body = new MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("params", params.toString())
-            .build();
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("params", params.toString())
+                .build();
 
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
@@ -67,9 +67,7 @@ public class MonaiLabelClient {
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            return  new JSONObject(response.body().string());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            return new JSONObject(response.body().string());
         }
     }
 
@@ -215,7 +213,7 @@ public class MonaiLabelClient {
         }
     }
 
-    public JSONObject getDatastore() {
+    public JSONObject getDatastore() throws IOException {
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
                 .host(this.host)
@@ -230,13 +228,10 @@ public class MonaiLabelClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             return new JSONObject(response.body().string());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
-    public byte[] getDatastoreLabel(String imageId) {
-
+    public byte[] getDatastoreLabel(String imageId) throws IOException {
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
                 .host(this.host)
@@ -252,8 +247,6 @@ public class MonaiLabelClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             return response.body().bytes();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
