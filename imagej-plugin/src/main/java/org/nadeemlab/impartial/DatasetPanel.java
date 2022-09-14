@@ -9,12 +9,12 @@ import java.util.List;
 
 public class DatasetPanel extends JPanel implements ItemListener {
     private final ImpartialController controller;
-    private DefaultListModel<String> listModel;
-    private JList<String> list;
+    private ListModel listModel;
+    private JList<Sample> list;
     private JCheckBox inferCheckBox;
     private JCheckBox entropyCheckBox;
     private JCheckBox labelCheckBox;
-    private JButton submitLabelButton;
+    private final JButton submitLabelButton;
 
     DatasetPanel(ImpartialController controller) {
         this.controller = controller;
@@ -42,10 +42,11 @@ public class DatasetPanel extends JPanel implements ItemListener {
     }
 
     private JScrollPane createSampleList() {
-        listModel = new DefaultListModel<>();
+        listModel = new ListModel();
 
         //Create the list and put it in a scroll pane.
         list = new JList<>(listModel);
+        list.setCellRenderer(new DatasetRenderer());
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setSelectedIndex(0);
         list.setVisibleRowCount(5);
@@ -95,12 +96,12 @@ public class DatasetPanel extends JPanel implements ItemListener {
 
         Arrays.sort(samples);
         for (String sample : samples) {
-            listModel.addElement(sample);
+            listModel.addElement(new Sample(sample, ""));
         }
     }
 
     public String getSelectedImageId() {
-        return list.getSelectedValue();
+        return list.getSelectedValue().getName();
     }
 
     public void setEnabledInferAndEntropy(boolean enable) {
@@ -124,7 +125,6 @@ public class DatasetPanel extends JPanel implements ItemListener {
         if (entropyCheckBox.isSelected()) selected.add(entropyCheckBox.getText());
 
         return selected;
-
     }
 
     @Override
@@ -140,5 +140,21 @@ public class DatasetPanel extends JPanel implements ItemListener {
 
     public void setEnabledSubmit(boolean b) {
         submitLabelButton.setEnabled(b);
+    }
+
+    public void setSampleStatus(Sample sample, String status) {
+        int index = listModel.indexOf(sample);
+        listModel.get(index).setStatus(status);
+        listModel.setElementAt(sample, index);
+    }
+
+    public ListModel getListModel() {
+        return listModel;
+    }
+
+    public void setSampleEntropy(Sample sample, double entropy) {
+        int index = listModel.indexOf(sample);
+        listModel.get(index).setEntropy(entropy);
+        listModel.setElementAt(sample, index);
     }
 }

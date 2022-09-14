@@ -35,6 +35,7 @@ import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Hashtable;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.StreamSupport;
 import java.util.List;
 
@@ -46,7 +47,7 @@ public class ImpartialController {
     private File labelFile;
     private final MonaiLabelClient monaiClient = new MonaiLabelClient();
     LabelRegionToPolygonConverter regionToPolygonConverter = new LabelRegionToPolygonConverter();
-    private final Hashtable<String, JSONObject> modelOutputs = new Hashtable<>();
+    private final Hashtable<String, ModelOutput> modelOutputs = new Hashtable<>();
     private int currentEpoch = 0;
     @Parameter
     private OpService ops;
@@ -114,9 +115,9 @@ public class ImpartialController {
 
             contentPane.setEnabledInfer(true);
             if (modelOutputs.containsKey(imageId)) {
-                JSONObject output = modelOutputs.get(imageId);
+                ModelOutput output = modelOutputs.get(imageId);
                 contentPane.setTextInfer(
-                        "last run " + output.getString("time") + ", epoch " + output.getInt("epoch")
+                        "last run " + output.getTime() + ", epoch " + output.getEpoch()
                 );
 
                 contentPane.setEnabledInferAndEntropy(true);
@@ -250,38 +251,75 @@ public class ImpartialController {
     }
 
     public void infer() {
-        try {
-            String imageId = contentPane.getSelectedImageId();
+        ListModel listModel = contentPane.getListModel();
 
-            JSONObject params = new JSONObject();
-            params.put("threshold", (Float) contentPane.getThreshold());
-
-            JSONObject modelOutput = monaiClient.postInferJson("impartial", imageId, params);
-
-            modelOutput.put("epoch", currentEpoch);
-
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
-            LocalDateTime time = LocalDateTime.now();
-            modelOutput.put("time", time.format(formatter));
-
-            modelOutputs.put(imageId, modelOutput);
-
-            inferPerformed(imageId);
-
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(contentPane,
-                    e.getMessage(),
-                    e.getCause().getMessage(),
-                    JOptionPane.ERROR_MESSAGE
-            );
+        for (int i = 0; i < listModel.size(); i++) {
+            inferImage(listModel.getElementAt(i));
         }
     }
 
+    private void inferImage(Sample sample) {
+        SwingWorker<JSONObject, Void> swingWorker = new SwingWorker<JSONObject, Void>() {
+            @Override
+            protected JSONObject doInBackground() throws Exception {
+                contentPane.setSampleStatus(sample, "running");
+
+                String imageId = sample.getName();
+
+                JSONObject params = new JSONObject();
+                params.put("threshold", (Float) contentPane.getThreshold());
+
+                JSONObject modelOutput = monaiClient.postInferJson("impartial", imageId, params);
+
+                modelOutput.put("epoch", currentEpoch);
+
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+                LocalDateTime time = LocalDateTime.now();
+                modelOutput.put("time", time.format(formatter));
+
+                return modelOutput;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    JSONObject modelOutput = get();
+
+                    String imageId = sample.getName();
+
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+                    LocalDateTime time = LocalDateTime.now();
+
+                    FloatProcessor output = jsonArrayToProcessor(modelOutput.getJSONArray("output"));
+                    FloatProcessor entropy = jsonArrayToProcessor(modelOutput.getJSONArray("entropy"));
+
+                    ModelOutput out = new ModelOutput(output, entropy, time.format(formatter), currentEpoch);
+
+                    modelOutputs.put(imageId, out);
+
+                    String selectedImageId = contentPane.getSelectedImageId();
+                    if (selectedImageId.equals(imageId)) {
+                        updateImage(imageId);
+                    }
+
+                    contentPane.setSampleStatus(sample, "done");
+                    contentPane.setSampleEntropy(sample, entropy.getStatistics().mean);
+                    contentPane.sortList();
+
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
+
+        swingWorker.execute();
+    }
+
     private void inferPerformed(String imageId) {
-        JSONObject modelOutput = modelOutputs.get(imageId);
+        ModelOutput modelOutput = modelOutputs.get(imageId);
         contentPane.inferPerformed(
-                modelOutput.getInt("epoch"),
-                modelOutput.getString("time")
+                modelOutput.getEpoch(),
+                modelOutput.getTime()
         );
 
         displayInfer();
@@ -289,7 +327,7 @@ public class ImpartialController {
 
     public void displayInfer() {
         String imageId = contentPane.getSelectedImageId();
-        FloatProcessor processor = jsonArrayToProcessor(modelOutputs.get(imageId).getJSONArray("output"));
+        FloatProcessor processor = modelOutputs.get(imageId).getOutput();
         ImagePlus imp = new ImagePlus("output", processor);
 
         Img<FloatType> img = ImageJFunctions.wrapFloat(imp);
@@ -321,7 +359,7 @@ public class ImpartialController {
 
     public void displayEntropy() {
         String imageId = contentPane.getSelectedImageId();
-        FloatProcessor entropy = jsonArrayToProcessor(modelOutputs.get(imageId).getJSONArray("entropy"));
+        FloatProcessor entropy = modelOutputs.get(imageId).getEntropy();
 
         ImageRoi roi = new ImageRoi(0, 0, entropy);
         roi.setZeroTransparent(true);
@@ -407,6 +445,4 @@ public class ImpartialController {
                 imageWindowLocation.y
         );
     }
-
-
 }

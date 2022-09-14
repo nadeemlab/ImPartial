@@ -88,4 +88,20 @@ public class ImpartialContentPane extends JPanel {
     public void setEnabledSubmit(boolean b) {
         datasetPanel.setEnabledSubmit(b);
     }
+
+    public void setSampleStatus(Sample sample, String status) {
+        datasetPanel.setSampleStatus(sample, status);
+    }
+
+    public ListModel getListModel() {
+        return datasetPanel.getListModel();
+    }
+
+    public void sortList() {
+        datasetPanel.getListModel().sort();
+    }
+
+    public void setSampleEntropy(Sample sample, double entropy) {
+        datasetPanel.setSampleEntropy(sample, entropy);
+    }
 }
