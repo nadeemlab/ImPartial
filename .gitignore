@@ -9,3 +9,4 @@ log.txt
 datastore_v2.json
 monai-env/
 .lock
+*.pyc
