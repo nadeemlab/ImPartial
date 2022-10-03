@@ -74,7 +74,7 @@ class Impartial(BasicTrainTask):
 
         def load_image(path):
             norm = ScaleIntensityRangePercentiles(lower=1, upper=98, b_min=0, b_max=1, clip=True)
-            return norm(np.array(Image.open(path)))
+            return norm(np.array(Image.open(path)).astype(np.float32))
 
         for d in datalist:
             d["image"] = load_image(d["image"])
