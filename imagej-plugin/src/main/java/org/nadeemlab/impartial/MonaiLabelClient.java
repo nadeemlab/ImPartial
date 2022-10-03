@@ -27,7 +27,6 @@ public class MonaiLabelClient {
     }
 
     public JSONObject getInfo() {
-
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
                 .host(host)
@@ -194,7 +193,7 @@ public class MonaiLabelClient {
 
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(this.host)
+                .host(host)
                 .port(port)
                 .addPathSegments("datastore/label")
                 .addQueryParameter("image", imageId)
@@ -211,6 +210,55 @@ public class MonaiLabelClient {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public JSONObject putDatastore(File imageFile) {
+
+        final MediaType MEDIA_TYPE_PNG = MediaType.parse("image/png");
+
+        String imageFileName = imageFile.getName();
+
+        RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("file", imageFileName,
+                        RequestBody.create(MEDIA_TYPE_PNG, imageFile))
+                .build();
+
+        HttpUrl url = new HttpUrl.Builder()
+                .scheme("http")
+                .host(host)
+                .port(port)
+                .addPathSegments("datastore")
+                .addQueryParameter("image", imageFileName.substring(0, imageFileName.lastIndexOf(".")))
+                .build();
+
+        Request request = new Request.Builder()
+                .url(url)
+                .put(requestBody)
+                .build();
+
+        try (Response response = this.httpClient.newCall(request).execute()) {
+            return new JSONObject(response.body().string());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void deleteDatastore(String imageId) throws IOException {
+        HttpUrl url = new HttpUrl.Builder()
+                .scheme("http")
+                .host(host)
+                .port(port)
+                .addPathSegments("datastore")
+                .addQueryParameter("id", imageId)
+                .build();
+
+        Request request = new Request.Builder()
+                .url(url)
+                .delete()
+                .build();
+
+        httpClient.newCall(request).execute().close();
     }
 
     public JSONObject getDatastore() throws IOException {

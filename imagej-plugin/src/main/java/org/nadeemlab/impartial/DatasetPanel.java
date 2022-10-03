@@ -34,11 +34,30 @@ public class DatasetPanel extends JPanel implements ItemListener {
         submitLabelButton.setEnabled(false);
         submitLabelButton.addActionListener(e -> controller.submitLabel());
 
+        mainPanel.add(createDatasetButtons());
         mainPanel.add(createSampleList());
         mainPanel.add(createViewSelector());
         mainPanel.add(submitLabelButton);
 
         add(mainPanel);
+    }
+
+    private JPanel createDatasetButtons() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.LINE_AXIS));
+
+        JButton uploadButton = new JButton("upload");
+        uploadButton.setEnabled(true);
+        uploadButton.addActionListener(e -> controller.uploadImages());
+
+        JButton deleteButton = new JButton("delete");
+        deleteButton.setEnabled(true);
+        deleteButton.addActionListener(e -> controller.deleteSelectedImage());
+
+        panel.add(uploadButton);
+        panel.add(deleteButton);
+
+        return panel;
     }
 
     private JScrollPane createSampleList() {
@@ -156,5 +175,10 @@ public class DatasetPanel extends JPanel implements ItemListener {
         int index = listModel.indexOf(sample);
         listModel.get(index).setEntropy(entropy);
         listModel.setElementAt(sample, index);
+    }
+
+    public void setSelectedFirstImage() {
+        if (!listModel.isEmpty())
+            list.setSelectedIndex(0);
     }
 }

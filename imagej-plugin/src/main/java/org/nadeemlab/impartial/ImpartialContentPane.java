@@ -104,4 +104,8 @@ public class ImpartialContentPane extends JPanel {
     public void setSampleEntropy(Sample sample, double entropy) {
         datasetPanel.setSampleEntropy(sample, entropy);
     }
+
+    public void setSelectedFirstImage() {
+        datasetPanel.setSelectedFirstImage();
+    }
 }
