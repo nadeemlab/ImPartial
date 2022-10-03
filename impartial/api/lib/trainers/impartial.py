@@ -78,34 +78,7 @@ class Impartial(BasicTrainTask):
 
         for d in datalist:
             d["image"] = load_image(d["image"])
-
-            from_rois_zip = True
-            if from_rois_zip:
-                d["scribble"] = rois_to_labels(d["label"], size=d["image"].shape)
-            else:
-                scribble = (np.array(Image.open(d["label"])) / 255).astype(np.uint8)
-
-                use_ground_truth_labels = False
-                if use_ground_truth_labels:
-                    foreground_scribble = (scribble / 255).astype(np.uint8)
-                    background_scribble = 1 - foreground_scribble
-                    d["scribble"] = np.stack((foreground_scribble, background_scribble), 2)
-                else:
-                    background_contours = np.zeros(scribble.shape)
-                    for c in measure.find_contours(scribble):
-                        c = c.astype(np.uint32)
-                        background_contours[c[:, 0], c[:, 1]] = 1
-                    background_scribble = background_contours.astype(np.uint8)
-
-                    eroded = morphology.binary_erosion(scribble, footprint=np.ones((5, 5))).astype(np.uint8)
-                    skeletonized = morphology.skeletonize(eroded).astype(np.uint8)
-                    foreground_contours = np.zeros(eroded.shape)
-                    for c in measure.find_contours(eroded):
-                        c = c.astype(np.uint32)
-                        foreground_contours[c[:, 0], c[:, 1]] = 1
-                    foreground_scribble = np.clip(skeletonized + foreground_contours.astype(np.uint8), 0, 1)
-
-                d["scribble"] = np.stack((foreground_scribble, background_scribble), 2)
+            d["scribble"] = rois_to_labels(d["label"], size=d["image"].shape)
 
         return datalist
 
