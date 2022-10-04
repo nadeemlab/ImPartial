@@ -3,6 +3,7 @@ import logging
 from typing import Optional, List, Dict, Sequence, Union
 
 import torch
+from monai.utils import convert_to_numpy
 from torch import Tensor
 from torch.nn.modules.loss import _Loss
 from ignite.metrics import Loss
@@ -73,8 +74,8 @@ class Impartial(BasicTrainTask):
         datalist = datastore.datalist().copy()
 
         def load_image(path):
-            norm = ScaleIntensityRangePercentiles(lower=1, upper=98, b_min=0, b_max=1, clip=True)
-            return norm(np.array(Image.open(path)).astype(np.float32))
+            scaler = ScaleIntensityRangePercentiles(lower=1, upper=98, b_min=0, b_max=1, clip=True)
+            return convert_to_numpy(scaler(np.array(Image.open(path)).astype(np.float32)))
 
         for d in datalist:
             d["image"] = load_image(d["image"])
