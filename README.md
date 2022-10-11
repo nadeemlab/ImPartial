@@ -54,6 +54,20 @@ monailabel start_server -a api -s <data-dir>
 and navigate to http://localhost:8000 to access the [Swagger UI](https://github.com/swagger-api/swagger-ui)
 for interactive API exploration.
 
+## MONAI Label in Docker
+
+Build the docker image
+```shell
+docker build -t monailabel/impartial .
+```
+
+run the image built above
+```shell
+docker run -d --name impartial -p 8000:8000 monailabel/impartial monailabel start_server -a api -s /opt/monai/data
+```
+
+and navigate to http://localhost:8000
+
 ## ImageJ/Fiji Plugin
 
 Pre-requisites
