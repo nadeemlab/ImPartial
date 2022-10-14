@@ -34,20 +34,22 @@ import java.io.IOException;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.StreamSupport;
-import java.util.List;
 
 public class ImpartialController {
+    final JFileChooser fileChooser = new JFileChooser();
     private final JFrame mainFrame;
     private final ImpartialContentPane contentPane;
+    private final MonaiLabelClient monaiClient = new MonaiLabelClient();
+    private final Hashtable<String, ModelOutput> modelOutputs = new Hashtable<>();
+    LabelRegionToPolygonConverter regionToPolygonConverter = new LabelRegionToPolygonConverter();
     private ImageWindow imageWindow;
     private File imageFile;
     private File labelFile;
-    private final MonaiLabelClient monaiClient = new MonaiLabelClient();
-    LabelRegionToPolygonConverter regionToPolygonConverter = new LabelRegionToPolygonConverter();
-    private final Hashtable<String, ModelOutput> modelOutputs = new Hashtable<>();
     private int currentEpoch = 0;
     @Parameter
     private OpService ops;
@@ -58,6 +60,8 @@ public class ImpartialController {
         context.inject(this);
         context.inject(regionToPolygonConverter);
         createTempFiles();
+
+        fileChooser.setMultiSelectionEnabled(true);
 
         mainFrame = new JFrame("ImPartial");
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -74,9 +78,9 @@ public class ImpartialController {
 
     private void createTempFiles() {
         /*
-        * This temporary files are used to store locally the current image,
-        * and a zip file with rois for the label.
-        * */
+         * This temporary files are used to store locally the current image,
+         * and a zip file with rois for the label.
+         * */
         try {
             imageFile = File.createTempFile("impartial-image-", ".png");
             imageFile.deleteOnExit();
@@ -97,7 +101,7 @@ public class ImpartialController {
             JOptionPane.showMessageDialog(contentPane,
                     e.getMessage(),
                     e.getCause().getMessage(),
-                JOptionPane.ERROR_MESSAGE
+                    JOptionPane.ERROR_MESSAGE
             );
         }
     }
@@ -444,5 +448,53 @@ public class ImpartialController {
                 imageWindowLocation.x + imageWindow.getSize().width,
                 imageWindowLocation.y
         );
+    }
+
+    public void uploadImages() {
+        try {
+            int returnVal = fileChooser.showOpenDialog(mainFrame);
+            if (returnVal == JFileChooser.APPROVE_OPTION) {
+                Arrays.stream(fileChooser.getSelectedFiles()).forEach(monaiClient::putDatastore);
+            } else {
+                System.out.println("Open command cancelled by user.");
+            }
+
+            String[] samples = getDatastoreSamples();
+            contentPane.populateSampleList(samples);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(contentPane,
+                    e.getMessage(),
+                    e.getCause().getMessage(),
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+
+    public void deleteSelectedImage() {
+        String imageId = contentPane.getSelectedImageId();
+
+        int option = JOptionPane.showConfirmDialog(
+                contentPane,
+                String.format("Are you sure you want to delete '%s' and corresponding labels?", imageId),
+                "Delete confirmation",
+                JOptionPane.YES_NO_OPTION);
+
+        if (option == JOptionPane.YES_OPTION)
+            try {
+                monaiClient.deleteDatastore(imageId);
+                String[] samples = getDatastoreSamples();
+                contentPane.populateSampleList(samples);
+                setSelectedFirstImage();
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(contentPane,
+                        e.getMessage(),
+                        e.getCause().getMessage(),
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+    }
+
+    private void setSelectedFirstImage() {
+        contentPane.setSelectedFirstImage();
     }
 }

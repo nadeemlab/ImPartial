@@ -44,7 +44,7 @@ public class TrainProgress {
                 details.add(jsonDetails.getString(i));
             }
 
-            String[] epochKeywords = {"SupervisedTrainer", "Epoch:"};
+            String[] epochKeywords = {"Epoch:", "train_loss:"};
             int lastEpoch = details.stream()
                     .filter(r -> containsWords(r, epochKeywords))
                     .map(TrainProgress::epochFromLog)

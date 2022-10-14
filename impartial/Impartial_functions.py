@@ -18,7 +18,8 @@ def compute_impartial_losses(
         config: ImPartialConfig,
         criterio_seg: nn.Module,
         criterio_rec: Optional[nn.Module] = None,
-        criterio_reg: Optional[nn.Module] = None
+        criterio_reg: Optional[nn.Module] = None,
+        from_npz: bool = False
 ):
     """
     Compute mixed losses.
@@ -33,6 +34,7 @@ def compute_impartial_losses(
         criterio_seg: Scribble loss function.
         criterio_rec: Reconstruction loss function.
         criterio_reg: Regularization loss function.
+        from_npz: Set to True if loading data from .npz files (original ImPartial pipelines).
     """
     total_loss = collections.defaultdict(int)
 
@@ -43,7 +45,6 @@ def compute_impartial_losses(
 
     outputs = outputs_by_task(config.classification_tasks, out)
 
-    from_npz = False
     if from_npz:
         scribbles = scribbles_by_task(config.classification_tasks, scribble)
     else:

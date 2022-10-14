@@ -310,10 +310,10 @@ class ImPartialModel:
             if self.config.weight_objectives['rec'] > 0:
                 criterio_rec = reclosses(type_loss=self.config.rec_loss, reduction=None)
 
-        from Impartial.Impartial_functions import compute_impartial_losses
+        from impartial.Impartial_functions import compute_impartial_losses
         def criterio(out, x, scribble, mask):
             return compute_impartial_losses(out, x, scribble, mask, self.config,
-                                            criterio_seg, criterio_rec, criterio_reg=criterio_reg)
+                                            criterio_seg, criterio_rec, criterio_reg=criterio_reg, from_npz=True)
 
 
 

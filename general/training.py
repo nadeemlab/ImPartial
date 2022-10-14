@@ -10,7 +10,7 @@ from torch import optim
 
 sys.path.append("../")
 from general.utils import model_params_load, mkdir, to_np, TravellingMean
-from Impartial.Impartial_functions import get_impartial_outputs
+from impartial.Impartial_functions import get_impartial_outputs
 
 def epoch_recseg_loss(dataloader, model, optimizer, config, criterio, train_type=True):
     #criterio has to output loss, seg_fore loss, seg_back loss and rec loss

@@ -60,13 +60,15 @@ class ImageBlindSpotDataset(Dataset):
 
     def generate_mask(self, input):
         # input size: patches x h x w x channel
-        return GenerateMask(self.ratio, self.size_window)(input)
+        return blind_spot_patch(input, self.ratio, self.size_window)
 
 
 def transform_patch(patch, ratio, size_window, transform):
     Xcrop, Scrop = patch
     if ratio < 1:
-        Xout, mask = GenerateMask(ratio, size_window)(Xcrop)
+        Xout, mask = blind_spot_patch(Xcrop[np.newaxis, ...], ratio, size_window)
+        Xout = Xout[0, ...]
+        mask = mask[0, ...]
     else:
         Xout = Xcrop
         mask = np.zeros_like(Xout)

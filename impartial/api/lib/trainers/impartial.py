@@ -3,6 +3,7 @@ import logging
 from typing import Optional, List, Dict, Sequence, Union
 
 import torch
+from monai.utils import convert_to_numpy
 from torch import Tensor
 from torch.nn.modules.loss import _Loss
 from ignite.metrics import Loss
@@ -76,39 +77,14 @@ class Impartial(BasicTrainTask):
             norm = ScaleIntensityRangePercentiles(lower=1, upper=98, b_min=0, b_max=1, clip=True)
             img = read_image(path)
             return norm(img)
+            # return convert_to_numpy(norm(img).astype(np.float32))
 
         for d in datalist:
             d["image"] = load_image(d["image"])
-            
-            from_rois_zip = True
-            if from_rois_zip:
-                d["scribble"] = rois_to_labels(d["label"], size=(d["image"].shape[0], d["image"].shape[1]))
-            else:
-                scribble = (np.array(Image.open(d["label"])) / 255).astype(np.uint8)
-
-                use_ground_truth_labels = False
-                if use_ground_truth_labels:
-                    foreground_scribble = (scribble / 255).astype(np.uint8)
-                    background_scribble = 1 - foreground_scribble
-                    d["scribble"] = np.stack((foreground_scribble, background_scribble), 2)
-                else:
-                    background_contours = np.zeros(scribble.shape)
-                    for c in measure.find_contours(scribble):
-                        c = c.astype(np.uint32)
-                        background_contours[c[:, 0], c[:, 1]] = 1
-                    background_scribble = background_contours.astype(np.uint8)
-
-                    eroded = morphology.binary_erosion(scribble, footprint=np.ones((5, 5))).astype(np.uint8)
-                    skeletonized = morphology.skeletonize(eroded).astype(np.uint8)
-                    foreground_contours = np.zeros(eroded.shape)
-                    for c in measure.find_contours(eroded):
-                        c = c.astype(np.uint32)
-                        foreground_contours[c[:, 0], c[:, 1]] = 1
-                    foreground_scribble = np.clip(skeletonized + foreground_contours.astype(np.uint8), 0, 1)
-
-                d["scribble"] = np.stack((foreground_scribble, background_scribble), 2)
+            d["scribble"] = rois_to_labels(d["label"], size=d["image"].shape)
 
         return datalist
+                    
 
     def train_pre_transforms(self, context: Context):
         return [

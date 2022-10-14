@@ -2,24 +2,96 @@
 <br />
 <p align="center">
     <img src="./images/impartial-logo.png" width="50%">
-    <h3 align="center"><strong>Interactive deep learning whole-cell segmentation and thresholding using partial annotations</strong></h3>
+    <h1 align="center"><strong>Interactive deep learning whole-cell segmentation and thresholding using partial 
+		annotations</strong></h1>
     <p align="center">
-    <a href="https://doi.org/10.1101/2021.01.20.427458">Read Link</a>
-    |
-    <a href="https://colab.research.google.com/drive/1kocZUgvi56I9-XjWiwNUzEAzswAPJB-d">Google CoLab Demo</a>
-    |
-    <a href="https://github.com/nadeemlab/ImPartial/issues">Report Bug</a>
-    |
+    <a href="https://doi.org/10.1101/2021.01.20.427458">Read Link</a> |
+    <a href="https://colab.research.google.com/drive/1kocZUgvi56I9-XjWiwNUzEAzswAPJB-d">Google CoLab Demo</a> |
+    <a href="https://github.com/nadeemlab/ImPartial/issues">Report Bug</a> |
     <a href="https://github.com/nadeemlab/ImPartial/issues">Request Feature</a>
   </p>
 </p>
 
-\
-Segmenting noisy multiplex spatial tissue images is a challenging task, since the characteristics of both the noise and the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary and time costs associated with manual annotations. It is therefore important to create algorithms that can accurately segment the noisy images based on a small number of annotations. *With **ImPartial**, we have developed an algorithm to perform segmentation using as few as 2-3 training images with some user-provided scribbles. ImPartial augments the segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the segmentation objective can be characterized by a mixture of distributions. This is based on the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and hence a self-supervised classification objective that better aligns with the overall segmentation goal suffices. We demonstrate the superior performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging platform.*
+Segmenting noisy multiplex spatial tissue images is a challenging task, since the characteristics of both the noise and 
+the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary 
+and time costs associated with manual annotations. It is therefore important to create algorithms that can accurately 
+segment the noisy images based on a small number of annotations. *With **ImPartial**, we have developed an algorithm to 
+perform segmentation using as few as 2-3 training images with some user-provided scribbles. ImPartial augments the 
+segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the 
+segmentation objective can be characterized by a mixture of distributions. This is based on the observation that perfect 
+pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and hence a self-supervised 
+classification objective that better aligns with the overall segmentation goal suffices. We demonstrate the superior 
+performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging platform.*
+
+## Pipeline
+
+![figure1_workflow](./images/figure1_workflow_novariance.png)
+*(A) Overview of the ImPartial pipeline. (B) Each image patch is separated into an imputation patch and a blind spot 
+patch. The blind spot patch is fed through the U-Net to recover the component mixture and the component statistics. The 
+latter statistics are averaged across the entire patch to enforce component consistency. Both the component statistics 
+and component mixture are used to compute the mixture loss for the patch. Simultaneously, a scribble containing a small 
+number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients 
+back to the U-Net architecture on the backward pass.*
+
+
+## MONAI Label
+
+Pre-requisites
+* Python 3
+
+Install Python dependencies in a virtual environment using **pip**
+```
+python3 -m venv venv
+source venv/bin/activate
+pip install -U pip && pip install -r requirements.txt
+```
+Run MONAI Label app
+```
+cd impartial
+monailabel start_server -a api -s <data-dir>
+```
+
+and navigate to http://localhost:8000 to access the [Swagger UI](https://github.com/swagger-api/swagger-ui)
+for interactive API exploration.
+
+## MONAI Label in Docker
+
+Build the docker image
+```shell
+docker build -t monailabel/impartial .
+```
+
+run the image built above
+```shell
+docker run -d --name impartial -p 8000:8000 monailabel/impartial monailabel start_server -a api -s /opt/monai/data
+```
+
+and navigate to http://localhost:8000
+
+## ImageJ/Fiji Plugin
+
+Pre-requisites
+* [Fiji](https://imagej.net/software/fiji/downloads)
+* [Apache Maven](https://maven.apache.org/install.html) 
+  (or use [brew](https://formulae.brew.sh/formula/maven) on macOS)
+
+First, package the plugin. From the repo root directory
+```shell
+cd imagej-plugin
+mvn clean package
+```
+and copy the `.jar` file into Fiji's plugins directory. For example, if you're using macOS
+```shell
+cp target/impartial_imagej-0.1.jar /Applications/Fiji.app/plugins
+```
+
+then restart **Fiji** and open `ImPartial` from the `Plugins` menu bar.
 
 This repository provides a training and testing pipeline using the ImPartial framework.
 
-## Prerequisites:
+## ImPartial (original)
+
+Pre-requisites
 ```
 NVIDIA GPU (Tested on NVIDIA GPU)
 CUDA CuDNN (CPU mode and CUDA without CuDNN may work with minimal modification)
@@ -32,17 +104,12 @@ scikit-learn>=0.24.1
 scipy>=1.6.2
 ```
 
-## Getting Started with ImPartial
-
-
 ## Terminology
-```
 
-pd_files.csv: list of training / testing images
-pd_files_scribbles.csv: list of training images with scribbles
-nclasses: number of classes for segmentation tasks
-rec_channels: number of reconstruction channels
-```
+* **pd_files.csv** list of training/testing images
+* **pd_files_scribbles.csv** list of training images with scribbles
+* **nclasses** number of classes for segmentation tasks
+* **rec_channels** number of reconstruction channels
 
 ## Datasets
 
@@ -52,12 +119,6 @@ rec_channels: number of reconstruction channels
 | `Vectra`  | 8  2-channel Vectra images, segmentation classes: cytoplasm, nuclei in cytoplasm, nuclei out of cytoplasm  |
 | `TissueNet`  | https://datasets.deepcell.org/  |
 | `Cellpose`  | https://www.cellpose.org/  |
-
-
-## Pipeline
-
-![figure1_workflow](./images/figure1_workflow_novariance.png)
-*(A) Overview of the ImPartial pipeline. (B) Each image patch is separated into an imputation patch and a blind spot patch. The blind spot patch is fed through the U-Net to recover the component mixture and the component statistics. The latter statistics are averaged across the entire patch to enforce component consistency. Both the component statistics and component mixture are used to compute the mixture loss for the patch. Simultaneously, a scribble containing a small number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients back to the U-Net architecture on the backward pass.*
 
 ## Data Preparation and Preprocessing
 
@@ -81,7 +142,6 @@ There are two notebooks for preparing and processing a dataset.
 	3. Select the images from (save_list) to be used in training (train_list). Remaining images to be used in test.
 	4. Set (savedir) path to save .npz files.
 	5. Create `files.csv` which contains names (prefix) and path (input_dir) of train and test images (group)
-  
 
 * Preprocessing.ipynb (Automated scribble generation of training image from ground truth labels)
 	1. Read files.csv
@@ -90,12 +150,10 @@ There are two notebooks for preparing and processing a dataset.
 	4. Define percentage validation region (val_perc = 0.4)
 	5. Scribbles .npz file is saved in the input_dir path defined in pd_files (files.csv)
 	6. Scribbles .csv file is also saved (contains parameters related to scribbles)
-
-
-
+	
 ## Training 
 
-Create the following dataset-specific training configuration in main_impartial.py:
+Create the following dataset-specific training configuration in `main_impartial.py`:
 ```
 n_channels = number of input image channels
 classification_tasks = a python dict of tasks and corresponding number of classes, recunstruction channels
@@ -139,36 +197,36 @@ classification_tasks = a python dict of tasks and corresponding number of classe
 
 Example training command
 ```
-CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py 
-				--basedir=$basedir_root"Deepcell/s400/Impartial/" 
-				--dataset="Deepcell" 
-				--model_name="Im_2tasks_base64depth4relu_adam5e4_mcdrop1e4_nsave5_segCEGauss_w04501_seed42" 
-				--saveout=True 
-				--scribbles=400 
-				--gpu=0 
-				--optim_regw=0.0001 
-				--optim="adam" 
-				--lr=0.0005 
-				--gradclip=0 
-				--seed=42 
-				--train=True 
-				--udepth="4" 
-				--ubase="64" 
-				--activation="relu" 
-				--batchnorm=False 
-				--seg_loss="CE" 
-				--rec_loss="gaussian" 
-				--nsaves=5 
-				--mcdrop=True 
-				--reset_optim=True 
-				--reset_validation=False 
-				--wfore=0.45 
-				--wback=0.45 
-				--wrec=0.1 
-				--wreg=0.0 
-				--ratio=0.95 
-				--epochs=300 
-				--batch=64 
+CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py \ 
+				--basedir=$basedir_root"Deepcell/s400/Impartial/" \ 
+				--dataset="Deepcell" \ 
+				--model_name="Im_2tasks_base64depth4relu_adam5e4_mcdrop1e4_nsave5_segCEGauss_w04501_seed42" \ 
+				--saveout=True \ 
+				--scribbles=400 \ 
+				--gpu=0 \ 
+				--optim_regw=0.0001 \ 
+				--optim="adam" \ 
+				--lr=0.0005 \ 
+				--gradclip=0  \
+				--seed=42 \ 
+				--train=True  \
+				--udepth="4"  \
+				--ubase="64"  \
+				--activation="relu" \ 
+				--batchnorm=False \ 
+				--seg_loss="CE" \ 
+				--rec_loss="gaussian" \ 
+				--nsaves=5 \ 
+				--mcdrop=True \ 
+				--reset_optim=True \ 
+				--reset_validation=False \ 
+				--wfore=0.45  \
+				--wback=0.45  \
+				--wrec=0.1 \ 
+				--wreg=0.0 \ 
+				--ratio=0.95  \
+				--epochs=300  \
+				--batch=64 \ 
 				--load=False 
 				
 				> "output/path/to/logs"
@@ -180,7 +238,7 @@ To test the model use the following sample command.
 Modify the basedir, dataset, model_name to test a different model. 
 Sample pretrained models can be downloaded here.
 
-Example evalualtion command
+Example evaluation command
 ```
 CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py \
 				--basedir=$basedir_root"Deepcell/s400/Impartial/" \
@@ -216,30 +274,6 @@ CUDA_VISIBLE_DEVICES=0 python3.8 main_impartial.py \
 				> "output/path/to/logs"
 
 ```
-
-
-## Demo with [DeepCell Label](https://github.com/vanvalenlab/deepcell-label)
-
-This is a proof of concept demo of integration of ImPartial with DeepCell-Label for doing interactive deep learning whole-cell segmentation using partial annotations. **COMING SOON: We are collaborating with the [VanValen Lab](https://www.vanvalen.caltech.edu/) for a [deeper integration of ImPartial with DeepCell Label](https://github.com/vanvalenlab/deepcell-label/tree/impartial)**. Here you see the results after every few epochs during training of ImPartial on the Tissuenet dataset.
-
-![demo_nucleiseg_gif](./images/deepcell-label-nucleiSeg-image.gif)**Figure2**. *Nuclei segmentation.* The nuclei in the input sample is give a few foreground(white) and background(red) scribbles. The image shows the intermediate results after every 10th epoch. Final predictons are overlaid on the ground truth.
-
-
-![demo_cytoplasm_gif](./images/deepcell-label-cytoplasmSeg-image.gif)**Figure3**. *Cytoplasm segmentation.* The cytoplasm in the input sample is give a few foreground (white) and background (red) scribbles. The image shows the intermediate results after every 10th epoch. Final predictons are overlaid on the ground truth.
-
-## Manual Scribbles Using ImageJ
-
-As shown in the below clip, here are the steps for generating manual scribbles:
-* Provide foreground (red) and background (green) scribbles for cytoplasm segmentation task.
-* Save the overlay image as png
-* The png image is used as an input for "/notebooks/Cellpose/preprocessing_manual_scribble_npz.ipynb" notebook to generate .npz file which contains foreground and background scribbles and validation mask
-
-![demo_cytoplasm_gif](./images/manual_scribble_demo.gif)
-**Figure4**. *Manual scribbles using ImageJ.* 
-
-* After the first iteration of training via Impartial we visualize the results and see the outputs in "visualize_output" notebook. We see the segmentation results (probability maps) and analyse error (Entropy maps) if any. 
-
-* To minimize the percentage in error we can run the second iteration of training by giving a few additional scribbles in the erroneous regions.
 
 ## Google CoLab:
 If you don't have access to GPU or appropriate hardware, we have also created [Google CoLab project](https://colab.research.google.com/drive/1kocZUgvi56I9-XjWiwNUzEAzswAPJB-d) for your convenience. Please follow the steps in the provided notebook to install the requirements and run the training and testing scripts. All the libraries and pretrained models have already been set up there. The user can directly run ImPartial on their dataset using the instructions given in the Google CoLab project. 
