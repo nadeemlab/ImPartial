@@ -6,8 +6,28 @@ from roifile import ImagejRoi
 import cv2 as cv
 import numpy as np
 from PIL import Image
+import tifffile as tiff
+
 from scipy import ndimage
 from skimage import morphology, measure
+
+
+
+def read_image(path):
+
+    extension = path.split(".")[-1]
+
+    if extension == "png" or extension == "PNG" :
+        image = np.array(Image.open(path))
+        if len(image.shape) == 2:
+            image = image[np.newaxis, ...]
+            image = np.moveaxis(image, [0], -1)
+
+    if extension == "tiff" or extension == "tif" :
+        image = tiff.imread(path)
+        image = np.moveaxis(image, [0], -1)
+
+    return image
 
 
 def rois_to_mask(zip_path, size, sample_rate=1):
