@@ -22,7 +22,7 @@ from monailabel.tasks.train.basic_train import BasicTrainTask, Context
 
 from impartial.Impartial_functions import compute_impartial_losses
 from dataprocessing.dataloaders import sample_patches
-from dataprocessing.utils import validation_mask, rois_to_labels
+from dataprocessing.utils import validation_mask, rois_to_labels, read_image
 from general.losses import seglosses, reclosses
 
 from lib.transforms import GetImpartialOutputs, BlindSpotPatch
@@ -74,14 +74,17 @@ class Impartial(BasicTrainTask):
         datalist = datastore.datalist().copy()
 
         def load_image(path):
-            scaler = ScaleIntensityRangePercentiles(lower=1, upper=98, b_min=0, b_max=1, clip=True)
-            return convert_to_numpy(scaler(np.array(Image.open(path)).astype(np.float32)))
+            norm = ScaleIntensityRangePercentiles(lower=1, upper=98, b_min=0, b_max=1, clip=True)
+            img = read_image(path)
+            return norm(img)
+            # return convert_to_numpy(norm(img).astype(np.float32))
 
         for d in datalist:
             d["image"] = load_image(d["image"])
             d["scribble"] = rois_to_labels(d["label"], size=d["image"].shape)
 
         return datalist
+                    
 
     def train_pre_transforms(self, context: Context):
         return [
@@ -113,8 +116,13 @@ class Impartial(BasicTrainTask):
         ]
 
         nval_patches = int(val_split * self.iconfig.npatches_epoch)
+        print("self.iconfig.npatches_epoch:: ", self.iconfig.npatches_epoch)
         npatches_epoch = context.request["npatches_epoch"]
         ntrain_patches = npatches_epoch - nval_patches
+
+        print("partition_datalist :: npatches_epoch: ", npatches_epoch)
+        print("partition_datalist :: ntrain_patches: ", ntrain_patches)
+
 
         train_patches = sample_patches(
             images=images,

@@ -10,7 +10,7 @@ from general.networks import UNet
 
 import lib.infers
 import lib.trainers
-from . import DAPI1CH
+from . import DAPI1CH, Vectra2Ch1task, Config_CH2, Config_CH1
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,9 @@ class Impartial(TaskConfig):
         ]
 
         # ImPartial config
-        self.iconfig = DAPI1CH()
+        # self.iconfig = DAPI1CH()
+        # self.iconfig = Vectra2Ch1task()
+        self.iconfig = Config_CH2()
 
         # Network
         self.network = UNet(

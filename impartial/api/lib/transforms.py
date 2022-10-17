@@ -122,8 +122,11 @@ class BlindSpotPatch(MapTransform):
 
         input, mask = blind_spot_patch(d["image"][np.newaxis, ...])
 
-        d["input"] = input[..., 0]
-        d["mask"] = mask[..., 0]
+        d["input"] = input[0, ...]
+        d["mask"] = mask[0, ...]
+
+        d["input"] = np.moveaxis(d["input"], -1, 0)
+        d["mask"] = np.moveaxis(d["mask"], -1, 0)
 
         return d
 

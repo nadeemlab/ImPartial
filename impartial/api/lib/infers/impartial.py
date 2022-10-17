@@ -3,19 +3,24 @@ import io
 import base64
 import logging
 from typing import Any, Callable, Dict, Sequence, List
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from PIL import Image
 from skimage import measure
 from roifile import ImagejRoi
 
-from monai.data import PILReader
+import tifffile as tiff 
+
+from monai.config import PathLike
+from monai.data import ImageReader
 from monai.data.image_reader import _copy_compatible_dict, _stack_images
 from monai.transforms import (
     LoadImaged,
     ScaleIntensityRangePercentilesd,
     ToTensord,
     AddChanneld,
+    AsChannelFirstd,
     Activationsd,
     AsDiscreted,
     ToNumpyd
@@ -23,8 +28,8 @@ from monai.transforms import (
 from monai.utils import ensure_tuple
 from monailabel.interfaces.tasks.infer import InferTask, InferType
 
+from dataprocessing.utils import read_image
 from lib.transforms import GetImpartialOutputs, AggregateComponentOutputs, ComputeEntropy
-
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +71,7 @@ class Impartial(InferTask):
 
     def pre_transforms(self, data=None) -> Sequence[Callable]:
         return [
-            LoadImaged(keys="image", reader=PNGReader),
+            LoadImaged(keys="image", reader=ImpartialImageReader),
             ScaleIntensityRangePercentilesd(
                 keys="image",
                 lower=1,
@@ -76,7 +81,7 @@ class Impartial(InferTask):
                 clip=True
             ),
             ToTensord(keys="image"),
-            AddChanneld(keys="image")
+            AsChannelFirstd(keys="image")
         ]
 
     def post_transforms(self, data=None) -> Sequence[Callable]:
@@ -131,27 +136,51 @@ class ZIPFileWriter:
         return output_path, {"output": prob_map.tolist(), "entropy": data["entropy"].tolist()}
 
 
-class PNGReader(PILReader):
-    def get_data(self, img):
-        """
-        Extract data array and meta data from loaded image and return them.
-        This function returns two objects, first is numpy array of image data, second is dict of meta data.
-        It computes `spatial_shape` and stores it in meta dict.
-        When loading a list of files, they are stacked together at a new dimension as the first dimension,
-        and the meta data of the first image is used to represent the output meta data.
+class ImpartialImageReader(ImageReader):
+    def __init__(self):
+        super().__init__()
 
-        Args:
-            img: a PIL Image object loaded from a file or a list of PIL Image objects.
-        """
+    def verify_suffix(self, filename):
+        extension = filename.split(".")[-1]
+
+        if extension == "tiff" or extension == "tif" or extension == "png" or extension == "PNG" :
+            return True
+        else:
+            return False
+
+    def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
+
+        path = data[0]
+        return read_image(path)
+
+    def get_data(self, img):
+        
         img_array: List[np.ndarray] = []
         compatible_meta: Dict = {}
 
-        for i in ensure_tuple(img):
-            header = self._get_meta_dict(i)
-            header["spatial_shape"] = self._get_spatial_shape(i)
-            data = np.asarray(i)
-            img_array.append(data)
-            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
-            _copy_compatible_dict(header, compatible_meta)
+        img_array.append(img)
+
+        header = self._get_meta_dict(img)
+        header["spatial_shape"] = self._get_spatial_shape(img)
+        header["original_channel_dim"] = "no_channel" if len(img.shape) == len(header["spatial_shape"]) else -1
+        _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
+
+    def _get_meta_dict(self, img) -> Dict:
+        """
+        Get the all the meta data of the image and convert to dict type.
+        Args:
+            img: a PIL Image object loaded from an image file.
+
+        """
+        return {"format": 'tiff', "mode": '64', "width": img.shape[0], "height": img.shape[1]}
+
+    def _get_spatial_shape(self, img):
+        """
+        Get the spatial shape of image data, it doesn't contain the channel dim.
+        Args:
+            img: a PIL Image object loaded from an image file.
+        """
+        print("INFER::_get_spatial_shape::", img.shape)
+        return np.asarray((img.shape[0], img.shape[1]))
