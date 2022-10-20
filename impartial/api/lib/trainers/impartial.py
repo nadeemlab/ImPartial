@@ -81,7 +81,7 @@ class Impartial(BasicTrainTask):
 
         for d in datalist:
             d["image"] = load_image(d["image"])
-            d["scribble"] = rois_to_labels(d["label"], size=d["image"].shape)
+            d["scribble"] = rois_to_labels(d["label"], size=(d["image"].shape[0], d["image"].shape[1]))
 
         return datalist
                     
