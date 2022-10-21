@@ -1,141 +1,184 @@
 package org.nadeemlab.impartial;
 
-import org.json.JSONObject;
-
-import java.awt.FlowLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.util.Arrays;
-import java.util.stream.StreamSupport;
 import javax.swing.*;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
+import java.awt.*;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.util.*;
+import java.util.List;
 
-public class DatasetPanel extends JPanel implements ListSelectionListener {
-    private ImpartialDialog controller;
-    private MonaiLabelClient monaiClient;
-    private JList list;
-    private JButton openButton;
-    private JButton loadLabelButton;
-    private JButton submitLabelButton;
-    private DefaultListModel listModel;
-    private JTextArea sampleInfo;
-    private static final String hireString = "Hire";
-    private static final String fireString = "Fire";
-    private final static String newline = "\n";
-    private JButton fireButton;
-    private JTextField employeeName;
+public class DatasetPanel extends JPanel implements ItemListener {
+    private final ImpartialController controller;
+    private ListModel listModel;
+    private JList<Sample> list;
+    private JCheckBox inferCheckBox;
+    private JCheckBox entropyCheckBox;
+    private JCheckBox labelCheckBox;
+    private final JButton submitLabelButton;
 
-    DatasetPanel(ImpartialDialog controller, MonaiLabelClient monaiClient) {
+    DatasetPanel(ImpartialController controller) {
         this.controller = controller;
-        this.monaiClient = monaiClient;
+
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.PAGE_AXIS));
+
+        JPanel viewSelector = createViewSelector();
+        viewSelector.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createTitledBorder("dataset"),
                 BorderFactory.createEmptyBorder(5, 5, 5, 5))
         );
 
-        listModel = new DefaultListModel<String>();
-
-        //Create the list and put it in a scroll pane.
-        list = new JList(listModel);
-        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        list.setSelectedIndex(0);
-        list.addListSelectionListener(this);
-        list.setVisibleRowCount(5);
-
-        JScrollPane listScrollPane = new JScrollPane(list);
-
-        openButton = new JButton("open");
-        openButton.setActionCommand("open");
-        openButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                controller.showImage();
-            }
-        });
-        openButton.setEnabled(false);
-
-        loadLabelButton = new JButton("load label");
-        loadLabelButton.setActionCommand("load");
-        loadLabelButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                controller.loadLabel();
-            }
-        });
-        loadLabelButton.setEnabled(false);
-
         submitLabelButton = new JButton("submit label");
-        submitLabelButton.setActionCommand("submit");
-        submitLabelButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                controller.submitLabel();
-            }
-        });
         submitLabelButton.setEnabled(false);
+        submitLabelButton.addActionListener(e -> controller.submitLabel());
 
-        sampleInfo = new JTextArea(5, 20);
-        sampleInfo.setEditable(false);
-        sampleInfo.setOpaque(false);
-        sampleInfo.setBorder(BorderFactory.createEmptyBorder());
+        mainPanel.add(createDatasetButtons());
+        mainPanel.add(createSampleList());
+        mainPanel.add(createViewSelector());
+        mainPanel.add(submitLabelButton);
 
-        add(listScrollPane);
-        add(sampleInfo);
-        add(openButton);
-        add(loadLabelButton);
-        add(submitLabelButton);
+        add(mainPanel);
     }
 
-    public void populateSampleList() {
+    private JPanel createDatasetButtons() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.LINE_AXIS));
+
+        JButton uploadButton = new JButton("upload");
+        uploadButton.setEnabled(true);
+        uploadButton.addActionListener(e -> controller.uploadImages());
+
+        JButton deleteButton = new JButton("delete");
+        deleteButton.setEnabled(true);
+        deleteButton.addActionListener(e -> controller.deleteSelectedImage());
+
+        panel.add(uploadButton);
+        panel.add(deleteButton);
+
+        return panel;
+    }
+
+    private JScrollPane createSampleList() {
+        listModel = new ListModel();
+
+        //Create the list and put it in a scroll pane.
+        list = new JList<>(listModel);
+        list.setCellRenderer(new DatasetRenderer());
+        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        list.setSelectedIndex(0);
+        list.setVisibleRowCount(5);
+
+        JScrollPane listScroller = new JScrollPane(list);
+        listScroller.setPreferredSize(new Dimension(200, 150));
+        listScroller.setBorder(BorderFactory.createLineBorder(Color.lightGray));
+
+        list.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                String imageId = getSelectedImageId();
+                controller.updateImage(imageId);
+            }
+        });
+
+        return listScroller;
+    }
+
+    private JPanel createViewSelector() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.LINE_AXIS));
+
+        labelCheckBox = new JCheckBox("label");
+        labelCheckBox.setEnabled(false);
+
+        inferCheckBox = new JCheckBox("infer");
+        inferCheckBox.setEnabled(false);
+
+        entropyCheckBox = new JCheckBox("entropy");
+        entropyCheckBox.setEnabled(false);
+
+        labelCheckBox.addItemListener(this);
+        inferCheckBox.addItemListener(this);
+        entropyCheckBox.addItemListener(this);
+
+        panel.add(labelCheckBox);
+        panel.add(inferCheckBox);
+        panel.add(entropyCheckBox);
+
+        return panel;
+    }
+
+    public void populateSampleList(String[] samples) {
         if (!listModel.isEmpty()) {
             listModel.clear();
         }
 
-        String[] samples = getDatastoreSamples();
         Arrays.sort(samples);
         for (String sample : samples) {
-            listModel.addElement(sample);
+            listModel.addElement(new Sample(sample, ""));
         }
     }
 
-    private void updateImageInfo(String imageName, boolean hasLabels) {
-        this.sampleInfo.setText("name: " + imageName + newline +
-                "labeled: " + (hasLabels ? "yes" : "no"));
+    public String getSelectedImageId() {
+        return list.getSelectedValue().getName();
     }
 
-    private JSONObject getSampleInfo(String sampleId) {
-        JSONObject datastore = monaiClient.getDatastore();
-
-        return datastore.getJSONObject("objects").getJSONObject(sampleId);
+    public void setEnabledInferAndEntropy(boolean enable) {
+        inferCheckBox.setEnabled(enable);
+        entropyCheckBox.setEnabled(enable);
     }
 
-    private String[] getDatastoreSamples() {
-        JSONObject datastore = monaiClient.getDatastore();
-        Iterable<String> iterable = () -> datastore.getJSONObject("objects").keys();
-
-        return StreamSupport.stream(iterable.spliterator(), false)
-                .toArray(String[]::new);
+    public void setSelectedInfer(boolean b) {
+        inferCheckBox.setSelected(b);
     }
 
-    //This method is required by ListSelectionListener.
-    public void valueChanged(ListSelectionEvent e) {
-        if (e.getValueIsAdjusting() == false) {
-            String imageId = (String) list.getSelectedValue();
-            JSONObject sampleInfo = getSampleInfo(imageId);
+    public void setEnabledLabel(boolean b) {
+        labelCheckBox.setEnabled(b);
+    }
 
-            String imageName = sampleInfo.getJSONObject("image")
-                    .getJSONObject("info")
-                    .getString("name");
-            boolean hasLabels = sampleInfo.has("labels");
+    public List<String> getSelected() {
+        List<String> selected = new ArrayList<>();
 
-            updateImageInfo(imageName, hasLabels);
+        if (labelCheckBox.isSelected()) selected.add(labelCheckBox.getText());
+        if (inferCheckBox.isSelected()) selected.add(inferCheckBox.getText());
+        if (entropyCheckBox.isSelected()) selected.add(entropyCheckBox.getText());
 
-            controller.setImageId(imageId);
-            openButton.setEnabled(true);
-            loadLabelButton.setEnabled(hasLabels);
-            submitLabelButton.setEnabled(hasLabels);
-        }
+        return selected;
+    }
+
+    @Override
+    public void itemStateChanged(ItemEvent e) {
+        controller.updateDisplay();
+    }
+
+    public void setSelectedAll(boolean b) {
+        labelCheckBox.setSelected(b);
+        inferCheckBox.setSelected(b);
+        entropyCheckBox.setSelected(b);
+    }
+
+    public void setEnabledSubmit(boolean b) {
+        submitLabelButton.setEnabled(b);
+    }
+
+    public void setSampleStatus(Sample sample, String status) {
+        int index = listModel.indexOf(sample);
+        listModel.get(index).setStatus(status);
+        listModel.setElementAt(sample, index);
+    }
+
+    public ListModel getListModel() {
+        return listModel;
+    }
+
+    public void setSampleEntropy(Sample sample, double entropy) {
+        int index = listModel.indexOf(sample);
+        listModel.get(index).setEntropy(entropy);
+        listModel.setElementAt(sample, index);
+    }
+
+    public void setSelectedFirstImage() {
+        if (!listModel.isEmpty())
+            list.setSelectedIndex(0);
     }
 }

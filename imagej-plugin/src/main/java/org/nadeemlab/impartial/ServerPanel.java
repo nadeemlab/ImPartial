@@ -1,22 +1,20 @@
 package org.nadeemlab.impartial;
 
 import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 
 public class ServerPanel extends JPanel {
-    private ImpartialDialog controller;
-    private MonaiLabelClient monaiClient;
+    private ImpartialController controller;
     private JLabel statusLabel;
     private JTextField monaiUrl;
 
-    private String defaultUrl = "http://10.0.3.62:8000";
+    private String defaultUrl = "http://10.0.3.117:8000";
+//    private String defaultUrl = "http://localhost:8000";
 
-    ServerPanel(ImpartialDialog controller, MonaiLabelClient monaiClient) {
+    ServerPanel(ImpartialController controller) {
         this.controller = controller;
-        this.monaiClient = monaiClient;
 
         setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createTitledBorder("server"),
@@ -26,44 +24,44 @@ public class ServerPanel extends JPanel {
         JPanel content = new JPanel();
         content.setLayout(new BoxLayout(content, BoxLayout.PAGE_AXIS));
 
-        JPanel addressBar = new JPanel();
+        monaiUrl = new JTextField(defaultUrl, 16);
+        monaiUrl.setAlignmentX(LEFT_ALIGNMENT);
 
-        monaiUrl = new JTextField(defaultUrl, 50);
+        JPanel innerPanel = new JPanel();
+        innerPanel.setLayout(new BoxLayout(innerPanel, BoxLayout.LINE_AXIS));
+        innerPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JButton connectButton = new JButton("connect");
-        connectButton.setActionCommand("connect");
-        connectButton.addActionListener(new ConnectListener());
-
-        addressBar.add(monaiUrl);
-        addressBar.add(connectButton);
-
-        statusLabel = new JLabel();
-        statusLabel.setText("status: disconnected");
-//        statusLabel.setIcon(new ImageIcon("check-circle.png"));
-
-        content.add(addressBar);
-        content.add(statusLabel);
-
-        add(content);
-    }
-
-    class ConnectListener implements ActionListener {
-        public void actionPerformed(ActionEvent e) {
+        connectButton.addActionListener(e -> {
             URL url;
             try {
                 url = new URL(monaiUrl.getText());
             } catch (MalformedURLException ex) {
                 throw new RuntimeException(ex);
             }
-            monaiClient.setUrl(url);
+            controller.setMonaiClientUrl(url);
+
             try {
-                monaiClient.getInfo();
                 controller.connect();
                 statusLabel.setText("status: connected");
             } catch (IllegalArgumentException ignored) {
                 statusLabel.setText("status: disconnected");
             }
-        }
+        });
+
+        statusLabel = new JLabel();
+        statusLabel.setText("status: disconnected");
+//        statusLabel.setIcon(new ImageIcon("check-circle.png"));
+
+        innerPanel.add(connectButton);
+        innerPanel.add(statusLabel);
+        innerPanel.add(Box.createHorizontalGlue());
+
+        content.add(monaiUrl);
+        content.add(innerPanel);
+//        content.add(statusLabel);
+
+        add(content);
     }
 
 }

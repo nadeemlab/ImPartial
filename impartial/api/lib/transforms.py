@@ -18,6 +18,7 @@ from monai.transforms import CenterSpatialCrop, MapTransform, Transform
 
 from impartial.Impartial_classes import ImPartialConfig
 from dataprocessing.dataloaders import random_crop, compute_probability_map, blind_spot_patch
+from dataprocessing.utils import compute_entropy
 
 logger = logging.getLogger(__name__)
 
@@ -121,18 +122,18 @@ class BlindSpotPatch(MapTransform):
 
         input, mask = blind_spot_patch(d["image"][np.newaxis, ...])
 
-        d["input"] = input[..., 0]
-        d["mask"] = mask[..., 0]
+        d["input"] = input[0, ...]
+        d["mask"] = mask[0, ...]
+
+        d["input"] = np.moveaxis(d["input"], -1, 0)
+        d["mask"] = np.moveaxis(d["mask"], -1, 0)
 
         return d
 
 
-class GetImpartialOutputs(MapTransform):
-    def __init__(
-            self, keys: KeysCollection, iconfig: ImPartialConfig
-    ):
+class GetImpartialOutputs(Transform):
+    def __init__(self, iconfig: ImPartialConfig):
         self.iconfig = iconfig
-        super().__init__(keys)
 
     def __call__(self, data):
         d = dict(data)
@@ -144,7 +145,7 @@ class GetImpartialOutputs(MapTransform):
         return d
 
 
-class AddForegroundOutput(MapTransform):
+class AggregateComponentOutputs(MapTransform):
     def __init__(
             self, keys: KeysCollection, iconfig: ImPartialConfig
     ):
@@ -154,10 +155,25 @@ class AddForegroundOutput(MapTransform):
     def __call__(self, data):
         d = dict(data)
 
-        # assume 1 task and 1 class only
-        step = self.iconfig.classification_tasks["0"]["ncomponents"][0]
+        # assume 1 task
+        assert len(self.iconfig.classification_tasks) == 1
+        task = self.iconfig.classification_tasks["0"]
+
+        # assume 1 class (+ background) components
+        assert len(self.iconfig.classification_tasks["0"]["ncomponents"]) == 2
+        step = task["ncomponents"][0]
+
         for key in self.key_iterator(d):
             d[key] = torch.sum(d[key][:step, ...], dim=0)
+        return d
+
+
+class ComputeEntropy(Transform):
+    def __call__(self, data):
+        d = dict(data)
+
+        d["entropy"] = compute_entropy(data["output"].cpu())
+
         return d
 
 

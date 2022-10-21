@@ -222,7 +222,7 @@ if __name__== '__main__':
 
 
     #------------------------- Config file --------------------------------#
-    from Impartial.Impartial_classes import ImPartialConfig
+    from impartial.Impartial_classes import ImPartialConfig
     patch_size = (cparser.patch, cparser.patch)
     size_window = (cparser.size_window, cparser.size_window)
 
@@ -287,7 +287,7 @@ if __name__== '__main__':
     mkdir(os.path.join(config.basedir, config.model_name)) #change gs
 
     # ------------------------- Model Setup --------------------------------#
-    from Impartial.Impartial_classes import ImPartialModel
+    from impartial.Impartial_classes import ImPartialModel
     im_model = ImPartialModel(config)
 
     model_output_dir = os.path.join(im_model.config.basedir, im_model.config.model_name)

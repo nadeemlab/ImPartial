@@ -1,24 +1,24 @@
 package org.nadeemlab.impartial;
 
+import okhttp3.*;
+import org.json.JSONObject;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
-import okhttp3.*;
-import org.json.JSONObject;
-
 public class MonaiLabelClient {
+    private final OkHttpClient httpClient;
     private String host;
     private Integer port;
-    private final OkHttpClient httpClient;
 
     public MonaiLabelClient() {
         httpClient = new OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build();
+                .connectTimeout(120, TimeUnit.SECONDS)
+                .writeTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(120, TimeUnit.SECONDS)
+                .build();
     }
 
     public void setUrl(URL url) {
@@ -27,7 +27,6 @@ public class MonaiLabelClient {
     }
 
     public JSONObject getInfo() {
-
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
                 .host(host)
@@ -46,30 +45,12 @@ public class MonaiLabelClient {
         }
     }
 
-    public byte[] postInfer(String model, String imageId) {
-        HttpUrl url = new HttpUrl.Builder()
-                .scheme("http")
-                .host(host)
-                .port(port)
-                .addPathSegments("infer/" + model)
-                .addQueryParameter("image", imageId)
-                .addQueryParameter("output", "image")
+    public JSONObject postInferJson(String model, String imageId, JSONObject params) throws IOException {
+        RequestBody body = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("params", params.toString())
                 .build();
 
-        Request request = new Request.Builder()
-                .url(url)
-                .post(RequestBody.create(new byte[0]))
-                .build();
-
-        try (Response response = httpClient.newCall(request).execute()) {
-            return response.body().bytes();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-
-    public JSONObject postInferEntropy(String model, String imageId) {
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
                 .host(host)
@@ -81,17 +62,39 @@ public class MonaiLabelClient {
 
         Request request = new Request.Builder()
                 .url(url)
-                .post(RequestBody.create(new byte[0]))
+                .post(body)
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
             return new JSONObject(response.body().string());
+        }
+    }
+
+    public byte[] postInferBytes(String model, String imageId, JSONObject params) {
+        RequestBody body = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("params", params.toString())
+                .build();
+
+        HttpUrl url = new HttpUrl.Builder()
+                .scheme("http")
+                .host(host)
+                .port(port)
+                .addPathSegments("infer/" + model)
+                .addQueryParameter("image", imageId)
+                .addQueryParameter("output", "image")
+                .build();
+
+        Request request = new Request.Builder()
+                .url(url)
+                .post(body)
+                .build();
+        try (Response response = httpClient.newCall(request).execute()) {
+            return response.body().bytes();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
-
-
 
     public JSONObject getTrain() {
         HttpUrl url = new HttpUrl.Builder()
@@ -112,7 +115,11 @@ public class MonaiLabelClient {
         }
     }
 
-    public String postTrain(String model) {
+    public String postTrain(String model, JSONObject params) {
+        final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+
+        RequestBody body = RequestBody.create(params.toString(), JSON);
+
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
                 .host(host)
@@ -122,7 +129,7 @@ public class MonaiLabelClient {
 
         Request request = new Request.Builder()
                 .url(url)
-                .post(RequestBody.create(new byte[0]))
+                .post(body)
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
@@ -186,7 +193,7 @@ public class MonaiLabelClient {
 
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
-                .host(this.host)
+                .host(host)
                 .port(port)
                 .addPathSegments("datastore/label")
                 .addQueryParameter("image", imageId)
@@ -205,7 +212,56 @@ public class MonaiLabelClient {
         }
     }
 
-    public JSONObject getDatastore() {
+    public JSONObject putDatastore(File imageFile) {
+
+        final MediaType MEDIA_TYPE_PNG = MediaType.parse("image/png");
+
+        String imageFileName = imageFile.getName();
+
+        RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("file", imageFileName,
+                        RequestBody.create(MEDIA_TYPE_PNG, imageFile))
+                .build();
+
+        HttpUrl url = new HttpUrl.Builder()
+                .scheme("http")
+                .host(host)
+                .port(port)
+                .addPathSegments("datastore")
+                .addQueryParameter("image", imageFileName.substring(0, imageFileName.lastIndexOf(".")))
+                .build();
+
+        Request request = new Request.Builder()
+                .url(url)
+                .put(requestBody)
+                .build();
+
+        try (Response response = this.httpClient.newCall(request).execute()) {
+            return new JSONObject(response.body().string());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void deleteDatastore(String imageId) throws IOException {
+        HttpUrl url = new HttpUrl.Builder()
+                .scheme("http")
+                .host(host)
+                .port(port)
+                .addPathSegments("datastore")
+                .addQueryParameter("id", imageId)
+                .build();
+
+        Request request = new Request.Builder()
+                .url(url)
+                .delete()
+                .build();
+
+        httpClient.newCall(request).execute().close();
+    }
+
+    public JSONObject getDatastore() throws IOException {
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
                 .host(this.host)
@@ -220,13 +276,10 @@ public class MonaiLabelClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             return new JSONObject(response.body().string());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
-    public byte[] getDatastoreLabel(String imageId) {
-
+    public byte[] getDatastoreLabel(String imageId) throws IOException {
         HttpUrl url = new HttpUrl.Builder()
                 .scheme("http")
                 .host(this.host)
@@ -242,8 +295,6 @@ public class MonaiLabelClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             return response.body().bytes();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 

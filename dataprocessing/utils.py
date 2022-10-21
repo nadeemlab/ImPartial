@@ -6,8 +6,28 @@ from roifile import ImagejRoi
 import cv2 as cv
 import numpy as np
 from PIL import Image
+import tifffile as tiff
+
 from scipy import ndimage
 from skimage import morphology, measure
+
+
+
+def read_image(path):
+
+    extension = path.split(".")[-1]
+
+    if extension == "png" or extension == "PNG" :
+        image = np.array(Image.open(path))
+        if len(image.shape) == 2:
+            image = image[np.newaxis, ...]
+            image = np.moveaxis(image, [0], -1)
+
+    if extension == "tiff" or extension == "tif" :
+        image = tiff.imread(path)
+        image = np.moveaxis(image, [0], -1)
+
+    return image
 
 
 def rois_to_mask(zip_path, size, sample_rate=1):
@@ -196,3 +216,19 @@ def generate_validation_masks(dataset_dir):
         mask = validation_mask(label, 0.3)
 
         Image.fromarray(mask * 255).save(os.path.join(masks_dir, l))
+
+
+def compute_entropy(output: np.ndarray):
+    """
+    Computes the entropy of a probability map.
+    Args:
+        output (w, h): prediction of the model
+
+    Returns:
+        entropy (w, h): entropy of the probability map
+    """
+    # output = output[task]['class_segmentation'][0, ix_class, ...]
+    res = -output * np.log(np.maximum(output, 1e-5))
+    res += -(1 - output) * np.log(np.maximum(1 - output, 1e-5))
+
+    return res

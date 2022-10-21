@@ -81,7 +81,7 @@ class Impartial(MONAILabelApp):
 
         return LocalDatastore(
             self.studies,
-            extensions='*.png',
+            extensions=['*.tif', '*.png'],
             auto_reload=settings.MONAI_LABEL_DATASTORE_AUTO_RELOAD,
         )
 
