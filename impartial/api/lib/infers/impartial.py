@@ -1,3 +1,5 @@
+from copyreg import pickle
+from email.mime import base
 import os
 import io
 import base64
@@ -9,6 +11,7 @@ import numpy as np
 from PIL import Image
 from skimage import measure
 from roifile import ImagejRoi
+import pickle
 
 import tifffile as tiff 
 
@@ -120,15 +123,18 @@ class ZIPFileWriter:
         self.threshold = threshold
 
     def __call__(self, data):
+
         base_dir, input_file = os.path.split(data["image_path"])
         output_dir = os.path.join(base_dir, "outputs")
-
+        
         os.makedirs(output_dir, exist_ok=True)
 
-        output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.zip")
+        entropy = -data["output"] * np.log(np.maximum(data["output"], 1e-5))
+        entropy += -(1-data["output"]) * np.log(np.maximum(1-data["output"], 1e-5))
 
         prob_map = data["output"]
 
+        output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.zip")
         for contour in measure.find_contours((prob_map > self.threshold).astype(np.uint8), level=0.9999):
             roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
             roi.tofile(output_path)

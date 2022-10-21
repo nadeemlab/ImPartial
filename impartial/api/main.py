@@ -43,6 +43,7 @@ class Impartial(MONAILabelApp):
 
         models = models.split(",")
         models = [m.strip() for m in models]
+        
         invalid = [m for m in models if m != "all" and not configs.get(m)]
         if invalid:
             print("")
