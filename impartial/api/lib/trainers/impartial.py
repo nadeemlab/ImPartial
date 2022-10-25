@@ -72,15 +72,13 @@ class Impartial(BasicTrainTask):
 
     def pre_process(self, request, datastore: Datastore):
         datalist = datastore.datalist().copy()
-
-        def load_image(path):
-            norm = ScaleIntensityRangePercentiles(lower=1, upper=98, b_min=0, b_max=1, clip=True)
-            img = read_image(path)
-            return norm(img)
-            # return convert_to_numpy(norm(img).astype(np.float32))
+        scaler = ScaleIntensityRangePercentiles(
+            lower=1, upper=98, b_min=0, b_max=1, clip=True
+        )
 
         for d in datalist:
-            d["image"] = load_image(d["image"])
+            img = read_image(path=d["image"])
+            d["image"] = convert_to_numpy(scaler(img.astype(np.float32)))
             d["scribble"] = rois_to_labels(d["label"], size=(d["image"].shape[0], d["image"].shape[1]))
 
         return datalist
