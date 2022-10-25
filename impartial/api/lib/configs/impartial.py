@@ -30,9 +30,9 @@ class Impartial(TaskConfig):
         ]
 
         # ImPartial config
-        # self.iconfig = DAPI1CH()
+        self.iconfig = DAPI1CH()
         # self.iconfig = Vectra2Ch1task()
-        self.iconfig = Config_CH2()
+        # self.iconfig = Config_CH2()
 
         # Network
         self.network = UNet(
@@ -80,6 +80,8 @@ class Impartial(TaskConfig):
                 "dataset_randomize": True,
                 "early_stop_patience": self.iconfig.patience,
                 "pretrained": True,
+                "dataset": "CacheDataset",
+                "dataloader": "ThreadDataLoader",
                 "name": type(self.iconfig).__name__.lower()
             },
         )
