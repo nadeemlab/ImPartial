@@ -331,14 +331,20 @@ class Denormalize(object):
 
 
 def blind_spot_patch(input, ratio=0.95, size_window=(10, 10)):
-    # input size: patches x h x w x channel
+    # input size: (patches x h x w x channel) or (h x w x channel)
     window_height, window_width = size_window
 
-    batch_size, height, width, channels = input.shape
+    channels = input.shape[-1]
+    width = input.shape[-2]
+    height = input.shape[-3]
     num_sample = int(height * width * (1 - ratio))
 
-    mask = np.ones(input.shape)
-    output = np.array(input)
+    if isinstance(input, torch.Tensor):
+        mask = torch.ones_like(input)
+        output = input.clone().detach()
+    else:
+        mask = np.ones(input.shape)
+        output = np.array(input)
 
     for ich in range(channels):
         idy_msk = np.random.randint(0, height, num_sample)
@@ -361,7 +367,12 @@ def blind_spot_patch(input, ratio=0.95, size_window=(10, 10)):
         idy_msk_neigh = idy_msk_neigh + (idy_msk_neigh < 0) * height - (idy_msk_neigh >= height) * height
         idx_msk_neigh = idx_msk_neigh + (idx_msk_neigh < 0) * width - (idx_msk_neigh >= width) * width
 
-        output[:, idy_msk, idx_msk, ich] = input[:, idy_msk_neigh, idx_msk_neigh, ich]
-        mask[:, idy_msk, idx_msk, ich] = 0.0
+        if len(input.shape) > 3:
+            output[:, idy_msk, idx_msk, ich] = input[:, idy_msk_neigh, idx_msk_neigh, ich]
+            mask[:, idy_msk, idx_msk, ich] = 0.0
+        else:
+            output[idy_msk, idx_msk, ich] = input[idy_msk_neigh, idx_msk_neigh, ich]
+            mask[idy_msk, idx_msk, ich] = 0.0
+
 
     return output, mask

@@ -46,8 +46,9 @@ class Config_CH2(ImPartialConfig):
     def __init__(self):
         super().__init__(
             unet_base=64,
-            BATCH_SIZE=8,
+            BATCH_SIZE=128,
             n_channels=2,
+            npatches_epoch=4096,
             classification_tasks={
                 '0': {'classes': 1, 'rec_channels': [0,1], 'ncomponents': [2, 2]}
             }

@@ -1,32 +1,26 @@
 import collections
 import logging
-from typing import Optional, List, Dict, Sequence, Union
-
-import torch
-from monai.utils import convert_to_numpy
-from torch import Tensor
-from torch.nn.modules.loss import _Loss
-from ignite.metrics import Loss
-from ignite.metrics.metric import reinit__is_reduced
+from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
-from PIL import Image
-from skimage import measure, morphology
-
+import torch
+from ignite.metrics import Loss
+from ignite.metrics.metric import reinit__is_reduced
 from monai.engines import SupervisedTrainer
 from monai.handlers import CheckpointSaver, IgniteMetric
 from monai.inferers import SimpleInferer
-from monai.transforms import ScaleIntensityRangePercentiles, RandFlipd, ToTensord, AsChannelFirstd
+from monai.transforms import AsChannelFirstd, RandFlipd, ScaleIntensityRangePercentiles
+from monai.utils import convert_to_numpy
+from torch import Tensor
+from torch.nn.modules.loss import _Loss
+
+from dataprocessing.dataloaders import sample_patches
+from dataprocessing.utils import read_image, rois_to_labels, validation_mask
+from general.losses import reclosses, seglosses
+from impartial.Impartial_functions import compute_impartial_losses
+from lib.transforms import BlindSpotPatch, GetImpartialOutputs
 from monailabel.interfaces.datastore import Datastore
 from monailabel.tasks.train.basic_train import BasicTrainTask, Context
-
-from impartial.Impartial_functions import compute_impartial_losses
-from dataprocessing.dataloaders import sample_patches
-from dataprocessing.utils import validation_mask, rois_to_labels, read_image
-from general.losses import seglosses, reclosses
-
-from lib.transforms import GetImpartialOutputs, BlindSpotPatch
-
 
 logger = logging.getLogger(__name__)
 
@@ -41,18 +35,13 @@ class Impartial(BasicTrainTask):
             labels,
             iconfig,
             roi_size=(128, 128),
-            max_train_interactions=10,
-            max_val_interactions=5,
-            description="Interactive deep learning whole-cell segmentation"
-                        " and thresholding using partial annotations",
+            description="Interactive deep learning whole-cell segmentation and thresholding using partial annotations",
             **kwargs,
     ):
         self._network = network
         self.labels = labels
         self.iconfig = iconfig
         self.roi_size = roi_size
-        self.max_train_interactions = max_train_interactions
-        self.max_val_interactions = max_val_interactions
         super().__init__(
             model_dir=model_dir,
             description=description,
@@ -86,10 +75,9 @@ class Impartial(BasicTrainTask):
 
     def train_pre_transforms(self, context: Context):
         return [
-            BlindSpotPatch(keys="image"),
+            BlindSpotPatch(keys="image", input="input", mask="mask"),
             AsChannelFirstd(keys=("image", "scribble")),
             RandFlipd(keys=("image", "scribble", "input", "mask"), spatial_axis=1),
-            ToTensord(keys=("input"))
         ]
 
     def train_post_transforms(self, context: Context):
@@ -114,12 +102,12 @@ class Impartial(BasicTrainTask):
         ]
 
         nval_patches = int(val_split * self.iconfig.npatches_epoch)
-        print("self.iconfig.npatches_epoch:: ", self.iconfig.npatches_epoch)
+        logger.info(f"iconfig.npatches_epoch:: {self.iconfig.npatches_epoch}")
         npatches_epoch = context.request["npatches_epoch"]
         ntrain_patches = npatches_epoch - nval_patches
 
-        print("partition_datalist :: npatches_epoch: ", npatches_epoch)
-        print("partition_datalist :: ntrain_patches: ", ntrain_patches)
+        logger.info(f"partition_datalist :: npatches_epoch: {npatches_epoch}")
+        logger.info(f"partition_datalist :: ntrain_patches: {ntrain_patches}")
 
 
         train_patches = sample_patches(
@@ -147,7 +135,11 @@ class Impartial(BasicTrainTask):
         def to_dict(ds):
             return [{"image": d[0], "scribble": d[1]} for d in ds]
 
-        return to_dict(train_patches), to_dict(val_patches)
+        train_ds = to_dict(train_patches)
+        val_ds = to_dict(val_patches)
+
+        logger.info(f"End:: Partition dataset {len(train_ds)} + {len(val_ds)}")
+        return train_ds, val_ds
 
     def _create_evaluator(self, context: Context):
         evaluator = super()._create_evaluator(context)

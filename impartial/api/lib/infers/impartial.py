@@ -1,43 +1,34 @@
-from copyreg import pickle
-from email.mime import base
-import os
-import io
 import base64
+import io
 import logging
-from typing import Any, Callable, Dict, Sequence, List
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+import os
+from typing import Any, Callable, Dict, List, Sequence, Union
 
 import numpy as np
-from PIL import Image
-from skimage import measure
-from roifile import ImagejRoi
-import pickle
-
-import tifffile as tiff 
-
+from dataprocessing.utils import read_image
+from lib.transforms import AggregateComponentOutputs, ComputeEntropy, GetImpartialOutputs
 from monai.config import PathLike
 from monai.data import ImageReader
 from monai.data.image_reader import _copy_compatible_dict, _stack_images
 from monai.transforms import (
+    Activationsd,
+    AsChannelFirstd,
     LoadImaged,
     ScaleIntensityRangePercentilesd,
+    ToNumpyd,
     ToTensord,
-    AddChanneld,
-    AsChannelFirstd,
-    Activationsd,
-    AsDiscreted,
-    ToNumpyd
 )
-from monai.utils import ensure_tuple
-from monailabel.interfaces.tasks.infer import InferTask, InferType
+from PIL import Image
+from roifile import ImagejRoi
+from skimage import measure
 
-from dataprocessing.utils import read_image
-from lib.transforms import GetImpartialOutputs, AggregateComponentOutputs, ComputeEntropy
+from monailabel.interfaces.tasks.infer_v2 import InferType
+from monailabel.tasks.infer.basic_infer import BasicInferTask
 
 logger = logging.getLogger(__name__)
 
 
-class Impartial(InferTask):
+class Impartial(BasicInferTask):
     """
     This provides Inference Engine for pre-trained Impartial model.
     """
