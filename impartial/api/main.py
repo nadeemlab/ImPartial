@@ -1,20 +1,18 @@
-
-
 import logging
 import os
 from distutils.util import strtobool
 from typing import Dict
 
+import lib.configs
+
+from monailabel.config import settings
+from monailabel.datastore.local import LocalDatastore
 from monailabel.interfaces.app import MONAILabelApp
 from monailabel.interfaces.config import TaskConfig
 from monailabel.interfaces.datastore import Datastore
 from monailabel.interfaces.tasks.infer import InferTask
 from monailabel.interfaces.tasks.train import TrainTask
-from monailabel.datastore.local import LocalDatastore
 from monailabel.utils.others.class_utils import get_class_names
-from monailabel.config import settings
-
-import lib.configs
 
 logger = logging.getLogger(__name__)
 
@@ -111,3 +109,40 @@ class Impartial(MONAILabelApp):
             logger.info(f"+++ Adding Trainer:: {n} => {t}")
             trainers[n] = t
         return trainers
+
+
+
+"""
+Example to run train/infer/scoring task(s) locally without actually running MONAI Label Server
+"""
+
+def main():
+    os.putenv("MASTER_ADDR", "127.0.0.1")
+    os.putenv("MASTER_PORT", "1234")
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(asctime)s] [%(process)s] [%(threadName)s] [%(levelname)s] (%(name)s:%(lineno)d) - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        force=True,
+    )
+
+    app_dir = os.path.dirname(__file__)
+    studies = os.path.join(app_dir, "..", "..", "Data", "Vectra_WC_2CH_tiff")
+    conf = {}
+    app = Impartial(app_dir, studies, conf)
+
+    # Train
+    app.train(
+        request={
+            "model": "impartial",
+            "max_epochs": 100,
+            # "dataset": "CacheDataset",
+        },
+    )
+
+
+if __name__ == "__main__":
+    # export PYTHONPATH=ImPartial/impartial:ImPartial/impartial/api
+    # python main.py
+    main()

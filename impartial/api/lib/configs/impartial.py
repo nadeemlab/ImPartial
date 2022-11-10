@@ -1,16 +1,16 @@
-import os
 import logging
+import os
 from typing import Any, Dict, Optional, Union
-
-from monailabel.interfaces.config import TaskConfig
-from monailabel.interfaces.tasks.infer import InferTask
-from monailabel.interfaces.tasks.train import TrainTask
-
-from general.networks import UNet
 
 import lib.infers
 import lib.trainers
-from . import DAPI1CH, Vectra2Ch1task, Config_CH2, Config_CH1
+from general.networks import UNet
+
+from monailabel.interfaces.config import TaskConfig
+from monailabel.interfaces.tasks.infer_v2 import InferTask
+from monailabel.interfaces.tasks.train import TrainTask
+
+from . import DAPI1CH, Config_CH1, Config_CH2, Vectra2Ch1task
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +74,7 @@ class Impartial(TaskConfig):
             config={
                 "max_epochs": self.iconfig.EPOCHS,
                 "train_batch_size": self.iconfig.BATCH_SIZE,
+                "val_batch_size": self.iconfig.BATCH_SIZE,
                 "dataset_max_region": (10240, 10240),
                 "npatches_epoch": self.iconfig.npatches_epoch,
                 "dataset_limit": 0,
