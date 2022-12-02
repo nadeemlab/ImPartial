@@ -249,7 +249,8 @@ public class ImpartialController {
         monaiClient.deleteTrain();
 
         JSONObject params = contentPane.getTrainParams();
-        monaiClient.postTrain("impartial", params);
+        String model = "impartial_" + params.getInt("num_channels");
+        monaiClient.postTrain(model, params); 
 
         TrainProgress.monitorTraining(this);
     }
@@ -273,7 +274,8 @@ public class ImpartialController {
                 JSONObject params = new JSONObject();
                 params.put("threshold", (Float) contentPane.getThreshold());
 
-                JSONObject modelOutput = monaiClient.postInferJson("impartial", imageId, params);
+                String model = "impartial_" +  contentPane.getTrainParams().getInt("num_channels");
+                JSONObject modelOutput = monaiClient.postInferJson(model, imageId, params); 
 
                 modelOutput.put("epoch", currentEpoch);
 

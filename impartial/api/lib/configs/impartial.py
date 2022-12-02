@@ -30,9 +30,12 @@ class Impartial(TaskConfig):
         ]
 
         # ImPartial config
-        # self.iconfig = DAPI1CH()
-        # self.iconfig = Vectra2Ch1task()
-        self.iconfig = Config_CH2()
+        nChannels = name.split('_')[1]
+        # nChannels = conf.get("nChannels", "1")
+        if nChannels == "1":
+            self.iconfig = Config_CH1()
+        if nChannels == "2":
+            self.iconfig = Config_CH2()
 
         # Network
         self.network = UNet(
