@@ -25,10 +25,10 @@ class Impartial(MONAILabelApp):
         for c in get_class_names(lib.configs, "TaskConfig"):
             name = c.split(".")[-2].lower()
             configs[name] = c
-
+        
         configs = {k: v for k, v in sorted(configs.items())}
 
-        models = conf.get("models", "all")
+        models = conf.get("models", "impartial_1,impartial_2")
         if not models:
             print("")
             print("---------------------------------------------------------------------------------------")
@@ -42,24 +42,15 @@ class Impartial(MONAILabelApp):
         models = models.split(",")
         models = [m.strip() for m in models]
         
-        invalid = [m for m in models if m != "all" and not configs.get(m)]
-        if invalid:
-            print("")
-            print("---------------------------------------------------------------------------------------")
-            print(f"Invalid Model(s) are provided: {invalid}")
-            print("Following are the available models.  You can pass comma (,) seperated names to pass multiple")
-            print(f"    all, {', '.join(configs.keys())}")
-            print("---------------------------------------------------------------------------------------")
-            print("")
-            exit(-1)
-
         self.models: Dict[str, TaskConfig] = {}
-        for n in models:
-            for k, v in configs.items():
-                if self.models.get(k):
-                    continue
-                if n == k or n == "all":
-                    logger.info(f"+++ Adding Model: {k} => {v}")
+        for k in models:
+            if self.models.get(k):
+                continue
+            else:
+                model_type = k.split('_')[0]
+                if model_type in configs:
+                    v = configs[model_type]
+                    logger.info(f"+++ Adding Model: {model_type} type: {k} => {v}")
                     self.models[k] = eval(f"{v}()")
                     self.models[k].init(k, self.model_dir, conf, None)
 
@@ -129,13 +120,13 @@ def main():
 
     app_dir = os.path.dirname(__file__)
     studies = os.path.join(app_dir, "..", "..", "Data", "Vectra_WC_2CH_tiff")
-    conf = {}
+    conf = {"models": "impartial_1,impartial_2"}
     app = Impartial(app_dir, studies, conf)
 
     # Train
     app.train(
         request={
-            "model": "impartial",
+            "model": "impartial_2",
             "max_epochs": 100,
             # "dataset": "CacheDataset",
         },
