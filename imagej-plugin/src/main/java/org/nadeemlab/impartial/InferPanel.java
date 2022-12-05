@@ -64,6 +64,8 @@ public class InferPanel extends JPanel {
         thresholdSlider.setMinorTickSpacing(10);
         thresholdSlider.setMajorTickSpacing(50);
         thresholdSlider.setPaintTicks(true);
+        thresholdSlider.setPreferredSize(new Dimension(150, 50));
+        thresholdSlider.setEnabled(false);
 
         thresholdSlider.addChangeListener(e -> {
             JSlider source = (JSlider) e.getSource();
@@ -71,8 +73,6 @@ public class InferPanel extends JPanel {
             thresholdValue.setText("threshold " + normalizeValue(value));
             controller.updateDisplay();
         });
-
-        thresholdSlider.setPreferredSize(new Dimension(150, 50));
 
         sliderPanel.add(thresholdSlider);
 
@@ -96,5 +96,10 @@ public class InferPanel extends JPanel {
 
     public void setTextInfer(String s) {
         inferInfo.setText(s);
+    }
+
+    public void onConnected() {
+        inferButton.setEnabled(true);
+        thresholdSlider.setEnabled(true);
     }
 }

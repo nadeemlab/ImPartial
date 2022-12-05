@@ -4,23 +4,23 @@ package org.nadeemlab.impartial;
 import org.json.JSONObject;
 
 import javax.swing.*;
+import java.net.URL;
 import java.util.List;
 
 public class ImpartialContentPane extends JPanel {
-    ImpartialController controller;
+    private final ServerPanel serverPanel;
     private final DatasetPanel datasetPanel;
-    private final TrainPanel trainPanel;
     private final InferPanel inferPanel;
+    private final TrainPanel trainPanel;
 
     /**
      * Create the dialog.
      */
     public ImpartialContentPane(final ImpartialController controller) {
-        this.controller = controller;
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.PAGE_AXIS));
 
-        ServerPanel serverPanel = new ServerPanel(controller);
+        serverPanel = new ServerPanel(controller);
         mainPanel.add(serverPanel);
 
         datasetPanel = new DatasetPanel(controller);
@@ -35,12 +35,37 @@ public class ImpartialContentPane extends JPanel {
         add(mainPanel);
     }
 
-    public void populateSampleList(String[] samples) {
-        datasetPanel.populateSampleList(samples);
+    public void onConnected() {
+        serverPanel.onConnected();
+        datasetPanel.onConnected();
+        inferPanel.onConnected();
+        trainPanel.onConnected();
     }
 
+    // Server
+    public boolean getRequestServerCheckBox() {
+        return serverPanel.getRequestServerCheckBox();
+    }
+
+    public URL getUrl() {
+        return serverPanel.getUrl();
+    }
+
+    // Dataset
     public String getSelectedImageId() {
         return datasetPanel.getSelectedImageId();
+    }
+
+    public List<String> getSelectedViews() {
+        return datasetPanel.getSelected();
+    }
+
+    public ListModel getListModel() {
+        return datasetPanel.getListModel();
+    }
+
+    public void populateSampleList(String[] samples) {
+        datasetPanel.populateSampleList(samples);
     }
 
     public void setEnabledInferAndEntropy(boolean enable) {
@@ -51,34 +76,8 @@ public class ImpartialContentPane extends JPanel {
         datasetPanel.setSelectedInfer(b);
     }
 
-    public void setEnabledInfer(boolean b) {
-        inferPanel.setEnabledInfer(b);
-    }
-
-    public float getThreshold() {
-        return inferPanel.getThreshold();
-    }
-
-    public JSONObject getTrainParams() {
-        return trainPanel.getTrainParams();
-    }
-
-    public void inferPerformed(int epoch, String time) {
-        setTextInfer("last run " + time + ", epoch " + epoch);
-        setEnabledInferAndEntropy(true);
-        setSelectedInfer(true);
-    }
-
-    public List<String> getSelectedViews() {
-        return datasetPanel.getSelected();
-    }
-
     public void setEnabledLabel(boolean b) {
         datasetPanel.setEnabledLabel(b);
-    }
-
-    public void setTextInfer(String s) {
-        inferPanel.setTextInfer(s);
     }
 
     public void setSelectedAll(boolean b) {
@@ -93,10 +92,6 @@ public class ImpartialContentPane extends JPanel {
         datasetPanel.setSampleStatus(sample, status);
     }
 
-    public ListModel getListModel() {
-        return datasetPanel.getListModel();
-    }
-
     public void sortList() {
         datasetPanel.getListModel().sort();
     }
@@ -108,4 +103,29 @@ public class ImpartialContentPane extends JPanel {
     public void setSelectedFirstImage() {
         datasetPanel.setSelectedFirstImage();
     }
+
+    // Infer
+    public void setEnabledInfer(boolean b) {
+        inferPanel.setEnabledInfer(b);
+    }
+
+    public float getThreshold() {
+        return inferPanel.getThreshold();
+    }
+
+    public void inferPerformed(int epoch, String time) {
+        setTextInfer("last run " + time + ", epoch " + epoch);
+        setEnabledInferAndEntropy(true);
+        setSelectedInfer(true);
+    }
+
+    public void setTextInfer(String s) {
+        inferPanel.setTextInfer(s);
+    }
+
+    // Train
+    public JSONObject getTrainParams() {
+        return trainPanel.getTrainParams();
+    }
+
 }

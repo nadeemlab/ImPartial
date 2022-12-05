@@ -15,6 +15,8 @@ public class DatasetPanel extends JPanel implements ItemListener {
     private JCheckBox entropyCheckBox;
     private JCheckBox labelCheckBox;
     private final JButton submitLabelButton;
+    private JButton uploadButton;
+    private JButton deleteButton;
 
     DatasetPanel(ImpartialController controller) {
         this.controller = controller;
@@ -46,12 +48,12 @@ public class DatasetPanel extends JPanel implements ItemListener {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.LINE_AXIS));
 
-        JButton uploadButton = new JButton("upload");
-        uploadButton.setEnabled(true);
+        uploadButton = new JButton("upload");
+        uploadButton.setEnabled(false);
         uploadButton.addActionListener(e -> controller.uploadImages());
 
-        JButton deleteButton = new JButton("delete");
-        deleteButton.setEnabled(true);
+        deleteButton = new JButton("delete");
+        deleteButton.setEnabled(false);
         deleteButton.addActionListener(e -> controller.deleteSelectedImage());
 
         panel.add(uploadButton);
@@ -180,5 +182,10 @@ public class DatasetPanel extends JPanel implements ItemListener {
     public void setSelectedFirstImage() {
         if (!listModel.isEmpty())
             list.setSelectedIndex(0);
+    }
+
+    public void onConnected() {
+        uploadButton.setEnabled(true);
+        deleteButton.setEnabled(true);
     }
 }
