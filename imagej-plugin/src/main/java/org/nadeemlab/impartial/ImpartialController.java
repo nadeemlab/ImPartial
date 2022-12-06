@@ -28,6 +28,8 @@ import org.scijava.plugin.Parameter;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -193,6 +195,11 @@ public class ImpartialController {
     private void displayImage(ImagePlus imp) {
         if (imageWindow == null) {
             imageWindow = new ImageWindow(imp);
+            imageWindow.addComponentListener(new ComponentAdapter() {
+                public void componentResized(ComponentEvent componentEvent) {
+                    resetLayout();
+                }
+            });
             resetLayout();
         } else {
             imageWindow.setImage(imp);
