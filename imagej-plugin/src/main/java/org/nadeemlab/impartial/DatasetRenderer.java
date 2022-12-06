@@ -10,7 +10,7 @@ public class DatasetRenderer extends JLabel implements ListCellRenderer<Sample> 
         setOpaque(true);
         setHorizontalAlignment(LEFT);
         setVerticalAlignment(CENTER);
-        setHorizontalTextPosition(LEFT);
+        setHorizontalTextPosition(RIGHT);
     }
 
     @Override

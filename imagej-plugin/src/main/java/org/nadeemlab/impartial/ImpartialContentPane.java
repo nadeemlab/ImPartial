@@ -4,6 +4,7 @@ package org.nadeemlab.impartial;
 import org.json.JSONObject;
 
 import javax.swing.*;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 
@@ -42,12 +43,17 @@ public class ImpartialContentPane extends JPanel {
         trainPanel.onConnected();
     }
 
+    public void onDisconnected() {
+        datasetPanel.clearSampleList();
+        datasetPanel.setSelectedAll(false);
+    }
+
     // Server
     public boolean getRequestServerCheckBox() {
         return serverPanel.getRequestServerCheckBox();
     }
 
-    public URL getUrl() {
+    public URL getUrl() throws MalformedURLException {
         return serverPanel.getUrl();
     }
 
@@ -78,6 +84,10 @@ public class ImpartialContentPane extends JPanel {
 
     public void setEnabledLabel(boolean b) {
         datasetPanel.setEnabledLabel(b);
+    }
+
+    public void setSelectedLabel(boolean b) {
+        datasetPanel.setSelectedLabel(b);
     }
 
     public void setSelectedAll(boolean b) {

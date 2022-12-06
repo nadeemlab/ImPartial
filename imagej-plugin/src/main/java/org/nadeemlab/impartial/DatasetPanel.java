@@ -110,6 +110,10 @@ public class DatasetPanel extends JPanel implements ItemListener {
         return panel;
     }
 
+    public void clearSampleList() {
+        listModel.clear();
+    }
+
     public void populateSampleList(String[] samples) {
         if (!listModel.isEmpty()) {
             listModel.clear();
@@ -187,5 +191,9 @@ public class DatasetPanel extends JPanel implements ItemListener {
     public void onConnected() {
         uploadButton.setEnabled(true);
         deleteButton.setEnabled(true);
+    }
+
+    public void setSelectedLabel(boolean b) {
+        labelCheckBox.setSelected(b);
     }
 }

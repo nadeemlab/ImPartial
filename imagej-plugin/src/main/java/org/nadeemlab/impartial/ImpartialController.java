@@ -108,6 +108,7 @@ public class ImpartialController {
     }
 
     public void connect() {
+        onDisconnected();
 
         if (contentPane.getRequestServerCheckBox()) {
             capacityProvider.provisionServer();
@@ -117,18 +118,46 @@ public class ImpartialController {
             } catch (MalformedURLException ignore) {
             }
         } else {
-            monaiClient.setUrl(contentPane.getUrl());
             monaiClient.setToken(null);
+            try {
+                monaiClient.setUrl(contentPane.getUrl());
+            } catch (MalformedURLException e) {
+                JOptionPane.showMessageDialog(contentPane,
+                        e.getMessage(),
+                        e.getClass().getName(),
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            try {
+                monaiClient.getInfo();
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(contentPane,
+                        e.getMessage(),
+                        e.getClass().getName(),
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
 
             onConnected();
         }
     }
 
     public void onConnected() {
-        contentPane.onConnected();
-
         String[] samples = getDatastoreSamples();
         contentPane.populateSampleList(samples);
+
+        contentPane.onConnected();
+    }
+
+    public void onDisconnected() {
+        contentPane.onDisconnected();
+
+        if (imageWindow != null) {
+            imageWindow.close();
+        }
     }
 
     public void updateImage(String imageId) {
@@ -138,9 +167,11 @@ public class ImpartialController {
 
             JSONObject imageInfo = getImageInfo(imageId);
             boolean hasLabel = imageInfo.getJSONObject("labels").length() > 0;
+
             contentPane.setEnabledLabel(hasLabel);
-            contentPane.setEnabledSubmit(!hasLabel);
-            contentPane.setSelectedAll(false);
+            contentPane.setEnabledSubmit(hasLabel && contentPane.getSelectedViews().contains("label"));
+            if (!hasLabel)
+                contentPane.setSelectedLabel(false);
 
             contentPane.setEnabledInfer(true);
             if (modelOutputs.containsKey(imageId)) {
@@ -172,23 +203,18 @@ public class ImpartialController {
     }
 
     private void retrieveImage(String imageId) {
-        byte[] imageBytes = new byte[0];
         try {
-            imageBytes = monaiClient.getDatastoreImage(imageId);
+            byte[] imageBytes = monaiClient.getDatastoreImage(imageId);
+
+            FileOutputStream stream = new FileOutputStream(imageFile.getAbsolutePath());
+            stream.write(imageBytes);
+            stream.close();
         } catch (IOException e) {
             JOptionPane.showMessageDialog(contentPane,
                     e.getMessage(),
                     e.getClass().getName(),
                     JOptionPane.ERROR_MESSAGE
             );
-        }
-
-        try {
-            FileOutputStream stream = new FileOutputStream(imageFile.getAbsolutePath());
-            stream.write(imageBytes);
-            stream.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -284,6 +310,8 @@ public class ImpartialController {
                         JOptionPane.ERROR_MESSAGE
                 );
             }
+            contentPane.setEnabledLabel(true);
+            contentPane.setSelectedLabel(true);
         } else {
             JOptionPane.showMessageDialog(contentPane,
                     "Please add at least one ROI using a selection tool",
