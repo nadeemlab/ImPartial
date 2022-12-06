@@ -1,22 +1,26 @@
 package org.nadeemlab.impartial;
 
-import java.awt.*;
 import javax.swing.*;
+import java.awt.*;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.File;
 
-public class CapacityProvider implements PropertyChangeListener {
+public class ImageUploader implements PropertyChangeListener {
     private final ImpartialController controller;
+    private File[] images;
     private Task task;
     private ProgressMonitor progressMonitor;
 
-    public CapacityProvider(ImpartialController controller) {
-        this. controller = controller;
+    public ImageUploader(ImpartialController controller) {
+        this.controller = controller;
     }
 
-    public void provisionServer() {
+    public void upload(File[] images) {
+        this.images = images;
+
         progressMonitor = new ProgressMonitor(
-                controller.getContentPane(), "request server...", "", 0, 100
+                controller.getContentPane(), "uploading images...", "", 0, 100
         );
 
         progressMonitor.setProgress(0);
@@ -31,47 +35,28 @@ public class CapacityProvider implements PropertyChangeListener {
     class Task extends SwingWorker<Void, Void> {
         @Override
         public Void doInBackground() {
-            setProgress(30);
-            try {
-                controller.createSession();
-                String status = controller.getSessionStatus();
-
-                while (!status.equals("RUNNING") && !isCancelled()) {
-                    Thread.sleep(1000);
-                    status = controller.getSessionStatus();
-
-                    if (status.equals("PROVISIONING")) setProgress(60);
-                    else if (status.equals("PENDING")) setProgress(90);
-                }
-
-                Thread.sleep(10000);
-                setProgress(100);
-
-            } catch (InterruptedException ignore) {}
+            setProgress(0);
+            int i = 0;
+            while (i < images.length && !isCancelled()) {
+                controller.uploadImage(images[i]);
+                int progress = (int) (i++ * 100.0 / images.length);
+                setProgress(progress);
+            }
+            setProgress(100);
             return null;
         }
 
         @Override
         public void done() {
             Toolkit.getDefaultToolkit().beep();
-            controller.onConnected();
+            controller.updateSampleList();
         }
     }
 
-    /**
-     * Invoked when task's progress property changes.
-     */
     public void propertyChange(PropertyChangeEvent e) {
         if (e.getPropertyName().equals("progress")) {
             int progress = (Integer) e.getNewValue();
             progressMonitor.setProgress(progress);
-            String message;
-
-            if (progress == 30) message = "validating token";
-            else if (progress == 60) message = "provisioning server";
-            else message = "task pending";
-
-            progressMonitor.setNote(message);
 
             if (progressMonitor.isCanceled() || task.isDone()) {
                 Toolkit.getDefaultToolkit().beep();

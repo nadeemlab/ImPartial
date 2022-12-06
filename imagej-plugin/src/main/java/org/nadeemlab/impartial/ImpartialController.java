@@ -35,7 +35,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -50,6 +49,7 @@ public class ImpartialController {
     private final ImpartialClient impartialClient = new ImpartialClient();
     private final Hashtable<String, ModelOutput> modelOutputs = new Hashtable<>();
     private final CapacityProvider capacityProvider;
+    private final ImageUploader imageUploader;
     LabelRegionToPolygonConverter regionToPolygonConverter = new LabelRegionToPolygonConverter();
     private ImageWindow imageWindow;
     private File imageFile;
@@ -81,6 +81,7 @@ public class ImpartialController {
         mainFrame.setVisible(true);
 
         capacityProvider = new CapacityProvider(this);
+        imageUploader = new ImageUploader(this);
     }
 
     public JPanel getContentPane() {
@@ -111,7 +112,8 @@ public class ImpartialController {
 
             try {
                 monaiClient.setUrl(new URL("http://" + impartialClient.getHost() + ":" + impartialClient.getPort() + "/proxy"));
-            } catch (MalformedURLException ignore) {}
+            } catch (MalformedURLException ignore) {
+            }
         } else {
             monaiClient.setUrl(contentPane.getUrl());
             monaiClient.setToken(null);
@@ -156,7 +158,7 @@ public class ImpartialController {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(contentPane,
                     e.getMessage(),
-                    e.getCause().getMessage(),
+                    e.getClass().getName(),
                     JOptionPane.ERROR_MESSAGE
             );
         }
@@ -174,7 +176,7 @@ public class ImpartialController {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(contentPane,
                     e.getMessage(),
-                    e.getCause().getMessage(),
+                    e.getClass().getName(),
                     JOptionPane.ERROR_MESSAGE
             );
         }
@@ -219,8 +221,7 @@ public class ImpartialController {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(contentPane,
                     e.getMessage(),
-                    e.getMessage(),
-//                    e.getCause().getMessage(),
+                    e.getClass().getName(),
                     JOptionPane.ERROR_MESSAGE
             );
             return new String[0];
@@ -251,7 +252,7 @@ public class ImpartialController {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(contentPane,
                     e.getMessage(),
-                    e.getCause().getMessage(),
+                    e.getClass().getName(),
                     JOptionPane.ERROR_MESSAGE
             );
         }
@@ -272,7 +273,7 @@ public class ImpartialController {
             } catch (IOException e) {
                 JOptionPane.showMessageDialog(contentPane,
                         e.getMessage(),
-                        e.getMessage(),
+                        e.getClass().getName(),
                         JOptionPane.ERROR_MESSAGE
                 );
             }
@@ -300,7 +301,7 @@ public class ImpartialController {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(contentPane,
                     e.getMessage(),
-                    e.getMessage(),
+                    e.getClass().getName(),
                     JOptionPane.ERROR_MESSAGE
             );
         }
@@ -327,8 +328,8 @@ public class ImpartialController {
                 JSONObject params = new JSONObject();
                 params.put("threshold", (Float) contentPane.getThreshold());
 
-                String model = "impartial_" +  contentPane.getTrainParams().getInt("num_channels");
-                JSONObject modelOutput = monaiClient.postInferJson(model, imageId, params); 
+                String model = "impartial_" + contentPane.getTrainParams().getInt("num_channels");
+                JSONObject modelOutput = monaiClient.postInferJson(model, imageId, params);
 
                 modelOutput.put("epoch", currentEpoch);
 
@@ -456,7 +457,7 @@ public class ImpartialController {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(contentPane,
                     e.getMessage(),
-                    e.getCause().getMessage(),
+                    e.getClass().getName(),
                     JOptionPane.ERROR_MESSAGE
             );
             throw new RuntimeException(e.getMessage());
@@ -490,7 +491,7 @@ public class ImpartialController {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(contentPane,
                     e.getMessage(),
-                    e.getCause().getMessage(),
+                    e.getClass().getName(),
                     JOptionPane.ERROR_MESSAGE
             );
         }
@@ -510,24 +511,26 @@ public class ImpartialController {
         );
     }
 
+    public void uploadImage(File image) {
+        try {
+            monaiClient.putDatastore(image);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(contentPane,
+                    e.getMessage(),
+                    e.getClass().getName(),
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+
     public void uploadImages() {
         int returnVal = fileChooser.showOpenDialog(mainFrame);
         if (returnVal == JFileChooser.APPROVE_OPTION) {
-            Arrays.stream(fileChooser.getSelectedFiles()).forEach(i -> {
-                try {
-                    monaiClient.putDatastore(i);
-                } catch (IOException e) {
-                    JOptionPane.showMessageDialog(contentPane,
-                            e.getMessage(),
-                            e.getCause().getMessage(),
-                            JOptionPane.ERROR_MESSAGE
-                    );
-                }
-            });
-        } else {
-            System.out.println("Open command cancelled by user.");
+            imageUploader.upload(fileChooser.getSelectedFiles());
         }
+    }
 
+    public void updateSampleList() {
         String[] samples = getDatastoreSamples();
         contentPane.populateSampleList(samples);
     }
@@ -548,7 +551,7 @@ public class ImpartialController {
             } catch (IOException e) {
                 JOptionPane.showMessageDialog(contentPane,
                         e.getMessage(),
-                        e.getCause().getMessage(),
+                        e.getClass().getName(),
                         JOptionPane.ERROR_MESSAGE
                 );
             }
@@ -567,7 +570,7 @@ public class ImpartialController {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(contentPane,
                     e.getMessage(),
-                    e.getCause().getMessage(),
+                    e.getClass().getName(),
                     JOptionPane.ERROR_MESSAGE
             );
         }
@@ -580,7 +583,7 @@ public class ImpartialController {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(contentPane,
                     e.getMessage(),
-                    e.getCause().getMessage(),
+                    e.getClass().getName(),
                     JOptionPane.ERROR_MESSAGE
             );
         }
