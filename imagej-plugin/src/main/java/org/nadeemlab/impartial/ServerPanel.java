@@ -13,6 +13,7 @@ public class ServerPanel extends JPanel {
     private final JCheckBox requestServerCheckBox;
     private JButton connectButton;
     private String url = "http://localhost:8000";
+    private boolean warningDisplayed = false;
 
     ServerPanel(ImpartialController controller) {
 
@@ -46,6 +47,15 @@ public class ServerPanel extends JPanel {
 
         requestServerCheckBox = new JCheckBox("request server");
         requestServerCheckBox.addActionListener(e -> {
+            if (!warningDisplayed) {
+                warningDisplayed = true;
+                JOptionPane.showMessageDialog(controller.getContentPane(),
+                        "This feature is currently available for MSK users only,\n" +
+                                "but we're working on expanding it to everyone.",
+                        "Restricted access",
+                        JOptionPane.WARNING_MESSAGE
+                );
+            }
             connectButton.setEnabled(true);
 
             if (requestServerCheckBox.isSelected()) {
