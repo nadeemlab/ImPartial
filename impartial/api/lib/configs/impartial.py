@@ -10,7 +10,7 @@ from monailabel.interfaces.config import TaskConfig
 from monailabel.interfaces.tasks.infer_v2 import InferTask
 from monailabel.interfaces.tasks.train import TrainTask
 
-from . import DAPI1CH, Config_CH1, Config_CH2, Vectra2Ch1task
+from . import DAPI1CH, Config_CH1, Config_CH2, Config_CH3
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,8 @@ class Impartial(TaskConfig):
             self.iconfig = Config_CH1()
         if nChannels == "2":
             self.iconfig = Config_CH2()
+        if nChannels == "3":
+            self.iconfig = Config_CH3()
 
         # Network
         self.network = UNet(

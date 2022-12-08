@@ -28,7 +28,8 @@ class Impartial(MONAILabelApp):
         
         configs = {k: v for k, v in sorted(configs.items())}
 
-        models = conf.get("models", "impartial_1,impartial_2")
+        models = conf.get("models", "impartial_1,impartial_2,impartial_3")
+        # models = conf.get("models")
         if not models:
             print("")
             print("---------------------------------------------------------------------------------------")
@@ -120,13 +121,14 @@ def main():
 
     app_dir = os.path.dirname(__file__)
     studies = os.path.join(app_dir, "..", "..", "Data", "Vectra_WC_2CH_tiff")
-    conf = {"models": "impartial_1,impartial_2"}
+
+    conf = {"models": "impartial_1,impartial_2,impartial_3"}
     app = Impartial(app_dir, studies, conf)
 
     # Train
     app.train(
         request={
-            "model": "impartial_2",
+            "model": "impartial_3",
             "max_epochs": 100,
             # "dataset": "CacheDataset",
         },

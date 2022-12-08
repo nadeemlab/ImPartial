@@ -15,17 +15,20 @@ from skimage import morphology, measure
 
 def read_image(path):
 
-    extension = path.split(".")[-1]
+    extension = path.split(".")[-1].lower()
 
-    if extension == "png" or extension == "PNG" :
+    if extension == "png":
         image = np.array(Image.open(path))
-        if len(image.shape) == 2:
-            image = image[np.newaxis, ...]
-            image = np.moveaxis(image, [0], -1)
 
-    if extension == "tiff" or extension == "tif" :
+    if extension == "tiff" or extension == "tif":
         image = tiff.imread(path)
-        image = np.moveaxis(image, [0], -1)
+
+
+    if len(image.shape) == 2:
+        image = image[np.newaxis, ...]
+
+    idx = np.argmin(image.shape)
+    image = np.moveaxis(image, idx, -1)
 
     return image
 

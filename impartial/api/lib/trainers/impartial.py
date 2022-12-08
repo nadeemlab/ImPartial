@@ -93,6 +93,7 @@ class Impartial(BasicTrainTask):
 
         images = [d["image"] for d in datalist]
         scribbles = [d["scribble"] for d in datalist]
+        
         validation_masks = [
             validation_mask(
                 scribble=np.sum(s, 2),
