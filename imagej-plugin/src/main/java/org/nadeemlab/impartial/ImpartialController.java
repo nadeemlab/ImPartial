@@ -108,8 +108,6 @@ public class ImpartialController {
     }
 
     public void connect() {
-        onDisconnected();
-
         if (contentPane.getRequestServerCheckBox()) {
             capacityProvider.provisionServer();
 
@@ -170,7 +168,7 @@ public class ImpartialController {
     public void onDisconnected() {
         contentPane.onDisconnected();
         if (imageWindow != null) {
-            imageWindow.close();
+            imageWindow.setVisible(false);
         }
     }
 
