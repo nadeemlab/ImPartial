@@ -102,4 +102,9 @@ public class InferPanel extends JPanel {
         inferButton.setEnabled(true);
         thresholdSlider.setEnabled(true);
     }
+
+    public void onDisconnected() {
+        inferButton.setEnabled(false);
+        thresholdSlider.setEnabled(false);
+    }
 }

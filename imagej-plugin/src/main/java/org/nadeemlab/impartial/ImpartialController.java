@@ -52,12 +52,12 @@ public class ImpartialController {
     private final Hashtable<String, ModelOutput> modelOutputs = new Hashtable<>();
     private final CapacityProvider capacityProvider;
     private final ImageUploader imageUploader;
+    private String token;
     LabelRegionToPolygonConverter regionToPolygonConverter = new LabelRegionToPolygonConverter();
     private ImageWindow imageWindow;
     private File imageFile;
     private File labelFile;
     private int currentEpoch = 0;
-    private String token;
     @Parameter
     private OpService ops;
     @Parameter
@@ -145,16 +145,30 @@ public class ImpartialController {
         }
     }
 
+    public void disconnect() {
+        onDisconnected();
+
+        if (contentPane.getRequestServerCheckBox()) {
+            try {
+                impartialClient.stopSession(token);
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(contentPane,
+                        e.getMessage(),
+                        e.getClass().getName(),
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+        }
+    }
+
     public void onConnected() {
         String[] samples = getDatastoreSamples();
         contentPane.populateSampleList(samples);
-
         contentPane.onConnected();
     }
 
     public void onDisconnected() {
         contentPane.onDisconnected();
-
         if (imageWindow != null) {
             imageWindow.close();
         }
@@ -559,8 +573,8 @@ public class ImpartialController {
     }
 
     public void uploadImages() {
-        int returnVal = fileChooser.showOpenDialog(mainFrame);
-        if (returnVal == JFileChooser.APPROVE_OPTION) {
+        int res = fileChooser.showOpenDialog(mainFrame);
+        if (res == JFileChooser.APPROVE_OPTION) {
             imageUploader.upload(fileChooser.getSelectedFiles());
         }
     }
@@ -598,10 +612,12 @@ public class ImpartialController {
         }
     }
 
-    public void createSession() {
+    public String startSession() {
         try {
             token = impartialClient.createSession().getString("token");
             monaiClient.setToken(token);
+
+            return token;
         } catch (IOException e) {
             JOptionPane.showMessageDialog(contentPane,
                     e.getMessage(),
@@ -609,20 +625,19 @@ public class ImpartialController {
                     JOptionPane.ERROR_MESSAGE
             );
         }
+        return null;
     }
 
-    public String getSessionStatus() {
-        String status = "";
+    public JSONObject getSessionStatus(String token) {
         try {
-            status = impartialClient.sessionStatus(token).getString("status");
+            return impartialClient.sessionStatus(token);
         } catch (IOException e) {
             JOptionPane.showMessageDialog(contentPane,
                     e.getMessage(),
                     e.getClass().getName(),
                     JOptionPane.ERROR_MESSAGE
             );
+            return new JSONObject();
         }
-
-        return status;
     }
 }

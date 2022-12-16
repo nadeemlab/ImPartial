@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 
 public class ImpartialClient {
     private final OkHttpClient httpClient;
-    private final String host = "internal-alb-a37704c-1767807991.us-east-1.elb.amazonaws.com";
+    private final String host = "internal-alb-e06a1e5-1248497720.us-east-1.elb.amazonaws.com";
     private final Integer port = 80;
 
     public ImpartialClient() {
@@ -60,6 +60,27 @@ public class ImpartialClient {
         Request request = new Request.Builder()
                 .url(url)
                 .header("Authorization", token)
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+
+            return new JSONObject(response.body().string());
+        }
+    }
+
+    public JSONObject stopSession(String token) throws IOException {
+        HttpUrl url = new HttpUrl.Builder()
+                .scheme("http")
+                .host(host)
+                .port(port)
+                .addPathSegments("session/")
+                .build();
+
+        Request request = new Request.Builder()
+                .url(url)
+                .header("Authorization", token)
+                .delete()
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {

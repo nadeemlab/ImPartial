@@ -11,7 +11,8 @@ public class ServerPanel extends JPanel {
     private final JLabel statusLabel;
     private final JTextField monaiUrlTextField;
     private final JCheckBox requestServerCheckBox;
-    private JButton connectButton;
+    private final JButton startButton;
+    private final JButton stopButton;
     private String url = "http://localhost:8000";
     private boolean warningDisplayed = false;
 
@@ -28,22 +29,12 @@ public class ServerPanel extends JPanel {
         monaiUrlTextField = new JTextField(url, 16);
         monaiUrlTextField.setAlignmentX(LEFT_ALIGNMENT);
 
-        monaiUrlTextField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                connectButton.setEnabled(true);
-            }
+        startButton = new JButton("start");
+        startButton.setActionCommand("start");
 
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                connectButton.setEnabled(true);
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                connectButton.setEnabled(true);
-            }
-        });
+        stopButton = new JButton("stop");
+        stopButton.setEnabled(false);
+        stopButton.setActionCommand("stop");
 
         requestServerCheckBox = new JCheckBox("request server");
         requestServerCheckBox.addActionListener(e -> {
@@ -56,7 +47,7 @@ public class ServerPanel extends JPanel {
                         JOptionPane.WARNING_MESSAGE
                 );
             }
-            connectButton.setEnabled(true);
+            startButton.setEnabled(true);
 
             if (requestServerCheckBox.isSelected()) {
                 monaiUrlTextField.setEnabled(false);
@@ -67,32 +58,58 @@ public class ServerPanel extends JPanel {
             }
         });
 
-        JPanel innerPanel = new JPanel();
-        innerPanel.setLayout(new BoxLayout(innerPanel, BoxLayout.LINE_AXIS));
-        innerPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        connectButton = new JButton("connect");
-        connectButton.setActionCommand("start");
-
-        connectButton.addActionListener(e -> {
-            connectButton.setEnabled(false);
-
+        startButton.addActionListener(e -> {
+            startButton.setEnabled(false);
             if (!requestServerCheckBox.isSelected())
                 url = monaiUrlTextField.getText();
 
             controller.connect();
         });
 
+        stopButton.addActionListener(e -> {
+            startButton.setEnabled(false);
+            controller.disconnect();
+        });
+
+        monaiUrlTextField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                startButton.setEnabled(true);
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                startButton.setEnabled(true);
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                startButton.setEnabled(true);
+            }
+        });
+
+        JPanel innerPanel = new JPanel();
+        innerPanel.setLayout(new BoxLayout(innerPanel, BoxLayout.LINE_AXIS));
+        innerPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel lowInnerPanel = new JPanel();
+        lowInnerPanel.setLayout(new BoxLayout(lowInnerPanel, BoxLayout.LINE_AXIS));
+        lowInnerPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         statusLabel = new JLabel();
         statusLabel.setText("status: disconnected");
 
-        innerPanel.add(connectButton);
-        innerPanel.add(statusLabel);
+        innerPanel.add(startButton);
+        innerPanel.add(requestServerCheckBox);
         innerPanel.add(Box.createHorizontalGlue());
 
+        lowInnerPanel.add(stopButton);
+        lowInnerPanel.add(statusLabel);
+        lowInnerPanel.add(Box.createHorizontalGlue());
+
         content.add(monaiUrlTextField);
-        content.add(requestServerCheckBox);
         content.add(innerPanel);
+        content.add(lowInnerPanel);
 
         add(content);
     }
@@ -110,7 +127,16 @@ public class ServerPanel extends JPanel {
     }
 
     public void onConnected() {
-        connectButton.setEnabled(false);
+        startButton.setEnabled(false);
+        stopButton.setEnabled(true);
+        requestServerCheckBox.setEnabled(false);
         statusLabel.setText("status: connected");
+    }
+
+    public void onDisconnected() {
+        startButton.setEnabled(true);
+        stopButton.setEnabled(false);
+        requestServerCheckBox.setEnabled(true);
+        statusLabel.setText("status: disconnected");
     }
 }

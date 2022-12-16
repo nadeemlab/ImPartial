@@ -44,8 +44,10 @@ public class ImpartialContentPane extends JPanel {
     }
 
     public void onDisconnected() {
-        datasetPanel.clearSampleList();
-        datasetPanel.setSelectedAll(false);
+        serverPanel.onDisconnected();
+        datasetPanel.onDisconnected();
+        inferPanel.onDisconnected();
+        trainPanel.onDisconnected();
     }
 
     // Server
@@ -88,10 +90,6 @@ public class ImpartialContentPane extends JPanel {
 
     public void setSelectedLabel(boolean b) {
         datasetPanel.setSelectedLabel(b);
-    }
-
-    public void setSelectedAll(boolean b) {
-        datasetPanel.setSelectedAll(b);
     }
 
     public void setEnabledSubmit(boolean b) {

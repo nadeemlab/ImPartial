@@ -71,7 +71,6 @@ class Impartial(BasicTrainTask):
             d["scribble"] = rois_to_labels(d["label"], size=(d["image"].shape[0], d["image"].shape[1]))
 
         return datalist
-                    
 
     def train_pre_transforms(self, context: Context):
         return [
@@ -108,7 +107,6 @@ class Impartial(BasicTrainTask):
 
         logger.info(f"partition_datalist :: npatches_epoch: {npatches_epoch}")
         logger.info(f"partition_datalist :: ntrain_patches: {ntrain_patches}")
-
 
         train_patches = sample_patches(
             images=images,

@@ -11,7 +11,7 @@ public class CapacityProvider implements PropertyChangeListener {
     private ProgressMonitor progressMonitor;
 
     public CapacityProvider(ImpartialController controller) {
-        this. controller = controller;
+        this.controller = controller;
     }
 
     public void provisionServer() {
@@ -31,20 +31,26 @@ public class CapacityProvider implements PropertyChangeListener {
     class Task extends SwingWorker<Void, Void> {
         @Override
         public Void doInBackground() {
-            setProgress(30);
+            setProgress(20);
             try {
-                controller.createSession();
-                String status = controller.getSessionStatus();
+                String token = controller.startSession();
+                String lastStatus = controller.getSessionStatus(token).getString("last_status");
 
-                while (!status.equals("RUNNING") && !isCancelled()) {
+                while (!lastStatus.equals("RUNNING") && !isCancelled()) {
                     Thread.sleep(1000);
-                    status = controller.getSessionStatus();
+                    lastStatus = controller.getSessionStatus(token).getString("last_status");
 
-                    if (status.equals("PROVISIONING")) setProgress(60);
-                    else if (status.equals("PENDING")) setProgress(90);
+                    if (lastStatus.equals("PROVISIONING")) setProgress(40);
+                    else if (lastStatus.equals("PENDING")) setProgress(60);
                 }
 
-                Thread.sleep(10000);
+                setProgress(80);
+                String healthStatus = controller.getSessionStatus(token).getString("health_status");
+                while (!healthStatus.equals("HEALTHY") && !isCancelled()) {
+                    Thread.sleep(1000);
+                    healthStatus = controller.getSessionStatus(token).getString("health_status");
+                }
+
                 setProgress(100);
 
             } catch (InterruptedException ignore) {}
@@ -67,9 +73,11 @@ public class CapacityProvider implements PropertyChangeListener {
             progressMonitor.setProgress(progress);
             String message;
 
-            if (progress == 30) message = "validating token";
-            else if (progress == 60) message = "provisioning server";
-            else message = "task pending";
+            if (progress == 20) message = "validating token";
+            else if (progress == 40) message = "provisioning server";
+            else if (progress == 60) message = "task pending";
+            else message = "starting server";
+//            else if (progress == 80) message = "starting server";
 
             progressMonitor.setNote(message);
 

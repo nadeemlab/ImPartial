@@ -83,4 +83,8 @@ public class TrainPanel extends JPanel {
     public void onConnected() {
         trainButton.setEnabled(true);
     }
+
+    public void onDisconnected() {
+        trainButton.setEnabled(false);
+    }
 }

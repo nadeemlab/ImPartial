@@ -110,10 +110,6 @@ public class DatasetPanel extends JPanel implements ItemListener {
         return panel;
     }
 
-    public void clearSampleList() {
-        listModel.clear();
-    }
-
     public void populateSampleList(String[] samples) {
         if (!listModel.isEmpty()) {
             listModel.clear();
@@ -157,12 +153,6 @@ public class DatasetPanel extends JPanel implements ItemListener {
         controller.updateDisplay();
     }
 
-    public void setSelectedAll(boolean b) {
-        labelCheckBox.setSelected(b);
-        inferCheckBox.setSelected(b);
-        entropyCheckBox.setSelected(b);
-    }
-
     public void setEnabledSubmit(boolean b) {
         submitLabelButton.setEnabled(b);
     }
@@ -195,5 +185,25 @@ public class DatasetPanel extends JPanel implements ItemListener {
 
     public void setSelectedLabel(boolean b) {
         labelCheckBox.setSelected(b);
+    }
+
+    public void onDisconnected() {
+        setSelectedAll(false);
+        setEnabledAll(false);
+        listModel.clear();
+        uploadButton.setEnabled(false);
+        deleteButton.setEnabled(false);
+    }
+
+    public void setSelectedAll(boolean b) {
+        labelCheckBox.setSelected(b);
+        inferCheckBox.setSelected(b);
+        entropyCheckBox.setSelected(b);
+    }
+
+    public void setEnabledAll(boolean b) {
+        labelCheckBox.setEnabled(b);
+        inferCheckBox.setEnabled(b);
+        entropyCheckBox.setEnabled(b);
     }
 }
