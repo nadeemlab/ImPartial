@@ -120,9 +120,6 @@ class ZIPFileWriter:
         
         os.makedirs(output_dir, exist_ok=True)
 
-        entropy = -data["output"] * np.log(np.maximum(data["output"], 1e-5))
-        entropy += -(1-data["output"]) * np.log(np.maximum(1-data["output"], 1e-5))
-
         prob_map = data["output"]
 
         output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.zip")

@@ -3,7 +3,9 @@ package org.nadeemlab.impartial;
 import ij.ImagePlus;
 import ij.gui.*;
 import ij.io.Opener;
+import ij.plugin.LutLoader;
 import ij.plugin.frame.RoiManager;
+import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import net.imagej.ops.OpService;
 import net.imagej.ops.geom.geom2d.LabelRegionToPolygonConverter;
@@ -30,6 +32,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.image.IndexColorModel;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -57,6 +60,7 @@ public class ImpartialController {
     private ImageWindow imageWindow;
     private File imageFile;
     private File labelFile;
+    private final IndexColorModel redGreenLut;
     private int currentEpoch = 0;
     @Parameter
     private OpService ops;
@@ -84,6 +88,8 @@ public class ImpartialController {
 
         capacityProvider = new CapacityProvider(this);
         imageUploader = new ImageUploader(this);
+
+        redGreenLut = LutLoader.getLut("redgreen");
     }
 
     public JPanel getContentPane() {
@@ -400,6 +406,8 @@ public class ImpartialController {
                     FloatProcessor output = jsonArrayToProcessor(modelOutput.getJSONArray("output"));
                     FloatProcessor entropy = jsonArrayToProcessor(modelOutput.getJSONArray("entropy"));
 
+                    entropy.setColorModel(redGreenLut);
+
                     ModelOutput out = new ModelOutput(output, entropy, time.format(formatter), currentEpoch);
 
                     modelOutputs.put(imageId, out);
@@ -476,6 +484,7 @@ public class ImpartialController {
 
         ImagePlus image = imageWindow.getImagePlus();
         image.setOverlay(overlay);
+
     }
 
     public FloatProcessor jsonArrayToProcessor(JSONArray input) {
@@ -488,6 +497,22 @@ public class ImpartialController {
             JSONArray row = input.getJSONArray(i);
             for (int j = 0; j < row.length(); j++) {
                 processor.setf(j, i, (float) row.getDouble(j));
+            }
+        }
+
+        return processor;
+    }
+
+    public ColorProcessor jsonArrayToColorProcessor(JSONArray input) {
+        int width = input.length();
+        int height = input.getJSONArray(0).length();
+
+        ColorProcessor processor = new ColorProcessor(width, height);
+
+        for (int i = 0; i < input.length(); i++) {
+            JSONArray row = input.getJSONArray(i);
+            for (int j = 0; j < row.length(); j++) {
+                processor.putPixel(j, i, (int) (row.getDouble(j) * 255));
             }
         }
 
