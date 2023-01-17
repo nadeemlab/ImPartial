@@ -3,6 +3,7 @@ package org.nadeemlab.impartial;
 import ij.ImagePlus;
 import ij.gui.*;
 import ij.io.Opener;
+import ij.plugin.ContrastEnhancer;
 import ij.plugin.LutLoader;
 import ij.plugin.frame.RoiManager;
 import ij.process.ColorProcessor;
@@ -405,7 +406,11 @@ public class ImpartialController {
 
                     FloatProcessor output = jsonArrayToProcessor(modelOutput.getJSONArray("output"));
                     FloatProcessor entropy = jsonArrayToProcessor(modelOutput.getJSONArray("entropy"));
-
+//                    entropy.multiply(255.0);
+                    ContrastEnhancer ce = new ContrastEnhancer();
+                    ce.equalize(entropy);
+                    ce.stretchHistogram(entropy, 0);
+//                    entropy.resetMinAndMax();
                     entropy.setColorModel(redGreenLut);
 
                     ModelOutput out = new ModelOutput(output, entropy, time.format(formatter), currentEpoch);
@@ -496,7 +501,7 @@ public class ImpartialController {
         for (int i = 0; i < input.length(); i++) {
             JSONArray row = input.getJSONArray(i);
             for (int j = 0; j < row.length(); j++) {
-                processor.setf(j, i, (float) row.getDouble(j));
+                processor.setf(j, i, (float) row.getDouble(j) * 255);
             }
         }
 
@@ -662,5 +667,8 @@ public class ImpartialController {
             );
             return new JSONObject();
         }
+    }
+
+    public void downloadModelCheckpoint() {
     }
 }
