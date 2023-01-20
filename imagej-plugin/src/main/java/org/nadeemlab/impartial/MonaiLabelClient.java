@@ -70,6 +70,22 @@ public class MonaiLabelClient {
         }
     }
 
+    public byte[] getModel(String model) throws IOException {
+        HttpUrl url = getHttpBuilder()
+                .addPathSegments("model/" + model)
+                .build();
+
+        Request request = getRequestBuilder()
+                .url(url)
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+
+            return response.body().bytes();
+        }
+    }
+
     public JSONObject postInferJson(String model, String imageId, JSONObject params) throws IOException {
         RequestBody body = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)

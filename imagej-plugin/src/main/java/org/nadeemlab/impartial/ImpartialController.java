@@ -56,12 +56,12 @@ public class ImpartialController {
     private final Hashtable<String, ModelOutput> modelOutputs = new Hashtable<>();
     private final CapacityProvider capacityProvider;
     private final ImageUploader imageUploader;
-    private String token;
+    private final IndexColorModel redGreenLut;
     LabelRegionToPolygonConverter regionToPolygonConverter = new LabelRegionToPolygonConverter();
+    private String token;
     private ImageWindow imageWindow;
     private File imageFile;
     private File labelFile;
-    private final IndexColorModel redGreenLut;
     private int currentEpoch = 0;
     @Parameter
     private OpService ops;
@@ -670,5 +670,22 @@ public class ImpartialController {
     }
 
     public void downloadModelCheckpoint() {
+        String model = "impartial_" + contentPane.getTrainParams().getInt("num_channels");
+        fileChooser.setSelectedFile(new File(model + ".pt"));
+        int res = fileChooser.showSaveDialog(mainFrame);
+
+        if (res == JFileChooser.APPROVE_OPTION) {
+            try {
+                FileOutputStream outputStream = new FileOutputStream(fileChooser.getSelectedFile());
+                outputStream.write(monaiClient.getModel(model));
+                outputStream.close();
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(contentPane,
+                        e.getMessage(),
+                        e.getClass().getName(),
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+        }
     }
 }

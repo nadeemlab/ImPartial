@@ -7,6 +7,7 @@ import java.util.Hashtable;
 public class InferPanel extends JPanel {
     private final ImpartialController controller;
     private JButton inferButton;
+    private JButton downloadButton;
     private JLabel inferInfo;
     private final JSlider thresholdSlider = new JSlider(JSlider.HORIZONTAL, 0, 100, 50);
 
@@ -27,18 +28,13 @@ public class InferPanel extends JPanel {
 
         JPanel thresholdSlider = createThresholdSlider();
 
-        inferButton = new JButton("infer");
-        inferButton.addActionListener(e -> controller.infer());
-        inferButton.setEnabled(false);
-        inferButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-
         inferInfo = new JLabel("last run never");
         inferInfo.setEnabled(false);
         inferInfo.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         panel.add(thresholdSlider);
         panel.add(inferInfo);
-        panel.add(inferButton);
+        panel.add(createModelButtons());
 
         return panel;
     }
@@ -82,6 +78,25 @@ public class InferPanel extends JPanel {
         return panel;
     }
 
+    private JPanel createModelButtons() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.LINE_AXIS));
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        inferButton = new JButton("infer");
+        inferButton.addActionListener(e -> controller.infer());
+        inferButton.setEnabled(false);
+
+        downloadButton = new JButton("download");
+        downloadButton.addActionListener(e -> controller.downloadModelCheckpoint());
+        downloadButton.setEnabled(false);
+
+        panel.add(inferButton);
+        panel.add(downloadButton);
+
+        return panel;
+    }
+
     private float normalizeValue(int value) {
         return (float) value / 100;
     }
@@ -99,12 +114,14 @@ public class InferPanel extends JPanel {
     }
 
     public void onConnected() {
-        inferButton.setEnabled(true);
         thresholdSlider.setEnabled(true);
+        inferButton.setEnabled(true);
+        downloadButton.setEnabled(true);
     }
 
     public void onDisconnected() {
-        inferButton.setEnabled(false);
         thresholdSlider.setEnabled(false);
+        inferButton.setEnabled(false);
+        downloadButton.setEnabled(false);
     }
 }
