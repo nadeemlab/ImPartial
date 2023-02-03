@@ -29,7 +29,7 @@ public class ImpartialClient {
 
     public JSONObject createSession() throws IOException {
         HttpUrl url = new HttpUrl.Builder()
-                .scheme("http")
+                .scheme("https")
                 .host(host)
                 .port(port)
                 .addPathSegments("session/")
@@ -51,7 +51,7 @@ public class ImpartialClient {
 
     public JSONObject sessionStatus(String token) throws IOException {
         HttpUrl url = new HttpUrl.Builder()
-                .scheme("http")
+                .scheme("https")
                 .host(host)
                 .port(port)
                 .addPathSegments("session/")
@@ -71,7 +71,7 @@ public class ImpartialClient {
 
     public JSONObject stopSession(String token) throws IOException {
         HttpUrl url = new HttpUrl.Builder()
-                .scheme("http")
+                .scheme("https")
                 .host(host)
                 .port(port)
                 .addPathSegments("session/")

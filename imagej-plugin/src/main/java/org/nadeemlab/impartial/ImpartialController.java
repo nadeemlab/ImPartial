@@ -119,7 +119,7 @@ public class ImpartialController {
             capacityProvider.provisionServer();
 
             try {
-                monaiClient.setUrl(new URL("http://" + impartialClient.getHost() + ":" + impartialClient.getPort() + "/proxy"));
+                monaiClient.setUrl(new URL("https://" + impartialClient.getHost() + ":" + impartialClient.getPort() + "/proxy"));
             } catch (MalformedURLException ignore) {
             }
         } else {
