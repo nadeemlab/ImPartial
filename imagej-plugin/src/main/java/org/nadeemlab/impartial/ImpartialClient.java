@@ -3,7 +3,9 @@ package org.nadeemlab.impartial;
 import okhttp3.*;
 import org.json.JSONObject;
 
-import javax.net.ssl.*;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -26,15 +28,15 @@ public class ImpartialClient {
 
             @Override
             public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                return new java.security.cert.X509Certificate[] {};
+                return new java.security.cert.X509Certificate[]{};
             }
         };
 
         SSLContext sslContext;
         try {
             sslContext = SSLContext.getInstance("SSL");
-            sslContext.init(null, new TrustManager[] { TRUST_ALL_CERTS }, new java.security.SecureRandom());
-        } catch (NoSuchAlgorithmException|KeyManagementException e) {
+            sslContext.init(null, new TrustManager[]{TRUST_ALL_CERTS}, new java.security.SecureRandom());
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
             throw new RuntimeException(e);
         }
 
@@ -48,6 +50,18 @@ public class ImpartialClient {
                 .writeTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(120, TimeUnit.SECONDS)
                 .build();
+    }
+
+    private void raiseForStatus(Response res) throws IOException {
+        if (!res.isSuccessful()) {
+            JSONObject jsonRes = new JSONObject(res.body().string());
+            throw new IOException(
+                    String.format("%d %s: %s",
+                            res.code(),
+                            jsonRes.getString("name"),
+                            jsonRes.getString("description"))
+            );
+        }
     }
 
     public String getHost() {
@@ -74,7 +88,7 @@ public class ImpartialClient {
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return new JSONObject(response.body().string());
         }
@@ -94,7 +108,7 @@ public class ImpartialClient {
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return new JSONObject(response.body().string());
         }
@@ -115,7 +129,7 @@ public class ImpartialClient {
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return new JSONObject(response.body().string());
         }

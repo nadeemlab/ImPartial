@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.IOException;
 
 public class CapacityProvider implements PropertyChangeListener {
     private final ImpartialController controller;
@@ -35,18 +36,8 @@ public class CapacityProvider implements PropertyChangeListener {
         if (e.getPropertyName().equals("progress")) {
             int progress = (Integer) e.getNewValue();
             progressMonitor.setProgress(progress);
-            String message;
-
-            if (progress == 20) message = "validating token";
-            else if (progress == 40) message = "provisioning server";
-            else if (progress == 60) message = "task pending";
-            else message = "starting server";
-//            else if (progress == 80) message = "starting server";
-
-            progressMonitor.setNote(message);
 
             if (progressMonitor.isCanceled() || task.isDone()) {
-                Toolkit.getDefaultToolkit().beep();
                 if (progressMonitor.isCanceled()) {
                     task.cancel(true);
                 } else {
@@ -59,29 +50,48 @@ public class CapacityProvider implements PropertyChangeListener {
     class Task extends SwingWorker<Void, Void> {
         @Override
         public Void doInBackground() {
+            progressMonitor.setNote("validating token");
             setProgress(20);
+
             try {
-                String token = controller.startSession();
-                String lastStatus = controller.getSessionStatus(token).getString("last_status");
+                controller.startSession();
+
+                String lastStatus = controller.getSessionStatus().getString("last_status");
 
                 while (!lastStatus.equals("RUNNING") && !isCancelled() && !progressMonitor.isCanceled()) {
                     Thread.sleep(1000);
-                    lastStatus = controller.getSessionStatus(token).getString("last_status");
+                    lastStatus = controller.getSessionStatus().getString("last_status");
 
-                    if (lastStatus.equals("PROVISIONING")) setProgress(40);
-                    else if (lastStatus.equals("PENDING")) setProgress(60);
+                    if (lastStatus.equals("PROVISIONING")) {
+                        progressMonitor.setNote("provisioning server");
+                        setProgress(40);
+                    }
+                    else if (lastStatus.equals("PENDING")) {
+                        progressMonitor.setNote("task pending");
+                        setProgress(60);
+                    }
+
                 }
 
+                progressMonitor.setNote("starting server");
                 setProgress(80);
-                String healthStatus = controller.getSessionStatus(token).getString("health_status");
+
+                String healthStatus = controller.getSessionStatus().getString("health_status");
                 while (!healthStatus.equals("HEALTHY") && !isCancelled() && !progressMonitor.isCanceled()) {
                     Thread.sleep(1000);
-                    healthStatus = controller.getSessionStatus(token).getString("health_status");
+                    healthStatus = controller.getSessionStatus().getString("health_status");
                 }
 
+                progressMonitor.setNote("done");
                 setProgress(100);
 
+            } catch (IOException e) {
+                this.cancel(true);
+                progressMonitor.close();
+
+                return null;
             } catch (InterruptedException ignore) {}
+
             return null;
         }
 

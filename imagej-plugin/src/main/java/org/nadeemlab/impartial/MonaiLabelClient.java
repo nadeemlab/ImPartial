@@ -3,7 +3,9 @@ package org.nadeemlab.impartial;
 import okhttp3.*;
 import org.json.JSONObject;
 
-import javax.net.ssl.*;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -29,14 +31,14 @@ public class MonaiLabelClient {
 
             @Override
             public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                return new java.security.cert.X509Certificate[] {};
+                return new java.security.cert.X509Certificate[]{};
             }
         };
 
         SSLContext sslContext;
         try {
             sslContext = SSLContext.getInstance("SSL");
-            sslContext.init(null, new TrustManager[] { TRUST_ALL_CERTS }, new java.security.SecureRandom());
+            sslContext.init(null, new TrustManager[]{TRUST_ALL_CERTS}, new java.security.SecureRandom());
         } catch (NoSuchAlgorithmException | KeyManagementException e) {
             throw new RuntimeException(e);
         }
@@ -54,7 +56,20 @@ public class MonaiLabelClient {
 
         try {
             url = new URL("http", "localhost", 8000, "");
-        } catch (MalformedURLException ignore) {}
+        } catch (MalformedURLException ignore) {
+        }
+    }
+
+    private void raiseForStatus(Response res) throws IOException {
+        if (!res.isSuccessful()) {
+            JSONObject jsonRes = new JSONObject(res.body().string());
+            throw new IOException(
+                    String.format("%d %s: %s",
+                            res.code(),
+                            jsonRes.getString("name"),
+                            jsonRes.getString("description"))
+            );
+        }
     }
 
     public void setUrl(URL url) {
@@ -66,7 +81,7 @@ public class MonaiLabelClient {
     }
 
     private HttpUrl.Builder getHttpBuilder() {
-        HttpUrl.Builder builder =  new HttpUrl.Builder()
+        HttpUrl.Builder builder = new HttpUrl.Builder()
                 .scheme(url.getProtocol())
                 .host(url.getHost())
                 .port(url.getPort() > 1 ? url.getPort() : 80);
@@ -96,7 +111,7 @@ public class MonaiLabelClient {
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return new JSONObject(response.body().string());
         }
@@ -112,7 +127,7 @@ public class MonaiLabelClient {
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return response.body().bytes();
         }
@@ -175,7 +190,7 @@ public class MonaiLabelClient {
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return new JSONObject(response.body().string());
         }
@@ -196,7 +211,7 @@ public class MonaiLabelClient {
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return response.body().string();
         }
@@ -213,7 +228,7 @@ public class MonaiLabelClient {
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return response.body().string();
         }
@@ -260,7 +275,7 @@ public class MonaiLabelClient {
                 .build();
 
         try (Response response = this.httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return new JSONObject(response.body().string());
         }
@@ -289,7 +304,7 @@ public class MonaiLabelClient {
                 .build();
 
         try (Response response = this.httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return new JSONObject(response.body().string());
         }
@@ -320,7 +335,7 @@ public class MonaiLabelClient {
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return new JSONObject(response.body().string());
         }
@@ -338,7 +353,7 @@ public class MonaiLabelClient {
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return response.body().bytes();
         }
@@ -355,7 +370,7 @@ public class MonaiLabelClient {
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return response.body().bytes();
         }
