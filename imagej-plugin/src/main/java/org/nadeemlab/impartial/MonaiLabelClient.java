@@ -151,32 +151,9 @@ public class MonaiLabelClient {
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+            raiseForStatus(response);
 
             return new JSONObject(response.body().string());
-        }
-    }
-
-    public byte[] postInferBytes(String model, String imageId, JSONObject params) throws IOException {
-        RequestBody body = new MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("params", params.toString())
-                .build();
-
-        HttpUrl url = getHttpBuilder()
-                .addPathSegments("infer/" + model)
-                .addQueryParameter("image", imageId)
-                .addQueryParameter("output", "image")
-                .build();
-
-        Request request = getRequestBuilder()
-                .url(url)
-                .post(body)
-                .build();
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-
-            return response.body().bytes();
         }
     }
 
@@ -231,25 +208,6 @@ public class MonaiLabelClient {
             raiseForStatus(response);
 
             return response.body().string();
-        }
-    }
-
-    public JSONObject postActiveLearning(String strategy) throws IOException {
-//		TODO: consider the case when all images in the dataset are
-//		already labeled and this endpoint returns an empty response
-        HttpUrl url = getHttpBuilder()
-                .addPathSegments("activelearning/" + strategy)
-                .build();
-
-        Request request = getRequestBuilder()
-                .url(url)
-                .post(RequestBody.create(new byte[0]))
-                .build();
-
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-
-            return new JSONObject(response.body().string());
         }
     }
 
@@ -373,23 +331,6 @@ public class MonaiLabelClient {
             raiseForStatus(response);
 
             return response.body().bytes();
-        }
-    }
-
-    public JSONObject downloadImage(String image) throws IOException {
-        HttpUrl url = getHttpBuilder()
-                .addPathSegments("datastore/image")
-                .addQueryParameter("image", image)
-                .build();
-
-        Request request = getRequestBuilder()
-                .url(url)
-                .build();
-
-        try (Response response = this.httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-
-            return new JSONObject(response.body().string());
         }
     }
 }
