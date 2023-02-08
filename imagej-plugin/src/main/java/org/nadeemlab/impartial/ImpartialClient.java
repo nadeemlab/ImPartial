@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 
 public class ImpartialClient {
     private final OkHttpClient httpClient;
-    private final String host = "internal-alb-e06a1e5-1248497720.us-east-1.elb.amazonaws.com";
+    private final String host = "impartial.mskcc.org";
     private final Integer port = 443;
 
     public ImpartialClient() {
