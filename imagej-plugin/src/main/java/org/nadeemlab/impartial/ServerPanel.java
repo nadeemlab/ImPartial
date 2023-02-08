@@ -51,7 +51,7 @@ public class ServerPanel extends JPanel {
 
             if (requestServerCheckBox.isSelected()) {
                 monaiUrlTextField.setEnabled(false);
-                monaiUrlTextField.setText("https://impartial.nadeemlab.org");
+                monaiUrlTextField.setText("https://impartial.mskcc.org");
             } else {
                 monaiUrlTextField.setEnabled(true);
                 monaiUrlTextField.setText(url);
