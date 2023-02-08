@@ -126,18 +126,9 @@ public class ImpartialController {
             monaiClient.setToken(null);
             try {
                 monaiClient.setUrl(contentPane.getUrl());
-            } catch (MalformedURLException e) {
-                JOptionPane.showMessageDialog(contentPane,
-                        e.getMessage(),
-                        e.getClass().getName(),
-                        JOptionPane.ERROR_MESSAGE
-                );
-                return;
-            }
-
-            try {
                 monaiClient.getInfo();
             } catch (IOException e) {
+                onDisconnected();
                 JOptionPane.showMessageDialog(contentPane,
                         e.getMessage(),
                         e.getClass().getName(),
@@ -145,7 +136,6 @@ public class ImpartialController {
                 );
                 return;
             }
-
             onConnected();
         }
     }
