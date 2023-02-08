@@ -1,7 +1,7 @@
 package org.nadeemlab.impartial;
 
-import java.awt.*;
 import javax.swing.*;
+import java.awt.*;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 
@@ -26,42 +26,6 @@ public class CapacityProvider implements PropertyChangeListener {
         task = new Task();
         task.addPropertyChangeListener(this);
         task.execute();
-    }
-
-    class Task extends SwingWorker<Void, Void> {
-        @Override
-        public Void doInBackground() {
-            setProgress(20);
-            try {
-                String token = controller.startSession();
-                String lastStatus = controller.getSessionStatus(token).getString("last_status");
-
-                while (!lastStatus.equals("RUNNING") && !isCancelled()) {
-                    Thread.sleep(1000);
-                    lastStatus = controller.getSessionStatus(token).getString("last_status");
-
-                    if (lastStatus.equals("PROVISIONING")) setProgress(40);
-                    else if (lastStatus.equals("PENDING")) setProgress(60);
-                }
-
-                setProgress(80);
-                String healthStatus = controller.getSessionStatus(token).getString("health_status");
-                while (!healthStatus.equals("HEALTHY") && !isCancelled()) {
-                    Thread.sleep(1000);
-                    healthStatus = controller.getSessionStatus(token).getString("health_status");
-                }
-
-                setProgress(100);
-
-            } catch (InterruptedException ignore) {}
-            return null;
-        }
-
-        @Override
-        public void done() {
-            Toolkit.getDefaultToolkit().beep();
-            controller.onConnected();
-        }
     }
 
     /**
@@ -89,6 +53,43 @@ public class CapacityProvider implements PropertyChangeListener {
                     progressMonitor.close();
                 }
             }
+        }
+    }
+
+    class Task extends SwingWorker<Void, Void> {
+        @Override
+        public Void doInBackground() {
+            setProgress(20);
+            try {
+                String token = controller.startSession();
+                String lastStatus = controller.getSessionStatus(token).getString("last_status");
+
+                while (!lastStatus.equals("RUNNING") && !isCancelled() && !progressMonitor.isCanceled()) {
+                    Thread.sleep(1000);
+                    lastStatus = controller.getSessionStatus(token).getString("last_status");
+
+                    if (lastStatus.equals("PROVISIONING")) setProgress(40);
+                    else if (lastStatus.equals("PENDING")) setProgress(60);
+                }
+
+                setProgress(80);
+                String healthStatus = controller.getSessionStatus(token).getString("health_status");
+                while (!healthStatus.equals("HEALTHY") && !isCancelled() && !progressMonitor.isCanceled()) {
+                    Thread.sleep(1000);
+                    healthStatus = controller.getSessionStatus(token).getString("health_status");
+                }
+
+                setProgress(100);
+
+            } catch (InterruptedException ignore) {}
+            return null;
+        }
+
+        @Override
+        public void done() {
+            Toolkit.getDefaultToolkit().beep();
+            if (isCancelled()) controller.disconnect();
+            else controller.onConnected();
         }
     }
 }
