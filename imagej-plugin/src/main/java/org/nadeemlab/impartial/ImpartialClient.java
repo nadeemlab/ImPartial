@@ -64,6 +64,13 @@ public class ImpartialClient {
         }
     }
 
+    private HttpUrl.Builder getBuilder() {
+        return new HttpUrl.Builder()
+                .scheme("https")
+                .host(host)
+                .port(port);
+    }
+
     public String getHost() {
         return host;
     }
@@ -73,10 +80,7 @@ public class ImpartialClient {
     }
 
     public JSONObject createSession() throws IOException {
-        HttpUrl url = new HttpUrl.Builder()
-                .scheme("https")
-                .host(host)
-                .port(port)
+        HttpUrl url = getBuilder()
                 .addPathSegments("session/")
                 .build();
 
@@ -95,10 +99,7 @@ public class ImpartialClient {
     }
 
     public JSONObject sessionStatus(String token) throws IOException {
-        HttpUrl url = new HttpUrl.Builder()
-                .scheme("https")
-                .host(host)
-                .port(port)
+        HttpUrl url = getBuilder()
                 .addPathSegments("session/")
                 .build();
 
@@ -114,11 +115,8 @@ public class ImpartialClient {
         }
     }
 
-    public JSONObject stopSession(String token) throws IOException {
-        HttpUrl url = new HttpUrl.Builder()
-                .scheme("https")
-                .host(host)
-                .port(port)
+    public void stopSession(String token) throws IOException {
+        HttpUrl url = getBuilder()
                 .addPathSegments("session/")
                 .build();
 
@@ -130,8 +128,6 @@ public class ImpartialClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             raiseForStatus(response);
-
-            return new JSONObject(response.body().string());
         }
     }
 }

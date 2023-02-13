@@ -381,7 +381,7 @@ public class ImpartialController {
                     modelOutputs.put(imageId, out);
 
                     String selectedImageId = contentPane.getSelectedImageId();
-                    if (selectedImageId.equals(imageId)) {
+                    if (selectedImageId != null && selectedImageId.equals(imageId)) {
                         updateImage(imageId);
                     }
 

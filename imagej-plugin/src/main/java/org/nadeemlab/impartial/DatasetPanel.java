@@ -4,17 +4,18 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class DatasetPanel extends JPanel implements ItemListener {
     private final ImpartialController controller;
+    private final JButton submitLabelButton;
     private ListModel listModel;
     private JList<Sample> list;
     private JCheckBox inferCheckBox;
     private JCheckBox entropyCheckBox;
     private JCheckBox labelCheckBox;
-    private final JButton submitLabelButton;
     private JButton uploadButton;
     private JButton deleteButton;
 
@@ -122,6 +123,8 @@ public class DatasetPanel extends JPanel implements ItemListener {
     }
 
     public String getSelectedImageId() {
+        if (list.isSelectionEmpty())
+            return null;
         return list.getSelectedValue().getName();
     }
 
