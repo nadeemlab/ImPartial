@@ -53,7 +53,7 @@ public class TrainProgress {
 
             final int maxEpochs = controller.getMaxEpochs();
             String message = lastEpoch > 0 ? "Epoch: " + lastEpoch : "Initializing...";
-            controller.showStatus(lastEpoch, maxEpochs , message);
+            controller.showStatus(lastEpoch, maxEpochs, message);
 
             if (Objects.equals(jsonProgress.getString("status"), "DONE")) {
                 controller.showStatus(maxEpochs, maxEpochs, "Training done after " + lastEpoch + " epochs");

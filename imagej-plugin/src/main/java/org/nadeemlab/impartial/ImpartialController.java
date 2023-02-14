@@ -3,7 +3,10 @@ package org.nadeemlab.impartial;
 import ij.ImagePlus;
 import ij.gui.*;
 import ij.io.Opener;
+import ij.plugin.ContrastEnhancer;
+import ij.plugin.LutLoader;
 import ij.plugin.frame.RoiManager;
+import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import net.imagej.ops.OpService;
 import net.imagej.ops.geom.geom2d.LabelRegionToPolygonConverter;
@@ -28,25 +31,35 @@ import org.scijava.plugin.Parameter;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.image.IndexColorModel;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.StreamSupport;
+
 
 public class ImpartialController {
     final JFileChooser fileChooser = new JFileChooser();
     private final JFrame mainFrame;
     private final ImpartialContentPane contentPane;
     private final MonaiLabelClient monaiClient = new MonaiLabelClient();
+    private final ImpartialClient impartialClient = new ImpartialClient();
     private final Hashtable<String, ModelOutput> modelOutputs = new Hashtable<>();
+    private final CapacityProvider capacityProvider;
+    private final ImageUploader imageUploader;
+    private final IndexColorModel redGreenLut;
     LabelRegionToPolygonConverter regionToPolygonConverter = new LabelRegionToPolygonConverter();
+    private String token;
     private ImageWindow imageWindow;
     private File imageFile;
     private File labelFile;
@@ -74,6 +87,22 @@ public class ImpartialController {
 
         mainFrame.pack();
         mainFrame.setVisible(true);
+
+        capacityProvider = new CapacityProvider(this);
+        imageUploader = new ImageUploader(this);
+
+        redGreenLut = LutLoader.getLut("redgreen");
+    }
+
+    private void showIOError(IOException e) {
+        if (e instanceof InterruptedIOException)
+            return;
+
+        JOptionPane.showMessageDialog(contentPane,
+                e.getMessage(),
+                e.getClass().getName(),
+                JOptionPane.ERROR_MESSAGE
+        );
     }
 
     private void createTempFiles() {
@@ -93,16 +122,60 @@ public class ImpartialController {
         }
     }
 
+    public JPanel getContentPane() {
+        return this.contentPane;
+    }
+
     public void connect() {
-        try {
-            String[] samples = getDatastoreSamples();
-            contentPane.populateSampleList(samples);
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(contentPane,
-                    e.getMessage(),
-                    e.getCause().getMessage(),
-                    JOptionPane.ERROR_MESSAGE
-            );
+        if (contentPane.getRequestServerCheckBox()) {
+            try {
+                monaiClient.setUrl(
+                        new URL(String.format("https://%s:%s/proxy",
+                                impartialClient.getHost(),
+                                impartialClient.getPort()
+                        ))
+                );
+            } catch (MalformedURLException ignore) {
+            }
+
+            capacityProvider.provisionServer();
+
+        } else {
+            monaiClient.setToken(null);
+            try {
+                monaiClient.setUrl(contentPane.getUrl());
+                monaiClient.getInfo();
+            } catch (IOException e) {
+                onDisconnected();
+                showIOError(e);
+                return;
+            }
+            onConnected();
+        }
+    }
+
+    public void disconnect() {
+        onDisconnected();
+
+        if (contentPane.getRequestServerCheckBox() && token != null) {
+            try {
+                impartialClient.stopSession(token);
+            } catch (IOException e) {
+                showIOError(e);
+            }
+        }
+    }
+
+    public void onConnected() {
+        updateSampleList();
+        contentPane.onConnected();
+    }
+
+    public void onDisconnected() {
+        contentPane.onDisconnected();
+        modelOutputs.clear();
+        if (imageWindow != null) {
+            imageWindow.setVisible(false);
         }
     }
 
@@ -113,9 +186,11 @@ public class ImpartialController {
 
             JSONObject imageInfo = getImageInfo(imageId);
             boolean hasLabel = imageInfo.getJSONObject("labels").length() > 0;
+
             contentPane.setEnabledLabel(hasLabel);
-            contentPane.setEnabledSubmit(!hasLabel);
-            contentPane.setSelectedAll(false);
+            contentPane.setEnabledSubmit(hasLabel && contentPane.getSelectedViews().contains("label"));
+            if (!hasLabel)
+                contentPane.setSelectedLabel(false);
 
             contentPane.setEnabledInfer(true);
             if (modelOutputs.containsKey(imageId)) {
@@ -133,34 +208,33 @@ public class ImpartialController {
             updateDisplay();
 
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(contentPane,
-                    e.getMessage(),
-                    e.getCause().getMessage(),
-                    JOptionPane.ERROR_MESSAGE
-            );
+            showIOError(e);
         }
     }
 
     public void displayImage(String imageId) {
-        retrieveImage(imageId);
-        displayStoredImage();
-    }
-
-    private void retrieveImage(String imageId) {
-        byte[] imageBytes = monaiClient.getDatastoreImage(imageId);
-
         try {
+            byte[] imageBytes = monaiClient.getDatastoreImage(imageId);
+
             FileOutputStream stream = new FileOutputStream(imageFile.getAbsolutePath());
             stream.write(imageBytes);
             stream.close();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            showIOError(e);
         }
+
+        final ImagePlus imp = new Opener().openImage(imageFile.getAbsolutePath());
+        displayImage(imp);
     }
 
     private void displayImage(ImagePlus imp) {
         if (imageWindow == null) {
             imageWindow = new ImageWindow(imp);
+            imageWindow.addComponentListener(new ComponentAdapter() {
+                public void componentResized(ComponentEvent componentEvent) {
+                    resetLayout();
+                }
+            });
             resetLayout();
         } else {
             imageWindow.setImage(imp);
@@ -173,21 +247,17 @@ public class ImpartialController {
         }
     }
 
-    public void displayStoredImage() {
-        final ImagePlus imp = new Opener().openImage(imageFile.getAbsolutePath());
-        displayImage(imp);
-    }
+    public String[] getDatastoreSamples() {
+        try {
+            JSONObject datastore = monaiClient.getDatastore();
 
-    public void setMonaiClientUrl(URL url) {
-        monaiClient.setUrl(url);
-    }
-
-    public String[] getDatastoreSamples() throws IOException {
-        JSONObject datastore = monaiClient.getDatastore();
-
-        Iterable<String> iterable = () -> datastore.getJSONObject("objects").keys();
-        return StreamSupport.stream(iterable.spliterator(), false)
-                .toArray(String[]::new);
+            Iterable<String> iterable = () -> datastore.getJSONObject("objects").keys();
+            return StreamSupport.stream(iterable.spliterator(), false)
+                    .toArray(String[]::new);
+        } catch (IOException e) {
+            showIOError(e);
+            return new String[0];
+        }
     }
 
     public void displayLabel() {
@@ -195,13 +265,9 @@ public class ImpartialController {
             String imageId = contentPane.getSelectedImageId();
             byte[] label = monaiClient.getDatastoreLabel(imageId);
 
-            try {
-                FileOutputStream stream = new FileOutputStream(labelFile);
-                stream.write(label);
-                stream.close();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+            FileOutputStream stream = new FileOutputStream(labelFile);
+            stream.write(label);
+            stream.close();
 
             RoiManager roiManager = RoiManager.getRoiManager();
 
@@ -212,11 +278,7 @@ public class ImpartialController {
             }
 
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(contentPane,
-                    e.getMessage(),
-                    e.getCause().getMessage(),
-                    JOptionPane.ERROR_MESSAGE
-            );
+            showIOError(e);
         }
     }
 
@@ -230,7 +292,14 @@ public class ImpartialController {
         if (RoiManager.getRoiManager().getCount() > 0) {
             String imageId = contentPane.getSelectedImageId();
             RoiManager.getRoiManager().runCommand("Save", labelFile.getAbsolutePath());
-            monaiClient.putDatastoreLabel(imageId, labelFile.getAbsolutePath());
+            try {
+                monaiClient.putDatastoreLabel(imageId, labelFile.getAbsolutePath());
+            } catch (IOException e) {
+                showIOError(e);
+                return;
+            }
+            contentPane.setEnabledLabel(true);
+            contentPane.setSelectedLabel(true);
         } else {
             JOptionPane.showMessageDialog(contentPane,
                     "Please add at least one ROI using a selection tool",
@@ -246,11 +315,15 @@ public class ImpartialController {
     }
 
     public void train() {
-        monaiClient.deleteTrain();
-
         JSONObject params = contentPane.getTrainParams();
         String model = "impartial_" + params.getInt("num_channels");
-        monaiClient.postTrain(model, params); 
+
+        try {
+            monaiClient.deleteTrain();
+            monaiClient.postTrain(model, params);
+        } catch (IOException e) {
+            showIOError(e);
+        }
 
         TrainProgress.monitorTraining(this);
     }
@@ -274,8 +347,8 @@ public class ImpartialController {
                 JSONObject params = new JSONObject();
                 params.put("threshold", (Float) contentPane.getThreshold());
 
-                String model = "impartial_" +  contentPane.getTrainParams().getInt("num_channels");
-                JSONObject modelOutput = monaiClient.postInferJson(model, imageId, params); 
+                String model = "impartial_" + contentPane.getTrainParams().getInt("num_channels");
+                JSONObject modelOutput = monaiClient.postInferJson(model, imageId, params);
 
                 modelOutput.put("epoch", currentEpoch);
 
@@ -298,13 +371,17 @@ public class ImpartialController {
 
                     FloatProcessor output = jsonArrayToProcessor(modelOutput.getJSONArray("output"));
                     FloatProcessor entropy = jsonArrayToProcessor(modelOutput.getJSONArray("entropy"));
+                    ContrastEnhancer ce = new ContrastEnhancer();
+                    ce.equalize(entropy);
+                    ce.stretchHistogram(entropy, 0);
+                    entropy.setColorModel(redGreenLut);
 
                     ModelOutput out = new ModelOutput(output, entropy, time.format(formatter), currentEpoch);
 
                     modelOutputs.put(imageId, out);
 
                     String selectedImageId = contentPane.getSelectedImageId();
-                    if (selectedImageId.equals(imageId)) {
+                    if (selectedImageId != null && selectedImageId.equals(imageId)) {
                         updateImage(imageId);
                     }
 
@@ -375,6 +452,7 @@ public class ImpartialController {
 
         ImagePlus image = imageWindow.getImagePlus();
         image.setOverlay(overlay);
+
     }
 
     public FloatProcessor jsonArrayToProcessor(JSONArray input) {
@@ -386,7 +464,23 @@ public class ImpartialController {
         for (int i = 0; i < input.length(); i++) {
             JSONArray row = input.getJSONArray(i);
             for (int j = 0; j < row.length(); j++) {
-                processor.setf(j, i, (float) row.getDouble(j));
+                processor.setf(j, i, (float) row.getDouble(j) * 255);
+            }
+        }
+
+        return processor;
+    }
+
+    public ColorProcessor jsonArrayToColorProcessor(JSONArray input) {
+        int width = input.length();
+        int height = input.getJSONArray(0).length();
+
+        ColorProcessor processor = new ColorProcessor(width, height);
+
+        for (int i = 0; i < input.length(); i++) {
+            JSONArray row = input.getJSONArray(i);
+            for (int j = 0; j < row.length(); j++) {
+                processor.putPixel(j, i, (int) (row.getDouble(j) * 255));
             }
         }
 
@@ -397,12 +491,13 @@ public class ImpartialController {
         status.showStatus(progress, max, message);
     }
 
-    public JSONObject getInfo() {
-        return monaiClient.getInfo();
-    }
-
     public JSONObject getTrain() {
-        return monaiClient.getTrain();
+        try {
+            return monaiClient.getTrain();
+        } catch (IOException e) {
+            showIOError(e);
+        }
+        return null;
     }
 
     public int getMaxEpochs() {
@@ -430,11 +525,7 @@ public class ImpartialController {
             resetLayout();
 
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(contentPane,
-                    e.getMessage(),
-                    e.getCause().getMessage(),
-                    JOptionPane.ERROR_MESSAGE
-            );
+            showIOError(e);
         }
     }
 
@@ -452,24 +543,24 @@ public class ImpartialController {
         );
     }
 
-    public void uploadImages() {
+    public void uploadImage(File image) {
         try {
-            int returnVal = fileChooser.showOpenDialog(mainFrame);
-            if (returnVal == JFileChooser.APPROVE_OPTION) {
-                Arrays.stream(fileChooser.getSelectedFiles()).forEach(monaiClient::putDatastore);
-            } else {
-                System.out.println("Open command cancelled by user.");
-            }
-
-            String[] samples = getDatastoreSamples();
-            contentPane.populateSampleList(samples);
+            monaiClient.putDatastore(image);
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(contentPane,
-                    e.getMessage(),
-                    e.getCause().getMessage(),
-                    JOptionPane.ERROR_MESSAGE
-            );
+            showIOError(e);
         }
+    }
+
+    public void uploadImages() {
+        int res = fileChooser.showOpenDialog(mainFrame);
+        if (res == JFileChooser.APPROVE_OPTION) {
+            imageUploader.upload(fileChooser.getSelectedFiles());
+        }
+    }
+
+    public void updateSampleList() {
+        String[] samples = getDatastoreSamples();
+        contentPane.populateSampleList(samples);
     }
 
     public void deleteSelectedImage() {
@@ -479,24 +570,55 @@ public class ImpartialController {
                 contentPane,
                 String.format("Are you sure you want to delete '%s' and corresponding labels?", imageId),
                 "Delete confirmation",
-                JOptionPane.YES_NO_OPTION);
+                JOptionPane.YES_NO_OPTION
+        );
 
-        if (option == JOptionPane.YES_OPTION)
+        if (option == JOptionPane.YES_OPTION) {
             try {
                 monaiClient.deleteDatastore(imageId);
-                String[] samples = getDatastoreSamples();
-                contentPane.populateSampleList(samples);
-                setSelectedFirstImage();
             } catch (IOException e) {
-                JOptionPane.showMessageDialog(contentPane,
-                        e.getMessage(),
-                        e.getCause().getMessage(),
-                        JOptionPane.ERROR_MESSAGE
-                );
+                showIOError(e);
             }
+
+            updateSampleList();
+
+            contentPane.setSelectedFirstImage();
+        }
     }
 
-    private void setSelectedFirstImage() {
-        contentPane.setSelectedFirstImage();
+    public void startSession() throws IOException {
+        try {
+            token = impartialClient.createSession().getString("token");
+            monaiClient.setToken(token);
+
+        } catch (IOException e) {
+            showIOError(e);
+            throw e;
+        }
+    }
+
+    public JSONObject getSessionStatus() throws IOException {
+        try {
+            return impartialClient.sessionStatus(token);
+        } catch (IOException e) {
+            showIOError(e);
+            throw e;
+        }
+    }
+
+    public void downloadModelCheckpoint() {
+        String model = "impartial_" + contentPane.getTrainParams().getInt("num_channels");
+        fileChooser.setSelectedFile(new File(model + ".pt"));
+        int res = fileChooser.showSaveDialog(mainFrame);
+
+        if (res == JFileChooser.APPROVE_OPTION) {
+            try {
+                FileOutputStream outputStream = new FileOutputStream(fileChooser.getSelectedFile());
+                outputStream.write(monaiClient.getModel(model));
+                outputStream.close();
+            } catch (IOException e) {
+                showIOError(e);
+            }
+        }
     }
 }

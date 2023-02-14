@@ -4,17 +4,20 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class DatasetPanel extends JPanel implements ItemListener {
     private final ImpartialController controller;
+    private final JButton submitLabelButton;
     private ListModel listModel;
     private JList<Sample> list;
     private JCheckBox inferCheckBox;
     private JCheckBox entropyCheckBox;
     private JCheckBox labelCheckBox;
-    private final JButton submitLabelButton;
+    private JButton uploadButton;
+    private JButton deleteButton;
 
     DatasetPanel(ImpartialController controller) {
         this.controller = controller;
@@ -46,12 +49,12 @@ public class DatasetPanel extends JPanel implements ItemListener {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.LINE_AXIS));
 
-        JButton uploadButton = new JButton("upload");
-        uploadButton.setEnabled(true);
+        uploadButton = new JButton("upload");
+        uploadButton.setEnabled(false);
         uploadButton.addActionListener(e -> controller.uploadImages());
 
-        JButton deleteButton = new JButton("delete");
-        deleteButton.setEnabled(true);
+        deleteButton = new JButton("delete");
+        deleteButton.setEnabled(false);
         deleteButton.addActionListener(e -> controller.deleteSelectedImage());
 
         panel.add(uploadButton);
@@ -120,6 +123,8 @@ public class DatasetPanel extends JPanel implements ItemListener {
     }
 
     public String getSelectedImageId() {
+        if (list.isSelectionEmpty())
+            return null;
         return list.getSelectedValue().getName();
     }
 
@@ -151,12 +156,6 @@ public class DatasetPanel extends JPanel implements ItemListener {
         controller.updateDisplay();
     }
 
-    public void setSelectedAll(boolean b) {
-        labelCheckBox.setSelected(b);
-        inferCheckBox.setSelected(b);
-        entropyCheckBox.setSelected(b);
-    }
-
     public void setEnabledSubmit(boolean b) {
         submitLabelButton.setEnabled(b);
     }
@@ -180,5 +179,34 @@ public class DatasetPanel extends JPanel implements ItemListener {
     public void setSelectedFirstImage() {
         if (!listModel.isEmpty())
             list.setSelectedIndex(0);
+    }
+
+    public void onConnected() {
+        uploadButton.setEnabled(true);
+        deleteButton.setEnabled(true);
+    }
+
+    public void setSelectedLabel(boolean b) {
+        labelCheckBox.setSelected(b);
+    }
+
+    public void onDisconnected() {
+        setSelectedAll(false);
+        setEnabledAll(false);
+        listModel.clear();
+        uploadButton.setEnabled(false);
+        deleteButton.setEnabled(false);
+    }
+
+    public void setSelectedAll(boolean b) {
+        labelCheckBox.setSelected(b);
+        inferCheckBox.setSelected(b);
+        entropyCheckBox.setSelected(b);
+    }
+
+    public void setEnabledAll(boolean b) {
+        labelCheckBox.setEnabled(b);
+        inferCheckBox.setEnabled(b);
+        entropyCheckBox.setEnabled(b);
     }
 }

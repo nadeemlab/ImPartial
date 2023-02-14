@@ -10,6 +10,7 @@ public class TrainPanel extends JPanel {
     private final JPanel nchannelsPanel;
     private final JPanel patchesPanel;
     private final JPanel patiencePanel;
+    private JButton trainButton;
 
     TrainPanel(ImpartialController controller) {
         this.controller = controller;
@@ -42,10 +43,10 @@ public class TrainPanel extends JPanel {
         configPanel.add(patchesPanel);
         configPanel.add(patiencePanel);
 
-        JButton trainButton = new JButton("train");
+        trainButton = new JButton("train");
         trainButton.setActionCommand("train");
         trainButton.addActionListener(e -> controller.train());
-        trainButton.setEnabled(true);
+        trainButton.setEnabled(false);
         trainButton.setAlignmentY(BOTTOM_ALIGNMENT);
 
         mainPanel.add(configPanel);
@@ -77,5 +78,13 @@ public class TrainPanel extends JPanel {
         params.put("early_stop_patience", Integer.parseInt(patience.getText()));
 
         return params;
+    }
+
+    public void onConnected() {
+        trainButton.setEnabled(true);
+    }
+
+    public void onDisconnected() {
+        trainButton.setEnabled(false);
     }
 }
