@@ -60,7 +60,7 @@ class ImPartialConfig(argparse.Namespace):
         self.npatches_epoch = 512 #number of patches that are considered an epoch
 
         self.BATCH_SIZE = 32 #batch size
-        self.n_workers = 2
+        self.n_workers = 24
         self.augmentations = True
         self.normstd = False #normalization
 
@@ -351,7 +351,7 @@ class ImPartialModel:
         
         # ------------------------- Evaluation --------------------------------#
         from general.training import eval
-        output_list, gt_list = eval(dataloader_eval, self.model, self.optimizer, self.config, epoch=0, saveout=False, 
+        output_list, gt_list = eval(dataloader_eval, self.model, self.optimizer, self.config, epoch=0, saveout=saveout, 
                                     default_ensembles=default_ensembles, model_ensemble_load_files=model_ensemble_load_files)
         
         end_eval_time = time.time() #gs

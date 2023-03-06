@@ -182,6 +182,57 @@ if __name__== '__main__':
         if cparser.nepochs_sample_patches == 0:
             cparser.nepochs_sample_patches = 10
     
+    if cparser.dataset == 'TH_Panel':
+        scribble_fname = 'files_1task1class_130images_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
+        pd_files_scribbles = pd.read_csv(files_scribbles)
+
+        pd_files = pd.read_csv(os.path.join(data_dir, 'files.csv'))
+        n_channels = 3
+
+        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0,1,2]}}
+
+        if cparser.nepochs_sample_patches == 0:
+            cparser.nepochs_sample_patches = 10
+    
+    if cparser.dataset == 'TH_Panel_dapi':
+        scribble_fname = 'files_1task1class_49dapiimages_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
+        pd_files_scribbles = pd.read_csv(files_scribbles)
+
+        pd_files = pd.read_csv(os.path.join(data_dir, 'files.csv'))
+        n_channels = 3
+
+        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0,1,2]}}
+
+        if cparser.nepochs_sample_patches == 0:
+            cparser.nepochs_sample_patches = 10
+
+    if cparser.dataset == 'TH_Panel_combined':
+        scribble_fname = 'files_1task1class_180combinedimages_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
+        pd_files_scribbles = pd.read_csv(files_scribbles)
+
+        pd_files = pd.read_csv(os.path.join(data_dir, 'files.csv'))
+        n_channels = 3
+
+        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0,1,2]}}
+
+        if cparser.nepochs_sample_patches == 0:
+            cparser.nepochs_sample_patches = 10
+
+    if cparser.dataset == 'CP_Tissunet':        #2channel dataset generated from cellpose on tissuenet
+        scribble_fname = 'files_1task1class_6000images_scribble_train_' + cparser.scribbles + '.csv'
+        files_scribbles = os.path.join(data_dir, scribble_fname)
+        pd_files_scribbles = pd.read_csv(files_scribbles)
+
+        pd_files = pd.read_csv(os.path.join(data_dir, 'files.csv'))
+        n_channels = 2
+
+        classification_tasks = {'0': {'classes': 1, 'ncomponents': [2, 2], 'rec_channels': [0,1]}}
+
+        if cparser.nepochs_sample_patches == 0:
+            cparser.nepochs_sample_patches = 10
     
     
     if cparser.dataset == 'MIBI1CH_Bladder':
