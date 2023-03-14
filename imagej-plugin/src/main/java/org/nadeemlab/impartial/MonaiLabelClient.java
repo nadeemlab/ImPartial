@@ -3,88 +3,20 @@ package org.nadeemlab.impartial;
 import okhttp3.*;
 import org.json.JSONObject;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.util.concurrent.TimeUnit;
 
-public class MonaiLabelClient {
-    private final OkHttpClient httpClient;
-    private URL url;
-    private String token;
-
+public class MonaiLabelClient extends BaseApiClient {
     public MonaiLabelClient() {
-        X509TrustManager TRUST_ALL_CERTS = new X509TrustManager() {
-            @Override
-            public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {
-            }
+        super();
 
-            @Override
-            public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {
-            }
-
-            @Override
-            public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                return new java.security.cert.X509Certificate[]{};
-            }
-        };
-
-        SSLContext sslContext;
-        try {
-            sslContext = SSLContext.getInstance("SSL");
-            sslContext.init(null, new TrustManager[]{TRUST_ALL_CERTS}, new java.security.SecureRandom());
-        } catch (NoSuchAlgorithmException | KeyManagementException e) {
-            throw new RuntimeException(e);
-        }
-
-        OkHttpClient.Builder builder = new OkHttpClient.Builder();
-
-        builder.sslSocketFactory(sslContext.getSocketFactory(), TRUST_ALL_CERTS);
-        builder.hostnameVerifier((hostname, session) -> true);
-
-        httpClient = builder
-                .connectTimeout(120, TimeUnit.SECONDS)
-                .writeTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(120, TimeUnit.SECONDS)
-                .build();
-
-        try {
-            url = new URL("http", "localhost", 8000, "");
-        } catch (MalformedURLException ignore) {
-        }
+        protocol = "http";
+        host = "localhost";
+        port = 8000;
     }
 
-    private void raiseForStatus(Response res) throws IOException {
-        if (!res.isSuccessful()) {
-            JSONObject jsonRes = new JSONObject(res.body().string());
-            throw new IOException(
-                    String.format("%d %s: %s",
-                            res.code(),
-                            jsonRes.getString("name"),
-                            jsonRes.getString("description"))
-            );
-        }
-    }
-
-    public void setUrl(URL url) {
-        this.url = url;
-    }
-
-    public void setToken(String token) {
-        this.token = token;
-    }
-
-    private HttpUrl.Builder getHttpBuilder() {
-        HttpUrl.Builder builder = new HttpUrl.Builder()
-                .scheme(url.getProtocol())
-                .host(url.getHost())
-                .port(url.getPort() > 1 ? url.getPort() : 80);
+    protected HttpUrl.Builder getHttpUrlBuilder() {
+        HttpUrl.Builder builder = super.getHttpUrlBuilder();
 
         if (token != null)
             builder.addPathSegments("proxy");
@@ -92,17 +24,8 @@ public class MonaiLabelClient {
         return builder;
     }
 
-    private Request.Builder getRequestBuilder() {
-        Request.Builder builder = new Request.Builder();
-
-        if (token != null)
-            builder.addHeader("Authorization", token);
-
-        return builder;
-    }
-
     public JSONObject getInfo() throws IOException {
-        HttpUrl url = getHttpBuilder()
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("info")
                 .build();
 
@@ -118,7 +41,7 @@ public class MonaiLabelClient {
     }
 
     public byte[] getModel(String model) throws IOException {
-        HttpUrl url = getHttpBuilder()
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("model/" + model)
                 .build();
 
@@ -139,7 +62,7 @@ public class MonaiLabelClient {
                 .addFormDataPart("params", params.toString())
                 .build();
 
-        HttpUrl url = getHttpBuilder()
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("infer/" + model)
                 .addQueryParameter("image", imageId)
                 .addQueryParameter("output", "json")
@@ -158,7 +81,7 @@ public class MonaiLabelClient {
     }
 
     public JSONObject getTrain(boolean checkIfRunning) throws IOException {
-        HttpUrl.Builder builder = getHttpBuilder();
+        HttpUrl.Builder builder = getHttpUrlBuilder();
         builder.addPathSegments("train");
 
         if (checkIfRunning)
@@ -182,7 +105,7 @@ public class MonaiLabelClient {
 
         RequestBody body = RequestBody.create(params.toString(), JSON);
 
-        HttpUrl url = getHttpBuilder()
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("train/" + model)
                 .build();
 
@@ -199,7 +122,7 @@ public class MonaiLabelClient {
     }
 
     public String deleteTrain() throws IOException {
-        HttpUrl url = getHttpBuilder()
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("train/")
                 .build();
 
@@ -225,7 +148,7 @@ public class MonaiLabelClient {
                         RequestBody.create(MEDIA_TYPE_ZIP, new File(labelPath)))
                 .build();
 
-        HttpUrl url = getHttpBuilder()
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("datastore/label")
                 .addQueryParameter("image", imageId)
                 .addQueryParameter("tag", "final")
@@ -255,7 +178,7 @@ public class MonaiLabelClient {
                         RequestBody.create(MEDIA_TYPE_PNG, imageFile))
                 .build();
 
-        HttpUrl url = getHttpBuilder()
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("datastore")
                 .addQueryParameter("image", imageFileName.substring(0, imageFileName.lastIndexOf(".")))
                 .build();
@@ -273,7 +196,7 @@ public class MonaiLabelClient {
     }
 
     public void deleteDatastore(String imageId) throws IOException {
-        HttpUrl url = getHttpBuilder()
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("datastore")
                 .addQueryParameter("id", imageId)
                 .build();
@@ -287,7 +210,7 @@ public class MonaiLabelClient {
     }
 
     public JSONObject getDatastore() throws IOException {
-        HttpUrl url = getHttpBuilder()
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("datastore")
                 .addQueryParameter("output", "all")
                 .build();
@@ -304,7 +227,7 @@ public class MonaiLabelClient {
     }
 
     public byte[] getDatastoreLabel(String imageId) throws IOException {
-        HttpUrl url = getHttpBuilder()
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("datastore/label")
                 .addQueryParameter("label", imageId)
                 .addQueryParameter("tag", "final")
@@ -322,7 +245,7 @@ public class MonaiLabelClient {
     }
 
     public byte[] getDatastoreImage(String imageId) throws IOException {
-        HttpUrl url = getHttpBuilder()
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("datastore/image")
                 .addQueryParameter("image", imageId)
                 .build();
@@ -339,7 +262,7 @@ public class MonaiLabelClient {
     }
 
     public String getLogs() throws IOException {
-        HttpUrl url = getHttpBuilder()
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("logs")
                 .addQueryParameter("text", "true")
                 .build();

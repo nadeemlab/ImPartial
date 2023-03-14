@@ -1,86 +1,25 @@
 package org.nadeemlab.impartial;
 
-import okhttp3.*;
+import okhttp3.HttpUrl;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 import org.json.JSONObject;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.util.concurrent.TimeUnit;
 
-public class ImpartialClient {
-    private final OkHttpClient httpClient;
-    private final String host = "impartial.mskcc.org";
-    private final Integer port = 443;
-
+public class ImpartialClient extends BaseApiClient {
     public ImpartialClient() {
-        X509TrustManager TRUST_ALL_CERTS = new X509TrustManager() {
-            @Override
-            public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {
-            }
+        super();
 
-            @Override
-            public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {
-            }
-
-            @Override
-            public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                return new java.security.cert.X509Certificate[]{};
-            }
-        };
-
-        SSLContext sslContext;
-        try {
-            sslContext = SSLContext.getInstance("SSL");
-            sslContext.init(null, new TrustManager[]{TRUST_ALL_CERTS}, new java.security.SecureRandom());
-        } catch (NoSuchAlgorithmException | KeyManagementException e) {
-            throw new RuntimeException(e);
-        }
-
-        OkHttpClient.Builder builder = new OkHttpClient.Builder();
-
-        builder.sslSocketFactory(sslContext.getSocketFactory(), TRUST_ALL_CERTS);
-        builder.hostnameVerifier((hostname, session) -> true);
-
-        httpClient = builder
-                .connectTimeout(120, TimeUnit.SECONDS)
-                .writeTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(120, TimeUnit.SECONDS)
-                .build();
-    }
-
-    private void raiseForStatus(Response res) throws IOException {
-        if (!res.isSuccessful()) {
-            JSONObject jsonRes = new JSONObject(res.body().string());
-            throw new IOException(
-                    String.format("%d %s: %s",
-                            res.code(),
-                            jsonRes.getString("name"),
-                            jsonRes.getString("description"))
-            );
-        }
-    }
-
-    private HttpUrl.Builder getBuilder() {
-        return new HttpUrl.Builder()
-                .scheme("https")
-                .host(host)
-                .port(port);
-    }
-
-    public String getHost() {
-        return host;
-    }
-
-    public Integer getPort() {
-        return port;
+        protocol = "https";
+         host = "impartial.mskcc.org";
+//        host = "internal-alb-e06a1e5-1248497720.us-east-1.elb.amazonaws.com";
+        port = 443;
     }
 
     public JSONObject createSession() throws IOException {
-        HttpUrl url = getBuilder()
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("session/")
                 .build();
 
@@ -98,14 +37,13 @@ public class ImpartialClient {
         }
     }
 
-    public JSONObject sessionStatus(String token) throws IOException {
-        HttpUrl url = getBuilder()
+    public JSONObject sessionStatus() throws IOException {
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("session/")
                 .build();
 
-        Request request = new Request.Builder()
+        Request request = getRequestBuilder()
                 .url(url)
-                .header("Authorization", token)
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
@@ -115,14 +53,13 @@ public class ImpartialClient {
         }
     }
 
-    public void stopSession(String token) throws IOException {
-        HttpUrl url = getBuilder()
+    public void stopSession() throws IOException {
+        HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("session/")
                 .build();
 
-        Request request = new Request.Builder()
+        Request request = getRequestBuilder()
                 .url(url)
-                .header("Authorization", token)
                 .delete()
                 .build();
 

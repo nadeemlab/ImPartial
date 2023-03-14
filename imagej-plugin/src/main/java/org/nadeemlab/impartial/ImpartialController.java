@@ -63,7 +63,6 @@ public class ImpartialController {
     private final ImageUploader imageUploader;
     private final IndexColorModel redGreenLut;
     LabelRegionToPolygonConverter regionToPolygonConverter = new LabelRegionToPolygonConverter();
-    private String token;
     private ImageWindow imageWindow;
     private File imageFile;
     private File labelFile;
@@ -146,7 +145,7 @@ public class ImpartialController {
         if (contentPane.getRequestServerCheckBox()) {
             try {
                 monaiClient.setUrl(
-                        new URL(String.format("https://%s:%s/proxy",
+                        new URL(String.format("https://%s:%s",
                                 impartialClient.getHost(),
                                 impartialClient.getPort()
                         ))
@@ -157,7 +156,6 @@ public class ImpartialController {
             capacityProvider.provisionServer();
 
         } else {
-            monaiClient.setToken(null);
             try {
                 monaiClient.setUrl(contentPane.getUrl());
                 monaiClient.getInfo();
@@ -171,15 +169,14 @@ public class ImpartialController {
     }
 
     public void disconnect() {
-        onDisconnected();
-
-        if (contentPane.getRequestServerCheckBox() && token != null) {
+        if (contentPane.getRequestServerCheckBox()) {
             try {
-                impartialClient.stopSession(token);
+                impartialClient.stopSession();
             } catch (IOException e) {
                 showIOError(e);
             }
         }
+        onDisconnected();
     }
 
     public void onConnected() {
@@ -190,6 +187,9 @@ public class ImpartialController {
     public void onDisconnected() {
         contentPane.onDisconnected();
         modelOutputs.clear();
+        monaiClient.setToken(null);
+        impartialClient.setToken(null);
+
         if (imageWindow != null) {
             imageWindow.setVisible(false);
         }
@@ -662,7 +662,8 @@ public class ImpartialController {
 
     public void startSession() throws IOException {
         try {
-            token = impartialClient.createSession().getString("token");
+            String token = impartialClient.createSession().getString("token");
+            impartialClient.setToken(token);
             monaiClient.setToken(token);
 
         } catch (IOException e) {
@@ -673,7 +674,7 @@ public class ImpartialController {
 
     public JSONObject getSessionStatus() throws IOException {
         try {
-            return impartialClient.sessionStatus(token);
+            return impartialClient.sessionStatus();
         } catch (IOException e) {
             showIOError(e);
             throw e;
