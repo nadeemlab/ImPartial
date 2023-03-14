@@ -157,10 +157,14 @@ public class MonaiLabelClient {
         }
     }
 
-    public JSONObject getTrain() throws IOException {
-        HttpUrl url = getHttpBuilder()
-                .addPathSegments("train/")
-                .build();
+    public JSONObject getTrain(boolean checkIfRunning) throws IOException {
+        HttpUrl.Builder builder = getHttpBuilder();
+        builder.addPathSegments("train");
+
+        if (checkIfRunning)
+            builder.addQueryParameter("check_if_running", "true");
+
+        HttpUrl url = builder.build();
 
         Request request = getRequestBuilder()
                 .url(url)
@@ -331,6 +335,23 @@ public class MonaiLabelClient {
             raiseForStatus(response);
 
             return response.body().bytes();
+        }
+    }
+
+    public String getLogs() throws IOException {
+        HttpUrl url = getHttpBuilder()
+                .addPathSegments("logs")
+                .addQueryParameter("text", "true")
+                .build();
+
+        Request request = getRequestBuilder()
+                .url(url)
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            raiseForStatus(response);
+
+            return response.body().string();
         }
     }
 }

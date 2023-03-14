@@ -3,10 +3,10 @@ package org.nadeemlab.impartial;
 import ij.process.FloatProcessor;
 
 public class ModelOutput {
-    private FloatProcessor output;
-    private FloatProcessor entropy;
-    private String time;
-    private int epoch;
+    private final FloatProcessor output;
+    private final FloatProcessor entropy;
+    private final String time;
+    private final int epoch;
 
     public ModelOutput(FloatProcessor output, FloatProcessor entropy, String time, int epoch) {
         this.output = output;

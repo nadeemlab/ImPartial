@@ -79,8 +79,7 @@ public class DatasetPanel extends JPanel implements ItemListener {
 
         list.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
-                String imageId = getSelectedImageId();
-                controller.updateImage(imageId);
+                controller.updateImage();
             }
         });
 

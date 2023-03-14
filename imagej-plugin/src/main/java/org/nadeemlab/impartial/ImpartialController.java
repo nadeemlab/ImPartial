@@ -42,9 +42,13 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 
 
@@ -92,6 +96,18 @@ public class ImpartialController {
         imageUploader = new ImageUploader(this);
 
         redGreenLut = LutLoader.getLut("redgreen");
+    }
+
+    private static boolean containsWords(String input, String[] words) {
+        return Arrays.stream(words).allMatch(input::contains);
+    }
+
+    private static int epochFromLog(String line) {
+        String regex = "Epoch:\\s(.*?)\\/\\d+";
+        Pattern p = Pattern.compile(regex);
+        Matcher m = p.matcher(line);
+
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
     }
 
     private void showIOError(IOException e) {
@@ -179,10 +195,12 @@ public class ImpartialController {
         }
     }
 
-    public void updateImage(String imageId) {
+    public void updateImage() {
         try {
             clearRoiManager();
-            displayImage(imageId);
+            String imageId = contentPane.getSelectedImageId();
+
+            displayImage();
 
             JSONObject imageInfo = getImageInfo(imageId);
             boolean hasLabel = imageInfo.getJSONObject("labels").length() > 0;
@@ -212,7 +230,8 @@ public class ImpartialController {
         }
     }
 
-    public void displayImage(String imageId) {
+    public void displayImage() {
+        String imageId = contentPane.getSelectedImageId();
         try {
             byte[] imageBytes = monaiClient.getDatastoreImage(imageId);
 
@@ -263,10 +282,10 @@ public class ImpartialController {
     public void displayLabel() {
         try {
             String imageId = contentPane.getSelectedImageId();
-            byte[] label = monaiClient.getDatastoreLabel(imageId);
+            byte[] labelBytes = monaiClient.getDatastoreLabel(imageId);
 
             FileOutputStream stream = new FileOutputStream(labelFile);
-            stream.write(label);
+            stream.write(labelBytes);
             stream.close();
 
             RoiManager roiManager = RoiManager.getRoiManager();
@@ -325,7 +344,71 @@ public class ImpartialController {
             showIOError(e);
         }
 
-        TrainProgress.monitorTraining(this);
+        monitorTraining();
+    }
+
+    private void monitorTraining() {
+        SwingWorker<Void, Void> swingWorker = new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws IOException, InterruptedException {
+                int lastEpoch = 0;
+                int maxEpochs = getMaxEpochs();
+
+                showStatus(lastEpoch, maxEpochs, "Initializing...");
+
+                while (lastEpoch < maxEpochs) {
+                    Thread.sleep(1000);
+                    monaiClient.getTrain(true);
+
+                    JSONObject jsonProgress = monaiClient.getTrain(false);
+
+                    JSONArray jsonDetails = jsonProgress.getJSONArray("details");
+                    List<String> details = new ArrayList<>();
+                    for (int i = 0; i < jsonDetails.length(); i++) {
+                        details.add(jsonDetails.getString(i));
+                    }
+
+                    String[] epochKeywords = {"Epoch:", "train_loss:"};
+                    lastEpoch = details.stream()
+                            .filter(r -> containsWords(r, epochKeywords))
+                            .map(ImpartialController::epochFromLog)
+                            .reduce((first, second) -> second)
+                            .orElse(0);
+
+                    if (lastEpoch > 0)
+                        showStatus(lastEpoch, maxEpochs, "Epoch: " + lastEpoch);
+                }
+
+                return null;
+
+            }
+
+            private void printLogs() {
+                try {
+                    System.out.println(monaiClient.getLogs());
+                } catch (IOException ignore) {
+                }
+
+            }
+
+            @Override
+            protected void done() {
+                int maxEpochs = getMaxEpochs();
+                try {
+                    get();
+                    showStatus(maxEpochs, maxEpochs, "Training done after " + maxEpochs + " epochs");
+                } catch (ExecutionException e) {
+                    showStatus(0, maxEpochs, "Stopped");
+                    printLogs();
+                    showIOError((IOException) e.getCause());
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+
+            }
+        };
+
+        swingWorker.execute();
     }
 
     public void infer() {
@@ -339,7 +422,7 @@ public class ImpartialController {
     private void inferImage(Sample sample) {
         SwingWorker<JSONObject, Void> swingWorker = new SwingWorker<JSONObject, Void>() {
             @Override
-            protected JSONObject doInBackground() throws Exception {
+            protected JSONObject doInBackground() throws IOException {
                 contentPane.setSampleStatus(sample, "running");
 
                 String imageId = sample.getName();
@@ -382,7 +465,7 @@ public class ImpartialController {
 
                     String selectedImageId = contentPane.getSelectedImageId();
                     if (selectedImageId != null && selectedImageId.equals(imageId)) {
-                        updateImage(imageId);
+                        updateImage();
                     }
 
                     contentPane.setSampleStatus(sample, "done");
@@ -489,15 +572,6 @@ public class ImpartialController {
 
     public void showStatus(int progress, int max, String message) {
         status.showStatus(progress, max, message);
-    }
-
-    public JSONObject getTrain() {
-        try {
-            return monaiClient.getTrain();
-        } catch (IOException e) {
-            showIOError(e);
-        }
-        return null;
     }
 
     public int getMaxEpochs() {
