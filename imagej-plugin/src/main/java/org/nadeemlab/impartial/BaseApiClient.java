@@ -1,9 +1,6 @@
 package org.nadeemlab.impartial;
 
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import okhttp3.*;
 import org.json.JSONObject;
 
 import javax.net.ssl.SSLContext;
@@ -23,7 +20,7 @@ public class BaseApiClient {
     protected Integer port;
     protected String path = "";
     protected String token;
-
+    protected RequestBody emptyBody = RequestBody.create(null, new byte[0]);
 
     public BaseApiClient() {
         X509TrustManager TRUST_ALL_CERTS = new X509TrustManager() {
@@ -63,11 +60,15 @@ public class BaseApiClient {
 
     protected void raiseForStatus(Response res) throws IOException {
         if (!res.isSuccessful()) {
-            JSONObject jsonRes = new JSONObject(res.body().string());
-
-            String name = jsonRes.has("name") ? jsonRes.getString("name") : res.message();
-            String description = jsonRes.has("description") ?
-                    jsonRes.getString("description") : jsonRes.getString("detail");
+            String name = res.message();
+            String description = "";
+            if (res.body() != null && res.body().contentLength() > 0) {
+                JSONObject jsonRes = new JSONObject(res.body().string());
+                if (jsonRes.has("name"))
+                    name = jsonRes.getString("name");
+                description = jsonRes.has("description") ?
+                        jsonRes.getString("description") : jsonRes.getString("detail");
+            }
 
             throw new IOException(
                     String.format("%d %s: %s", res.code(), name, description
@@ -107,6 +108,10 @@ public class BaseApiClient {
         path = url.getPath();
     }
 
+    public String getProtocol() {
+        return protocol;
+    }
+
     public String getHost() {
         return host;
     }
@@ -117,6 +122,10 @@ public class BaseApiClient {
 
     public void setToken(String token) {
         this.token = token;
+    }
+
+    public boolean hasToken() {
+        return this.token != null;
     }
 
 }

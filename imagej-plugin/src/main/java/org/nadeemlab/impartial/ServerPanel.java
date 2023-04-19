@@ -1,41 +1,69 @@
 package org.nadeemlab.impartial;
 
+import org.json.JSONObject;
+
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumnModel;
 import java.awt.*;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.*;
 
 public class ServerPanel extends JPanel {
-    private final JLabel statusLabel;
+    private final ImpartialController controller;
     private final JTextField monaiUrlTextField;
-    private final JCheckBox requestServerCheckBox;
-    private final JButton startButton;
-    private final JButton stopButton;
+    private final JPanel sessionPanel;
+    private JLabel sessionLabel;
+    private JCheckBox requestServerCheckBox;
+    private JButton startStopButton;
     private String url = "http://localhost:8000";
     private boolean warningDisplayed = false;
+    private JButton selectSessionButton;
 
     ServerPanel(ImpartialController controller) {
+        this.controller = controller;
 
         setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("server"),
+                BorderFactory.createTitledBorder("SERVER"),
                 BorderFactory.createEmptyBorder(5, 5, 5, 5))
         );
 
-        JPanel content = new JPanel();
-        content.setLayout(new BoxLayout(content, BoxLayout.PAGE_AXIS));
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setAlignmentX(LEFT_ALIGNMENT);
 
         monaiUrlTextField = new JTextField(url, 16);
         monaiUrlTextField.setAlignmentX(LEFT_ALIGNMENT);
+        monaiUrlTextField.setText(url);
 
-        startButton = new JButton("start");
-        startButton.setActionCommand("start");
+        sessionPanel = createSessionPanel();
+        sessionPanel.setVisible(false);
 
-        stopButton = new JButton("stop");
-        stopButton.setEnabled(false);
-        stopButton.setActionCommand("stop");
+        add(monaiUrlTextField);
+        add(createButtonsPanel());
+        add(sessionPanel);
 
+        monaiUrlTextField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                startStopButton.setEnabled(true);
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                startStopButton.setEnabled(true);
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                startStopButton.setEnabled(true);
+            }
+        });
+    }
+
+    private void displayWarning() {
         String terms = "PLEASE READ THIS DOCUMENT CAREFULLY BEFORE YOU ACCESS OR USE IMPARTIAL. BY ACCESSING ANY PORTION OF IMPARTIAL, YOU AGREE TO BE BOUND BY THE TERMS AND CONDITIONS SET FORTH BELOW. IF YOU DO NOT WISH TO BE BOUND BY THESE TERMS AND CONDITIONS, PLEASE DO NOT ACCESS IMPARTIAL.\n" +
                 "\n" +
                 "ImPartial is developed and maintained by Memorial Sloan Kettering Cancer Center (“MSK,” “we”, or “us”) to provide an experimental artificial intelligence driven tool to perform segmentation using as few as 2-3 training images with some user-provided scribbles. MSK may, from time to time, update the software and other content on https://impartial.mskcc.org/ (“Content”). MSK makes no warranties or representations, and hereby disclaims any warranties, express or implied, with respect to any of the Content, including as to the present accuracy, completeness, timeliness, adequacy, or usefulness of any of the Content. By using this service, you agree that MSK will not be liable for any losses or damages arising from your use of or reliance on the Content, or other websites or information to which this website may be linked. \n" +
@@ -73,22 +101,51 @@ public class ServerPanel extends JPanel {
                 "For inquiries about the Content, please contact us at nadeems@mskcc.org.\n" +
                 "\n" +
                 "If you are interested in using ImPartial for purposes beyond those permitted by these Terms of Use, please contact us at nadeems@mskcc.org to inquire concerning the availability of a license.\n" +
-                "" ;
+                "";
 
+        JTextArea textArea = new JTextArea(terms);
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+        scrollPane.setPreferredSize(new Dimension(500, 500));
+        JOptionPane.showMessageDialog(null, scrollPane, "ImPartial Terms of Use",
+                JOptionPane.WARNING_MESSAGE);
+    }
+
+    private JPanel createButtonsPanel() {
+        JPanel panel = new JPanel();
+        panel.setAlignmentX(LEFT_ALIGNMENT);
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+
+        startStopButton = new JButton("start");
+
+        panel.add(createRequestServerCheckbox());
+        panel.add(Box.createHorizontalGlue());
+        panel.add(startStopButton);
+
+        panel.add(Box.createVerticalGlue());
+
+        startStopButton.addActionListener(e -> {
+            selectSessionButton.setEnabled(false);
+            startStopButton.setEnabled(false);
+            if (startStopButton.getText().equals("start")) {
+                controller.start();
+            } else {
+                controller.stop();
+            }
+        });
+
+        return panel;
+    }
+
+    private JCheckBox createRequestServerCheckbox() {
         requestServerCheckBox = new JCheckBox("request server");
+
         requestServerCheckBox.addActionListener(e -> {
             if (!warningDisplayed) {
                 warningDisplayed = true;
-                JTextArea textArea = new JTextArea(terms);
-                JScrollPane scrollPane = new JScrollPane(textArea);
-                textArea.setLineWrap(true);
-                textArea.setWrapStyleWord(true);
-                scrollPane.setPreferredSize( new Dimension( 500, 500 ) );
-                JOptionPane.showMessageDialog(null, scrollPane, "ImPartial Terms of Use",
-                        JOptionPane.WARNING_MESSAGE);
+                displayWarning();
             }
-
-            startButton.setEnabled(true);
 
             if (requestServerCheckBox.isSelected()) {
                 monaiUrlTextField.setEnabled(false);
@@ -99,85 +156,164 @@ public class ServerPanel extends JPanel {
             }
         });
 
-        startButton.addActionListener(e -> {
-            startButton.setEnabled(false);
-            if (!requestServerCheckBox.isSelected())
-                url = monaiUrlTextField.getText();
+        return requestServerCheckBox;
+    }
 
-            controller.connect();
-        });
+    private JPanel createSessionPanel() {
+        JPanel panel = new JPanel();
+        panel.setAlignmentX(LEFT_ALIGNMENT);
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
 
-        stopButton.addActionListener(e -> {
-            startButton.setEnabled(false);
-            controller.disconnect();
-        });
+        sessionLabel = new JLabel("<html> <strong>session</strong>");
 
-        monaiUrlTextField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                startButton.setEnabled(true);
+        selectSessionButton = new JButton("select");
+        selectSessionButton.addActionListener(e -> {
+            JSONObject sessions = controller.getSessions();
+
+            ArrayList<UserSession> userSessions = new ArrayList<>();
+
+            if (sessions.length() > 0) {
+                String[] keys = JSONObject.getNames(sessions);
+                for (String session_id : keys) {
+                    JSONObject session = (JSONObject) sessions.get(session_id);
+
+                    userSessions.add(new UserSession(
+                            session_id,
+                            session.getString("created_at"),
+                            session.getJSONArray("images").length(),
+                            session.getJSONArray("labels").length()
+                    ));
+                }
             }
 
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                startButton.setEnabled(true);
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                startButton.setEnabled(true);
+            UserSessionDialog dialog = new UserSessionDialog(controller.getFrame(), userSessions);
+            dialog.setVisible(true);
+            if (dialog.getSelectedSession() != null) {
+                controller.setSession(dialog.getSelectedSession());
             }
         });
 
-        JPanel innerPanel = new JPanel();
-        innerPanel.setLayout(new BoxLayout(innerPanel, BoxLayout.LINE_AXIS));
-        innerPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(sessionLabel);
+        panel.add(Box.createHorizontalGlue());
+        panel.add(selectSessionButton);
 
-        JPanel lowInnerPanel = new JPanel();
-        lowInnerPanel.setLayout(new BoxLayout(lowInnerPanel, BoxLayout.LINE_AXIS));
-        lowInnerPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        return panel;
+    }
 
-        statusLabel = new JLabel();
-        statusLabel.setText("status: disconnected");
+    public void setSessionPanelVisible(boolean b) {
+        sessionPanel.setVisible(b);
+    }
 
-        innerPanel.add(startButton);
-        innerPanel.add(requestServerCheckBox);
-        innerPanel.add(Box.createHorizontalGlue());
-
-        lowInnerPanel.add(stopButton);
-        lowInnerPanel.add(statusLabel);
-        lowInnerPanel.add(Box.createHorizontalGlue());
-
-        content.add(monaiUrlTextField);
-        content.add(innerPanel);
-        content.add(lowInnerPanel);
-
-        add(content);
+    public void setSession(String sessionId) {
+//        String sessionId = selectedSession.getId();
+        sessionLabel.setText(String.format(
+                "<html> <strong>session</strong> %s </html>",
+                sessionId.substring(0, Math.min(sessionId.length(), 8))
+        ));
     }
 
     public URL getUrl() throws MalformedURLException {
         return new URL(url);
     }
 
-    public void setStatusLabel(String status) {
-        statusLabel.setText(status);
-    }
-
     public boolean getRequestServerCheckBox() {
         return requestServerCheckBox.isSelected();
     }
 
-    public void onConnected() {
-        startButton.setEnabled(false);
-        stopButton.setEnabled(true);
+    public void onStarted() {
+        startStopButton.setText("stop");
+        startStopButton.setEnabled(true);
+        selectSessionButton.setEnabled(true);
         requestServerCheckBox.setEnabled(false);
-        statusLabel.setText("status: connected");
+        if (requestServerCheckBox.isSelected()) {
+            sessionPanel.setVisible(true);
+            controller.getFrame().pack();
+        }
     }
 
-    public void onDisconnected() {
-        startButton.setEnabled(true);
-        stopButton.setEnabled(false);
+    public void onStopped() {
+        startStopButton.setText("start");
+        startStopButton.setEnabled(true);
+        selectSessionButton.setEnabled(true);
         requestServerCheckBox.setEnabled(true);
-        statusLabel.setText("status: disconnected");
+        sessionLabel.setText("<html> <strong>session</strong> </html>");
+        sessionPanel.setVisible(false);
+        controller.getFrame().pack();
+    }
+}
+
+class UserSessionDialog extends JDialog {
+    private final JTable sessionTable;
+    private final DefaultTableModel sessionTableModel;
+    private UserSession selectedSession;
+
+    public UserSessionDialog(Frame parent, ArrayList<UserSession> sessions) {
+        super(parent, "Sessions", true);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        setSize(400, 300);
+
+        sessionTableModel = new DefaultTableModel(new Object[]{"id", "date", "images", "labels"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        sessionTable = new JTable(sessionTableModel);
+        sessionTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        TableColumnModel columnModel = sessionTable.getColumnModel();
+        columnModel.getColumn(0).setPreferredWidth(50);
+
+        sessions.sort(Comparator.comparing(UserSession::getDate).reversed());
+        for (UserSession session : sessions) {
+            addSession(session);
+        }
+
+        JScrollPane scrollPane = new JScrollPane(sessionTable);
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        JButton selectButton = new JButton("select");
+        selectButton.addActionListener(e -> {
+            int selectedRow = sessionTable.getSelectedRow();
+            if (selectedRow != -1) {
+                String sessionId = (String) sessionTableModel.getValueAt(selectedRow, 0);
+                selectedSession = findSessionById(sessions, sessionId);
+                dispose();
+            }
+        });
+
+        JButton cancelButton = new JButton("cancel");
+        cancelButton.addActionListener(e -> dispose());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(selectButton);
+        buttonPanel.add(cancelButton);
+
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        setContentPane(panel);
+        setLocationRelativeTo(parent);
+    }
+
+    private void addSession(UserSession session) {
+        sessionTableModel.addRow(
+                new Object[]{session.getId(), session.getParsedDate(), session.getNumImages(), session.getNumLabels()}
+        );
+    }
+
+    private UserSession findSessionById(ArrayList<UserSession> sessions, String id) {
+        for (UserSession session : sessions) {
+            if (session.getId() == id) {
+                return session;
+            }
+        }
+        return null;
+    }
+
+    public UserSession getSelectedSession() {
+        return selectedSession;
     }
 }

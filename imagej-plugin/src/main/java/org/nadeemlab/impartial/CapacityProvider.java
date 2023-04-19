@@ -56,11 +56,11 @@ public class CapacityProvider implements PropertyChangeListener {
             try {
                 controller.startSession();
 
-                String lastStatus = controller.getSessionStatus().getString("last_status");
+                String lastStatus = controller.getSessionDetails().getString("last_status");
 
                 while (!lastStatus.equals("RUNNING") && !isCancelled() && !progressMonitor.isCanceled()) {
                     Thread.sleep(1000);
-                    lastStatus = controller.getSessionStatus().getString("last_status");
+                    lastStatus = controller.getSessionDetails().getString("last_status");
 
                     if (lastStatus.equals("PROVISIONING")) {
                         progressMonitor.setNote("provisioning server");
@@ -70,16 +70,15 @@ public class CapacityProvider implements PropertyChangeListener {
                         progressMonitor.setNote("task pending");
                         setProgress(60);
                     }
-
                 }
 
                 progressMonitor.setNote("starting server");
                 setProgress(80);
 
-                String healthStatus = controller.getSessionStatus().getString("health_status");
+                String healthStatus = controller.getSessionDetails().getString("health_status");
                 while (!healthStatus.equals("HEALTHY") && !isCancelled() && !progressMonitor.isCanceled()) {
                     Thread.sleep(1000);
-                    healthStatus = controller.getSessionStatus().getString("health_status");
+                    healthStatus = controller.getSessionDetails().getString("health_status");
                 }
 
                 progressMonitor.setNote("done");
@@ -88,7 +87,6 @@ public class CapacityProvider implements PropertyChangeListener {
             } catch (IOException e) {
                 this.cancel(true);
                 progressMonitor.close();
-
                 return null;
             } catch (InterruptedException ignore) {}
 
@@ -98,8 +96,8 @@ public class CapacityProvider implements PropertyChangeListener {
         @Override
         public void done() {
             Toolkit.getDefaultToolkit().beep();
-            if (isCancelled()) controller.disconnect();
-            else controller.onConnected();
+            if (isCancelled()) controller.stop();
+            else controller.onStarted();
         }
     }
 }

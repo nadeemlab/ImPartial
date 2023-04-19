@@ -26,7 +26,7 @@ public class MonaiLabelClient extends BaseApiClient {
 
     public JSONObject getInfo() throws IOException {
         HttpUrl url = getHttpUrlBuilder()
-                .addPathSegments("info")
+                .addPathSegments("info/")
                 .build();
 
         Request request = getRequestBuilder()
@@ -35,7 +35,6 @@ public class MonaiLabelClient extends BaseApiClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             raiseForStatus(response);
-
             return new JSONObject(response.body().string());
         }
     }
@@ -51,7 +50,6 @@ public class MonaiLabelClient extends BaseApiClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             raiseForStatus(response);
-
             return response.body().bytes();
         }
     }
@@ -75,14 +73,13 @@ public class MonaiLabelClient extends BaseApiClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             raiseForStatus(response);
-
             return new JSONObject(response.body().string());
         }
     }
 
     public JSONObject getTrain(boolean checkIfRunning) throws IOException {
         HttpUrl.Builder builder = getHttpUrlBuilder();
-        builder.addPathSegments("train");
+        builder.addPathSegments("train/");
 
         if (checkIfRunning)
             builder.addQueryParameter("check_if_running", "true");
@@ -95,7 +92,6 @@ public class MonaiLabelClient extends BaseApiClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             raiseForStatus(response);
-
             return new JSONObject(response.body().string());
         }
     }
@@ -121,7 +117,7 @@ public class MonaiLabelClient extends BaseApiClient {
         }
     }
 
-    public String deleteTrain() throws IOException {
+    public void deleteTrain() throws IOException {
         HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("train/")
                 .build();
@@ -133,8 +129,6 @@ public class MonaiLabelClient extends BaseApiClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             raiseForStatus(response);
-
-            return response.body().string();
         }
     }
 
@@ -166,7 +160,7 @@ public class MonaiLabelClient extends BaseApiClient {
         }
     }
 
-    public JSONObject putDatastore(File imageFile) throws IOException {
+    public void putDatastoreImage(File imageFile) throws IOException {
 
         final MediaType MEDIA_TYPE_PNG = MediaType.parse("image/png");
 
@@ -180,6 +174,7 @@ public class MonaiLabelClient extends BaseApiClient {
 
         HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("datastore")
+                .addPathSegments("image")
                 .addQueryParameter("image", imageFileName.substring(0, imageFileName.lastIndexOf(".")))
                 .build();
 
@@ -190,14 +185,13 @@ public class MonaiLabelClient extends BaseApiClient {
 
         try (Response response = this.httpClient.newCall(request).execute()) {
             raiseForStatus(response);
-
-            return new JSONObject(response.body().string());
         }
     }
 
     public void deleteDatastore(String imageId) throws IOException {
         HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("datastore")
+                .addPathSegments("image")
                 .addQueryParameter("id", imageId)
                 .build();
 
@@ -206,13 +200,19 @@ public class MonaiLabelClient extends BaseApiClient {
                 .delete()
                 .build();
 
-        httpClient.newCall(request).execute().close();
+        try (Response response = this.httpClient.newCall(request).execute()) {
+            raiseForStatus(response);
+        }
     }
 
     public JSONObject getDatastore() throws IOException {
+        return getDatastore("all");
+    }
+
+    public JSONObject getDatastore(String output) throws IOException {
         HttpUrl url = getHttpUrlBuilder()
-                .addPathSegments("datastore")
-                .addQueryParameter("output", "all")
+                .addPathSegments("datastore/")
+                .addQueryParameter("output", output)
                 .build();
 
         Request request = getRequestBuilder()
@@ -221,7 +221,6 @@ public class MonaiLabelClient extends BaseApiClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             raiseForStatus(response);
-
             return new JSONObject(response.body().string());
         }
     }
@@ -241,6 +240,22 @@ public class MonaiLabelClient extends BaseApiClient {
             raiseForStatus(response);
 
             return response.body().bytes();
+        }
+    }
+
+    public boolean headDatastoreImage(String imageId) throws IOException {
+        HttpUrl url = getHttpUrlBuilder()
+                .addPathSegments("datastore/image")
+                .addQueryParameter("image", imageId)
+                .build();
+
+        Request request = getRequestBuilder()
+                .url(url)
+                .head()
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            return response.code() == 200;
         }
     }
 

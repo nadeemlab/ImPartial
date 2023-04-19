@@ -19,7 +19,8 @@ public class ImpartialContentPane extends JPanel {
      */
     public ImpartialContentPane(final ImpartialController controller) {
         JPanel mainPanel = new JPanel();
-        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.PAGE_AXIS));
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        mainPanel.setAlignmentX(LEFT_ALIGNMENT);
 
         serverPanel = new ServerPanel(controller);
         mainPanel.add(serverPanel);
@@ -36,18 +37,18 @@ public class ImpartialContentPane extends JPanel {
         add(mainPanel);
     }
 
-    public void onConnected() {
-        serverPanel.onConnected();
-        datasetPanel.onConnected();
-        inferPanel.onConnected();
-        trainPanel.onConnected();
+    public void onStarted() {
+        serverPanel.onStarted();
+        datasetPanel.onStarted();
+        inferPanel.onStarted();
+        trainPanel.onStarted();
     }
 
-    public void onDisconnected() {
-        serverPanel.onDisconnected();
-        datasetPanel.onDisconnected();
-        inferPanel.onDisconnected();
-        trainPanel.onDisconnected();
+    public void onStopped() {
+        serverPanel.onStopped();
+        datasetPanel.onStopped();
+        inferPanel.onStopped();
+        trainPanel.onStopped();
     }
 
     // Server
@@ -57,6 +58,10 @@ public class ImpartialContentPane extends JPanel {
 
     public URL getUrl() throws MalformedURLException {
         return serverPanel.getUrl();
+    }
+
+    public void setSession(String session_id) {
+        serverPanel.setSession(session_id);
     }
 
     // Dataset
@@ -72,8 +77,8 @@ public class ImpartialContentPane extends JPanel {
         return datasetPanel.getListModel();
     }
 
-    public void populateSampleList(String[] samples) {
-        datasetPanel.populateSampleList(samples);
+    public void populateSampleList(JSONObject images) {
+        datasetPanel.populateSampleList(images);
     }
 
     public void setEnabledInferAndEntropy(boolean enable) {
@@ -122,18 +127,17 @@ public class ImpartialContentPane extends JPanel {
     }
 
     public void inferPerformed(int epoch, String time) {
-        setTextInfer("last run " + time + ", epoch " + epoch);
         setEnabledInferAndEntropy(true);
         setSelectedInfer(true);
     }
 
-    public void setTextInfer(String s) {
-        inferPanel.setTextInfer(s);
-    }
 
     // Train
     public JSONObject getTrainParams() {
         return trainPanel.getTrainParams();
     }
 
+    public void onTrainingStopped() {
+        trainPanel.onTrainingStopped();
+    }
 }

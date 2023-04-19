@@ -6,7 +6,6 @@ import ij.io.Opener;
 import ij.plugin.ContrastEnhancer;
 import ij.plugin.LutLoader;
 import ij.plugin.frame.RoiManager;
-import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import net.imagej.ops.OpService;
 import net.imagej.ops.geom.geom2d.LabelRegionToPolygonConverter;
@@ -42,31 +41,36 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Hashtable;
 import java.util.List;
+import java.util.Timer;
+import java.util.*;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.StreamSupport;
 
 
 public class ImpartialController {
     final JFileChooser fileChooser = new JFileChooser();
-    private final JFrame mainFrame;
-    private final ImpartialContentPane contentPane;
+    private final JFrame mainFrame = new JFrame("ImPartial");
+    private final ImpartialContentPane contentPane = new ImpartialContentPane(this);
     private final MonaiLabelClient monaiClient = new MonaiLabelClient();
-    private final ImpartialClient impartialClient = new ImpartialClient();
+    private final SessionClient sessionClient = new SessionClient();
     private final Hashtable<String, ModelOutput> modelOutputs = new Hashtable<>();
-    private final CapacityProvider capacityProvider;
-    private final ImageUploader imageUploader;
-    private final IndexColorModel redGreenLut;
+    private final CapacityProvider capacityProvider = new CapacityProvider(this);
+    private final RestoreSessionTask restoreSessionTask = new RestoreSessionTask(this);
+    private final ImageUploader imageUploader = new ImageUploader(this);
+    private final IndexColorModel redGreenLut = LutLoader.getLut("redgreen");;
+    private final Timer timer = new Timer();
     LabelRegionToPolygonConverter regionToPolygonConverter = new LabelRegionToPolygonConverter();
     private ImageWindow imageWindow;
     private File imageFile;
     private File labelFile;
     private int currentEpoch = 0;
+    private TimerTask endOfSessionWarningTask;
+    private SwingWorker<Void, Void> trainWorker;
+    private String sessionId = null;
+    private int numberOfChannels = 0;
     @Parameter
     private OpService ops;
     @Parameter
@@ -79,34 +83,15 @@ public class ImpartialController {
 
         fileChooser.setMultiSelectionEnabled(true);
 
-        mainFrame = new JFrame("ImPartial");
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         mainFrame.setResizable(false);
 
         //Create and set up the content pane.
-        contentPane = new ImpartialContentPane(this);
         contentPane.setOpaque(true); //content panes must be opaque
         mainFrame.setContentPane(contentPane);
 
         mainFrame.pack();
         mainFrame.setVisible(true);
-
-        capacityProvider = new CapacityProvider(this);
-        imageUploader = new ImageUploader(this);
-
-        redGreenLut = LutLoader.getLut("redgreen");
-    }
-
-    private static boolean containsWords(String input, String[] words) {
-        return Arrays.stream(words).allMatch(input::contains);
-    }
-
-    private static int epochFromLog(String line) {
-        String regex = "Epoch:\\s(.*?)\\/\\d+";
-        Pattern p = Pattern.compile(regex);
-        Matcher m = p.matcher(line);
-
-        return m.find() ? Integer.parseInt(m.group(1)) : 0;
     }
 
     private void showIOError(IOException e) {
@@ -141,13 +126,14 @@ public class ImpartialController {
         return this.contentPane;
     }
 
-    public void connect() {
+    public void start() {
         if (contentPane.getRequestServerCheckBox()) {
             try {
                 monaiClient.setUrl(
-                        new URL(String.format("https://%s:%s",
-                                impartialClient.getHost(),
-                                impartialClient.getPort()
+                        new URL(String.format("%s://%s:%s",
+                                sessionClient.getProtocol(),
+                                sessionClient.getHost(),
+                                sessionClient.getPort()
                         ))
                 );
             } catch (MalformedURLException ignore) {
@@ -160,38 +146,55 @@ public class ImpartialController {
                 monaiClient.setUrl(contentPane.getUrl());
                 monaiClient.getInfo();
             } catch (IOException e) {
-                onDisconnected();
+                onStopped();
                 showIOError(e);
                 return;
             }
-            onConnected();
+            onStarted();
         }
     }
 
-    public void disconnect() {
+    public void onStarted() {
+        if (contentPane.getRequestServerCheckBox()) {
+            contentPane.setSession(sessionId);
+        }
+        numberOfChannels = getNumberOfChannels();
+        contentPane.onStarted();
+    }
+
+    public void stop() {
         if (contentPane.getRequestServerCheckBox()) {
             try {
-                impartialClient.stopSession();
+                sessionClient.stopSession();
             } catch (IOException e) {
                 showIOError(e);
             }
         }
-        onDisconnected();
+        onStopped();
     }
 
-    public void onConnected() {
-        updateSampleList();
-        contentPane.onConnected();
-    }
-
-    public void onDisconnected() {
-        contentPane.onDisconnected();
+    public void onStopped() {
+        contentPane.onStopped();
         modelOutputs.clear();
         monaiClient.setToken(null);
-        impartialClient.setToken(null);
+        sessionClient.setToken(null);
+        sessionId = null;
+        numberOfChannels = 0;
 
         if (imageWindow != null) {
             imageWindow.setVisible(false);
+        }
+    }
+
+    public void restoreSession(String sessionId) throws IOException {
+        try {
+            String token = sessionClient.restoreSession(sessionId).getString("token");
+            monaiClient.setToken(token);
+            sessionClient.setToken(token);
+            sessionId = sessionClient.getSessionDetails().getString("session_id");
+        } catch (IOException e) {
+            showIOError(e);
+            throw e;
         }
     }
 
@@ -200,7 +203,7 @@ public class ImpartialController {
             clearRoiManager();
             String imageId = contentPane.getSelectedImageId();
 
-            displayImage();
+            displayImage(imageId);
 
             JSONObject imageInfo = getImageInfo(imageId);
             boolean hasLabel = imageInfo.getJSONObject("labels").length() > 0;
@@ -212,14 +215,8 @@ public class ImpartialController {
 
             contentPane.setEnabledInfer(true);
             if (modelOutputs.containsKey(imageId)) {
-                ModelOutput output = modelOutputs.get(imageId);
-                contentPane.setTextInfer(
-                        "last run " + output.getTime() + ", epoch " + output.getEpoch()
-                );
-
                 contentPane.setEnabledInferAndEntropy(true);
             } else {
-                contentPane.setTextInfer("last run never");
                 contentPane.setEnabledInferAndEntropy(false);
             }
 
@@ -230,23 +227,8 @@ public class ImpartialController {
         }
     }
 
-    public void displayImage() {
-        String imageId = contentPane.getSelectedImageId();
-        try {
-            byte[] imageBytes = monaiClient.getDatastoreImage(imageId);
-
-            FileOutputStream stream = new FileOutputStream(imageFile.getAbsolutePath());
-            stream.write(imageBytes);
-            stream.close();
-        } catch (IOException e) {
-            showIOError(e);
-        }
-
-        final ImagePlus imp = new Opener().openImage(imageFile.getAbsolutePath());
-        displayImage(imp);
-    }
-
-    private void displayImage(ImagePlus imp) {
+    public void displayImage(String imageId) {
+        final ImagePlus imp = getImage(imageId);
         if (imageWindow == null) {
             imageWindow = new ImageWindow(imp);
             imageWindow.addComponentListener(new ComponentAdapter() {
@@ -266,17 +248,50 @@ public class ImpartialController {
         }
     }
 
-    public String[] getDatastoreSamples() {
+    private ImagePlus getImage(String imageId) {
         try {
-            JSONObject datastore = monaiClient.getDatastore();
+            byte[] imageBytes = monaiClient.getDatastoreImage(imageId);
 
-            Iterable<String> iterable = () -> datastore.getJSONObject("objects").keys();
-            return StreamSupport.stream(iterable.spliterator(), false)
-                    .toArray(String[]::new);
+            FileOutputStream stream = new FileOutputStream(imageFile.getAbsolutePath());
+            stream.write(imageBytes);
+            stream.close();
         } catch (IOException e) {
             showIOError(e);
-            return new String[0];
         }
+
+        return new Opener().openImage(imageFile.getAbsolutePath());
+    }
+
+    public JSONObject getDatastore() {
+        try {
+            JSONObject datastore = monaiClient.getDatastore();
+            JSONObject images = datastore.getJSONObject("objects");
+
+            String[] keys = JSONObject.getNames(images);
+            if (keys != null) {
+                for (String key : keys) {
+                    if (!monaiClient.headDatastoreImage(key)) {
+                        images.remove(key);
+                    }
+                }
+            }
+
+            return datastore;
+
+        } catch (IOException e) {
+            showIOError(e);
+            return new JSONObject();
+        }
+    }
+
+    public int getNumberOfChannels() {
+        JSONObject images = getImages();
+        if (images.length() == 0)
+            return 0;
+        String first_image_id = JSONObject.getNames(images)[0];
+        ImagePlus imp = getImage(first_image_id);
+
+        return imp.getProcessor().getNChannels();
     }
 
     public void displayLabel() {
@@ -319,6 +334,7 @@ public class ImpartialController {
             }
             contentPane.setEnabledLabel(true);
             contentPane.setSelectedLabel(true);
+            updateSampleList();
         } else {
             JOptionPane.showMessageDialog(contentPane,
                     "Please add at least one ROI using a selection tool",
@@ -333,9 +349,11 @@ public class ImpartialController {
         return datastore.getJSONObject("objects").getJSONObject(imageId);
     }
 
-    public void train() {
+    public void startTraining() {
+        getNumberOfChannels();
         JSONObject params = contentPane.getTrainParams();
-        String model = "impartial_" + params.getInt("num_channels");
+        validateTrainingParams(params);
+        String model = "impartial_" + numberOfChannels;
 
         try {
             monaiClient.deleteTrain();
@@ -347,8 +365,32 @@ public class ImpartialController {
         monitorTraining();
     }
 
+    private void validateTrainingParams(JSONObject params) {
+        if (params.getInt("max_epochs") < 1) {
+            JOptionPane.showMessageDialog(contentPane,
+                    "Maximum epochs must be greater than 0",
+                    "Invalid training parameters",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+        if (params.getInt("npatches_epoch") < 1) {
+            JOptionPane.showMessageDialog(contentPane,
+                    "Number of patches per epoch must be greater than 0",
+                    "Invalid training parameters",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+        if (params.getInt("early_stop_patience") < 1) {
+            JOptionPane.showMessageDialog(contentPane,
+                    "Early stop patience must be greater than 0",
+                    "Invalid training parameters",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+
     private void monitorTraining() {
-        SwingWorker<Void, Void> swingWorker = new SwingWorker<Void, Void>() {
+        trainWorker = new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws IOException, InterruptedException {
                 int lastEpoch = 0;
@@ -378,9 +420,29 @@ public class ImpartialController {
                     if (lastEpoch > 0)
                         showStatus(lastEpoch, maxEpochs, "Epoch: " + lastEpoch);
                 }
-
                 return null;
+            }
 
+            @Override
+            protected void done() {
+                int maxEpochs = getMaxEpochs();
+                contentPane.onTrainingStopped();
+                try {
+                    get();
+                    showStatus(maxEpochs, maxEpochs, "Training done after " + maxEpochs + " epochs");
+                } catch (ExecutionException e) {
+                    showStatus(0, maxEpochs, "Stopped");
+//                    printLogs();
+                    JOptionPane.showMessageDialog(contentPane,
+                            "An error occurred while training the model. Please check the logs for more information.",
+                            "Training stopped",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                } catch (CancellationException ignore) {
+                    showStatus(0, maxEpochs, "Stopped");
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             private void printLogs() {
@@ -388,27 +450,33 @@ public class ImpartialController {
                     System.out.println(monaiClient.getLogs());
                 } catch (IOException ignore) {
                 }
-
-            }
-
-            @Override
-            protected void done() {
-                int maxEpochs = getMaxEpochs();
-                try {
-                    get();
-                    showStatus(maxEpochs, maxEpochs, "Training done after " + maxEpochs + " epochs");
-                } catch (ExecutionException e) {
-                    showStatus(0, maxEpochs, "Stopped");
-                    printLogs();
-                    showIOError((IOException) e.getCause());
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-
             }
         };
 
-        swingWorker.execute();
+        trainWorker.execute();
+
+    }
+
+    private static boolean containsWords(String input, String[] words) {
+        return Arrays.stream(words).allMatch(input::contains);
+    }
+
+    private static int epochFromLog(String line) {
+        String regex = "Epoch:\\s(.*?)\\/\\d+";
+        Pattern p = Pattern.compile(regex);
+        Matcher m = p.matcher(line);
+
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
+    }
+
+    public void stopTraining() {
+        try {
+            trainWorker.cancel(true);
+            contentPane.onTrainingStopped();
+            monaiClient.deleteTrain();
+        } catch (IOException e) {
+            showIOError(e);
+        }
     }
 
     public void infer() {
@@ -430,7 +498,7 @@ public class ImpartialController {
                 JSONObject params = new JSONObject();
                 params.put("threshold", (Float) contentPane.getThreshold());
 
-                String model = "impartial_" + contentPane.getTrainParams().getInt("num_channels");
+                String model = "impartial_" + numberOfChannels;
                 JSONObject modelOutput = monaiClient.postInferJson(model, imageId, params);
 
                 modelOutput.put("epoch", currentEpoch);
@@ -481,16 +549,6 @@ public class ImpartialController {
         swingWorker.execute();
     }
 
-    private void inferPerformed(String imageId) {
-        ModelOutput modelOutput = modelOutputs.get(imageId);
-        contentPane.inferPerformed(
-                modelOutput.getEpoch(),
-                modelOutput.getTime()
-        );
-
-        displayInfer();
-    }
-
     public void displayInfer() {
         String imageId = contentPane.getSelectedImageId();
         FloatProcessor processor = modelOutputs.get(imageId).getOutput();
@@ -535,7 +593,6 @@ public class ImpartialController {
 
         ImagePlus image = imageWindow.getImagePlus();
         image.setOverlay(overlay);
-
     }
 
     public FloatProcessor jsonArrayToProcessor(JSONArray input) {
@@ -548,22 +605,6 @@ public class ImpartialController {
             JSONArray row = input.getJSONArray(i);
             for (int j = 0; j < row.length(); j++) {
                 processor.setf(j, i, (float) row.getDouble(j) * 255);
-            }
-        }
-
-        return processor;
-    }
-
-    public ColorProcessor jsonArrayToColorProcessor(JSONArray input) {
-        int width = input.length();
-        int height = input.getJSONArray(0).length();
-
-        ColorProcessor processor = new ColorProcessor(width, height);
-
-        for (int i = 0; i < input.length(); i++) {
-            JSONArray row = input.getJSONArray(i);
-            for (int j = 0; j < row.length(); j++) {
-                processor.putPixel(j, i, (int) (row.getDouble(j) * 255));
             }
         }
 
@@ -619,7 +660,20 @@ public class ImpartialController {
 
     public void uploadImage(File image) {
         try {
-            monaiClient.putDatastore(image);
+            String filePath = image.getAbsolutePath();
+            Opener opener = new Opener();
+            ImagePlus imp = opener.openImage(filePath);
+
+            if (numberOfChannels > 0 && imp.getProcessor().getNChannels() != numberOfChannels) {
+                JOptionPane.showMessageDialog(contentPane,
+                        "Image " + image.getName() + " has " + imp.getProcessor().getNChannels() + " channels, but the model expects " + numberOfChannels + " channels.",
+                        "Upload error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+            numberOfChannels = imp.getProcessor().getNChannels();
+            monaiClient.putDatastoreImage(image);
         } catch (IOException e) {
             showIOError(e);
         }
@@ -630,11 +684,6 @@ public class ImpartialController {
         if (res == JFileChooser.APPROVE_OPTION) {
             imageUploader.upload(fileChooser.getSelectedFiles());
         }
-    }
-
-    public void updateSampleList() {
-        String[] samples = getDatastoreSamples();
-        contentPane.populateSampleList(samples);
     }
 
     public void deleteSelectedImage() {
@@ -654,27 +703,36 @@ public class ImpartialController {
                 showIOError(e);
             }
 
+            numberOfChannels = getNumberOfChannels();
             updateSampleList();
-
             contentPane.setSelectedFirstImage();
         }
     }
 
+    public void updateSampleList() {
+        contentPane.populateSampleList(getImages());
+    }
+
+    public JSONObject getImages() {
+        return getDatastore().getJSONObject("objects");
+    }
+
     public void startSession() throws IOException {
         try {
-            String token = impartialClient.createSession().getString("token");
-            impartialClient.setToken(token);
+            String token = sessionClient.postSession(sessionId).getString("token");
+            sessionClient.setToken(token);
             monaiClient.setToken(token);
-
+            sessionId = sessionClient.getSessionDetails().getString("session_id");
+            scheduleEndOfSessionWarning(110);
         } catch (IOException e) {
             showIOError(e);
             throw e;
         }
     }
 
-    public JSONObject getSessionStatus() throws IOException {
+    public JSONObject getSessionDetails() throws IOException {
         try {
-            return impartialClient.sessionStatus();
+            return sessionClient.getSessionDetails();
         } catch (IOException e) {
             showIOError(e);
             throw e;
@@ -682,7 +740,7 @@ public class ImpartialController {
     }
 
     public void downloadModelCheckpoint() {
-        String model = "impartial_" + contentPane.getTrainParams().getInt("num_channels");
+        String model = "impartial_" + numberOfChannels;
         fileChooser.setSelectedFile(new File(model + ".pt"));
         int res = fileChooser.showSaveDialog(mainFrame);
 
@@ -695,5 +753,56 @@ public class ImpartialController {
                 showIOError(e);
             }
         }
+    }
+
+    public JSONObject getSessions() {
+        try {
+            return sessionClient.getSessions();
+        } catch (IOException e) {
+            showIOError(e);
+            return null;
+        }
+    }
+
+    public JFrame getFrame() {
+        return mainFrame;
+    }
+
+    public void setSession(UserSession selectedSession) {
+        if (!sessionId.equals(selectedSession.getId())) {
+            sessionId = selectedSession.getId();
+            restoreSessionTask.run();
+            contentPane.setSession(selectedSession.getId());
+        }
+    }
+
+    private void scheduleEndOfSessionWarning(int delayInMinutes) {
+        if (endOfSessionWarningTask != null)
+            endOfSessionWarningTask.cancel();
+
+        endOfSessionWarningTask = new TimerTask() {
+            @Override
+            public void run() {
+                int choice = JOptionPane.showOptionDialog(null,
+                        "Your session is about to expire.", "Session expiration warning",
+                        JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE,
+                        null, new String[]{"Extend", "Ok"}, "Ok");
+
+                if (choice == JOptionPane.YES_OPTION) {
+                    try {
+                        sessionClient.extendSession();
+                        scheduleEndOfSessionWarning(25);
+                    } catch (IOException e) {
+                        showIOError(e);
+                    }
+                }
+            }
+        };
+
+        timer.schedule(endOfSessionWarningTask, 1000L * 60 * delayInMinutes);
+    }
+
+    public String getSessionId() {
+        return sessionId;
     }
 }

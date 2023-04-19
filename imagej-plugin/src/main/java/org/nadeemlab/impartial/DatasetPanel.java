@@ -1,5 +1,8 @@
 package org.nadeemlab.impartial;
 
+
+import org.json.JSONObject;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ItemEvent;
@@ -7,10 +10,11 @@ import java.awt.event.ItemListener;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.StreamSupport;
 
 public class DatasetPanel extends JPanel implements ItemListener {
     private final ImpartialController controller;
-    private final JButton submitLabelButton;
+    private JButton submitLabelButton;
     private ListModel listModel;
     private JList<Sample> list;
     private JCheckBox inferCheckBox;
@@ -18,38 +22,56 @@ public class DatasetPanel extends JPanel implements ItemListener {
     private JCheckBox labelCheckBox;
     private JButton uploadButton;
     private JButton deleteButton;
+    private JLabel imageCountLabel;
+    private JLabel labelCountLabel;
+    private JLabel channelCountLabel;
 
     DatasetPanel(ImpartialController controller) {
         this.controller = controller;
 
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setAlignmentX(LEFT_ALIGNMENT);
+
         JPanel mainPanel = new JPanel();
-        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.PAGE_AXIS));
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
 
         JPanel viewSelector = createViewSelector();
         viewSelector.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("dataset"),
+                BorderFactory.createTitledBorder("DATASET"),
                 BorderFactory.createEmptyBorder(5, 5, 5, 5))
         );
 
-        submitLabelButton = new JButton("submit label");
-        submitLabelButton.setEnabled(false);
-        submitLabelButton.addActionListener(e -> controller.submitLabel());
-
-        mainPanel.add(createDatasetButtons());
+        mainPanel.add(createImagePanel());
+        mainPanel.add(createLabelPanel());
+        mainPanel.add(createChannelsPanel());
         mainPanel.add(createSampleList());
         mainPanel.add(createViewSelector());
-        mainPanel.add(submitLabelButton);
 
         add(mainPanel);
     }
 
-    private JPanel createDatasetButtons() {
+    private JPanel createChannelsPanel() {
         JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.LINE_AXIS));
+        panel.setAlignmentX(LEFT_ALIGNMENT);
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
 
-        uploadButton = new JButton("upload");
+        channelCountLabel = new JLabel("<html> <strong>channels</strong> 0");
+
+        panel.add(channelCountLabel);
+
+        return panel;
+    }
+
+    private JPanel createImagePanel() {
+        JPanel panel = new JPanel();
+        panel.setAlignmentX(LEFT_ALIGNMENT);
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+
+        imageCountLabel = new JLabel("<html> <strong>images</strong> 0");
+
+        uploadButton = new JButton("add");
         uploadButton.setEnabled(false);
         uploadButton.addActionListener(e -> controller.uploadImages());
 
@@ -57,13 +79,38 @@ public class DatasetPanel extends JPanel implements ItemListener {
         deleteButton.setEnabled(false);
         deleteButton.addActionListener(e -> controller.deleteSelectedImage());
 
+        panel.add(imageCountLabel);
+        panel.add(Box.createHorizontalGlue());
         panel.add(uploadButton);
         panel.add(deleteButton);
 
         return panel;
     }
 
-    private JScrollPane createSampleList() {
+    private JPanel createLabelPanel() {
+        JPanel panel = new JPanel();
+        panel.setAlignmentX(LEFT_ALIGNMENT);
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+
+        labelCountLabel = new JLabel("<html> <strong>labels</strong> &nbsp; 0");
+
+        submitLabelButton = new JButton("submit");
+        submitLabelButton.setEnabled(false);
+        submitLabelButton.addActionListener(e -> controller.submitLabel());
+
+        panel.add(labelCountLabel);
+        panel.add(Box.createHorizontalGlue());
+        panel.add(submitLabelButton);
+
+        return panel;
+    }
+
+
+    private JPanel createSampleList() {
+        JPanel panel = new JPanel();
+        panel.setAlignmentX(LEFT_ALIGNMENT);
+        panel.setLayout(new FlowLayout(FlowLayout.LEFT));
+
         listModel = new ListModel();
 
         //Create the list and put it in a scroll pane.
@@ -74,7 +121,8 @@ public class DatasetPanel extends JPanel implements ItemListener {
         list.setVisibleRowCount(5);
 
         JScrollPane listScroller = new JScrollPane(list);
-        listScroller.setPreferredSize(new Dimension(200, 150));
+        listScroller.setAlignmentX(LEFT_ALIGNMENT);
+        listScroller.setPreferredSize(new Dimension(240, 150));
         listScroller.setBorder(BorderFactory.createLineBorder(Color.lightGray));
 
         list.addListSelectionListener(e -> {
@@ -83,12 +131,15 @@ public class DatasetPanel extends JPanel implements ItemListener {
             }
         });
 
-        return listScroller;
+        panel.add(listScroller);
+
+        return panel;
     }
 
     private JPanel createViewSelector() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.LINE_AXIS));
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         labelCheckBox = new JCheckBox("label");
         labelCheckBox.setEnabled(false);
@@ -110,15 +161,34 @@ public class DatasetPanel extends JPanel implements ItemListener {
         return panel;
     }
 
-    public void populateSampleList(String[] samples) {
+    public void populateSampleList(JSONObject images) {
         if (!listModel.isEmpty()) {
             listModel.clear();
         }
+
+        Iterable<String> iterable = images::keys;
+        String[] samples = StreamSupport.stream(iterable.spliterator(), false)
+                .toArray(String[]::new);
 
         Arrays.sort(samples);
         for (String sample : samples) {
             listModel.addElement(new Sample(sample, ""));
         }
+
+        imageCountLabel.setText(String.format("<html> <strong>images</strong> %d", images.length()));
+
+        int labelsCount = 0;
+        String[] keys = JSONObject.getNames(images);
+        if (keys != null) {
+            for (String key : keys) {
+                if (images.getJSONObject(key).getJSONObject("labels").length() > 0)
+                    labelsCount++;
+            }
+        }
+        labelCountLabel.setText(String.format("<html> <strong>labels</strong> &nbsp; %d", labelsCount));
+
+        String numberOfChannels = String.valueOf(controller.getNumberOfChannels());
+        channelCountLabel.setText(String.format("<html> <strong>channels</strong> %s", numberOfChannels));
     }
 
     public String getSelectedImageId() {
@@ -152,6 +222,8 @@ public class DatasetPanel extends JPanel implements ItemListener {
 
     @Override
     public void itemStateChanged(ItemEvent e) {
+        if (listModel.isEmpty())
+            return;
         controller.updateDisplay();
     }
 
@@ -180,21 +252,31 @@ public class DatasetPanel extends JPanel implements ItemListener {
             list.setSelectedIndex(0);
     }
 
-    public void onConnected() {
+    public void onStarted() {
         uploadButton.setEnabled(true);
         deleteButton.setEnabled(true);
+
+        JSONObject datastore = controller.getDatastore();
+        populateSampleList(datastore.getJSONObject("objects"));
+
+        setSelectedFirstImage();
     }
 
     public void setSelectedLabel(boolean b) {
         labelCheckBox.setSelected(b);
     }
 
-    public void onDisconnected() {
+    public void onStopped() {
+        listModel.clear();
         setSelectedAll(false);
         setEnabledAll(false);
-        listModel.clear();
         uploadButton.setEnabled(false);
         deleteButton.setEnabled(false);
+        submitLabelButton.setEnabled(false);
+
+        imageCountLabel.setText("<html> <strong>images</strong> 0");
+        labelCountLabel.setText("<html> <strong>labels</strong> &nbsp; 0");
+        channelCountLabel.setText("<html> <strong>channels</strong> 0");
     }
 
     public void setSelectedAll(boolean b) {
@@ -209,3 +291,5 @@ public class DatasetPanel extends JPanel implements ItemListener {
         entropyCheckBox.setEnabled(b);
     }
 }
+
+
