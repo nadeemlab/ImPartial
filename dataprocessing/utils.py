@@ -12,17 +12,15 @@ from scipy import ndimage
 from skimage import morphology, measure
 
 
-
 def read_image(path):
-
-    extension = path.split(".")[-1].lower()
+    extension = os.path.splitext(path)[-1][1:].lower()
 
     if extension == "png":
         image = np.array(Image.open(path))
-
-    if extension == "tiff" or extension == "tif":
+    elif extension in ("tiff", "tif"):
         image = tiff.imread(path)
-
+    else:
+        raise RuntimeError(f"File type '{extension}' not supported from path '{path}'")
 
     if len(image.shape) == 2:
         image = image[np.newaxis, ...]
