@@ -1,4 +1,4 @@
-FROM projectmonai/monailabel:0.5.1
+FROM projectmonai/monailabel:latest
 
 ENV APP_HOME /opt/monai
 
