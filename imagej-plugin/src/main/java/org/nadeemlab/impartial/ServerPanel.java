@@ -129,6 +129,8 @@ public class ServerPanel extends JPanel {
             selectSessionButton.setEnabled(false);
             startStopButton.setEnabled(false);
             if (startStopButton.getText().equals("start")) {
+                if (!requestServerCheckBox.isSelected())
+                    url = monaiUrlTextField.getText();
                 controller.start();
             } else {
                 controller.stop();
