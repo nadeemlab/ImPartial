@@ -479,7 +479,6 @@ public class ImpartialController {
     public void stopTraining() {
         try {
             trainWorker.cancel(true);
-            contentPane.onTrainingStopped();
             monaiClient.deleteTrain();
         } catch (IOException e) {
             showIOError(e);

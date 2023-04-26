@@ -10,7 +10,6 @@ public class TrainPanel extends JPanel {
     private final JPanel patchesPanel;
     private final JPanel patiencePanel;
     private final JButton startStopButton;
-    private boolean isTraining = false;
 
     TrainPanel(ImpartialController controller) {
 
@@ -43,14 +42,13 @@ public class TrainPanel extends JPanel {
         startStopButton.setEnabled(false);
 
         startStopButton.addActionListener(e -> {
-            if (isTraining) {
-                controller.stopTraining();
-                startStopButton.setText("train");
-            } else {
+            if (startStopButton.getText().equals("train")) {
                 controller.startTraining();
                 startStopButton.setText("stop");
+            } else {
+                controller.stopTraining();
+                startStopButton.setText("train");
             }
-            isTraining = !isTraining;
         });
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -94,13 +92,7 @@ public class TrainPanel extends JPanel {
         startStopButton.setEnabled(false);
     }
 
-    public void onTrainingStarted() {
-        startStopButton.setText("stop");
-        isTraining = true;
-    }
-
     public void onTrainingStopped() {
         startStopButton.setText("train");
-        isTraining = false;
     }
 }
