@@ -291,7 +291,14 @@ public class ImpartialController {
         String first_image_id = JSONObject.getNames(images)[0];
         ImagePlus imp = getImage(first_image_id);
 
-        return imp.getProcessor().getNChannels();
+        return getNumberOfChannels(imp);
+    }
+
+    private int getNumberOfChannels(ImagePlus imp) {
+        if (imp.isComposite())
+            return imp.getNChannels();
+        else
+            return imp.getProcessor().getNChannels();
     }
 
     public void displayLabel() {
@@ -350,7 +357,7 @@ public class ImpartialController {
     }
 
     public void startTraining() {
-        getNumberOfChannels();
+        numberOfChannels = getNumberOfChannels();
         JSONObject params = contentPane.getTrainParams();
         validateTrainingParams(params);
         String model = "impartial_" + numberOfChannels;
@@ -664,7 +671,7 @@ public class ImpartialController {
             Opener opener = new Opener();
             ImagePlus imp = opener.openImage(filePath);
 
-            if (numberOfChannels > 0 && imp.getProcessor().getNChannels() != numberOfChannels) {
+            if (numberOfChannels > 0 && getNumberOfChannels(imp) != numberOfChannels) {
                 JOptionPane.showMessageDialog(contentPane,
                         "Image " + image.getName() + " has " + imp.getProcessor().getNChannels() + " channels, but the model expects " + numberOfChannels + " channels.",
                         "Upload error",
@@ -672,7 +679,8 @@ public class ImpartialController {
                 );
                 return;
             }
-            numberOfChannels = imp.getProcessor().getNChannels();
+
+            numberOfChannels = getNumberOfChannels(imp);
             monaiClient.putDatastoreImage(image);
         } catch (IOException e) {
             showIOError(e);
