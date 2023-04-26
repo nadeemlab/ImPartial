@@ -42,11 +42,9 @@ public class RestoreSessionTask implements PropertyChangeListener {
      * Invoked when task's progress property changes.
      */
     public void propertyChange(PropertyChangeEvent e) {
-        if (e.getPropertyName().equals("progress")) {
-            if (task.isDone()) {
-                dialog.setVisible(false);
-                dialog.dispose();
-            }
+        if (task.isDone() || task.isCancelled()) {
+            dialog.setVisible(false);
+            dialog.dispose();
         }
     }
 
@@ -65,7 +63,7 @@ public class RestoreSessionTask implements PropertyChangeListener {
         @Override
         public void done() {
             Toolkit.getDefaultToolkit().beep();
-            if (isCancelled()) controller.stop();
+            if (isCancelled()) controller.onStopped();
             else controller.onStarted();
         }
     }
