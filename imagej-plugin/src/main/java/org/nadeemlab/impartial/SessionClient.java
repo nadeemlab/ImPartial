@@ -80,10 +80,10 @@ public class SessionClient extends BaseApiClient {
         }
     }
 
-    public JSONObject postSession(String sessionId) throws IOException {
+    public JSONObject postSession(String userId) throws IOException {
         HttpUrl.Builder httpUrlBuilder = getHttpUrlBuilder();
         httpUrlBuilder.addPathSegments("session");
-        httpUrlBuilder.addQueryParameter("session_id", sessionId);
+        httpUrlBuilder.addQueryParameter("user_id", userId);
 
         HttpUrl url = httpUrlBuilder.build();
 

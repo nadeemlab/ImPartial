@@ -17,6 +17,7 @@ public class ServerPanel extends JPanel {
     private final JTextField monaiUrlTextField;
     private final JPanel sessionPanel;
     private JLabel sessionLabel;
+    private JLabel usernameLabel;
     private JCheckBox requestServerCheckBox;
     private JButton startStopButton;
     private String url = "http://localhost:8000";
@@ -41,6 +42,7 @@ public class ServerPanel extends JPanel {
         sessionPanel = createSessionPanel();
         sessionPanel.setVisible(false);
 
+        add(createUserPanel());
         add(monaiUrlTextField);
         add(createButtonsPanel());
         add(sessionPanel);
@@ -110,6 +112,21 @@ public class ServerPanel extends JPanel {
         scrollPane.setPreferredSize(new Dimension(500, 500));
         JOptionPane.showMessageDialog(null, scrollPane, "ImPartial Terms of Use",
                 JOptionPane.WARNING_MESSAGE);
+    }
+
+    private JPanel createUserPanel() {
+        JPanel userPanel = new JPanel();
+        userPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        userPanel.setAlignmentX(LEFT_ALIGNMENT);
+
+        usernameLabel = new JLabel(
+                String.format("<html> <strong>user</strong> %s</html>",  controller.getUserId())
+        );
+        userPanel.setToolTipText("username of the currently logged-in user on the operating system");
+
+        userPanel.add(usernameLabel);
+
+        return userPanel;
     }
 
     private JPanel createButtonsPanel() {

@@ -154,6 +154,10 @@ public class ImpartialController {
         }
     }
 
+    public String getUserId() {
+        return System.getProperty("user.name").toLowerCase();
+    }
+
     public void onStarted() {
         if (contentPane.getRequestServerCheckBox()) {
             contentPane.setSession(sessionId);
@@ -191,7 +195,7 @@ public class ImpartialController {
             String token = sessionClient.restoreSession(sessionId).getString("token");
             monaiClient.setToken(token);
             sessionClient.setToken(token);
-            sessionId = sessionClient.getSessionDetails().getString("session_id");
+            this.sessionId = sessionClient.getSessionDetails().getString("session_id");
         } catch (IOException e) {
             showIOError(e);
             throw e;
@@ -726,7 +730,7 @@ public class ImpartialController {
 
     public void startSession() throws IOException {
         try {
-            String token = sessionClient.postSession(sessionId).getString("token");
+            String token = sessionClient.postSession(getUserId()).getString("token");
             sessionClient.setToken(token);
             monaiClient.setToken(token);
             sessionId = sessionClient.getSessionDetails().getString("session_id");
