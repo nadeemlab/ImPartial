@@ -51,7 +51,7 @@ public class TrainPanel extends JPanel {
             }
         });
 
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         buttonPanel.setAlignmentX(LEFT_ALIGNMENT);
         buttonPanel.add(startStopButton);
 
@@ -60,9 +60,8 @@ public class TrainPanel extends JPanel {
     }
 
     private JPanel createParamPanel(String name, int value) {
-        JPanel paramPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel paramPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         paramPanel.setAlignmentX(LEFT_ALIGNMENT);
-        paramPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
 
         paramPanel.add(new JLabel(String.format("<html> <strong>%s</strong> &nbsp;", name)));
         paramPanel.add(new JTextField(String.valueOf(value), 3));
