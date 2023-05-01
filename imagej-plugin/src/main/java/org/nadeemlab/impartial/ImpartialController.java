@@ -735,6 +735,15 @@ public class ImpartialController {
     }
 
     public void uploadModelCheckpoint() {
+        if (numberOfChannels == 0) {
+            JOptionPane.showMessageDialog(contentPane,
+                    "Please upload an image first.",
+                    "Upload error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
         String model = "impartial_" + numberOfChannels;
         int res = fileChooser.showOpenDialog(mainFrame);
         if (res == JFileChooser.APPROVE_OPTION) {
