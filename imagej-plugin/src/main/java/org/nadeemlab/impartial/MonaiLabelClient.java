@@ -42,6 +42,28 @@ public class MonaiLabelClient extends BaseApiClient {
         }
     }
 
+    public void putModel(String model, File file) throws IOException {
+        RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("file", file.getName(), RequestBody.create(MediaType.parse("application/octet-stream"), file))
+                .build();
+
+        HttpUrl url = getHttpUrlBuilder()
+                .addPathSegments("model/" + model)
+                .build();
+
+        Request request = getRequestBuilder()
+                .url(url)
+                .addHeader("accept", "application/json")
+                .addHeader("Content-Type", "multipart/form-data")
+                .put(requestBody)
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            raiseForStatus(response);
+        }
+    }
+
     public JSONObject postInferJson(String model, String imageId, JSONObject params) throws IOException {
         RequestBody body = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)

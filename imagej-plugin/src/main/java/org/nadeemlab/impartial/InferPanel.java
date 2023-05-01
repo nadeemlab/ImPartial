@@ -9,6 +9,7 @@ public class InferPanel extends JPanel {
     private final JLabel thresholdValue;
     private JButton inferButton;
     private JButton downloadButton;
+    private JButton uploadButton;
     private final JSlider thresholdSlider = new JSlider(JSlider.HORIZONTAL, 0, 100, 50);
 
     InferPanel(ImpartialController controller) {
@@ -41,8 +42,9 @@ public class InferPanel extends JPanel {
         panel.add(thresholdValue);
         panel.add(createThresholdSlider());
 
+        add(createModelPanel());
         add(panel);
-        add(createModelButtons());
+        add(createInferButtonPanel());
     }
 
     private JPanel createThresholdSlider() {
@@ -79,20 +81,40 @@ public class InferPanel extends JPanel {
         return sliderPanel;
     }
 
-    private JPanel createModelButtons() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+    private JPanel createModelPanel() {
+//        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel modelLabel = new JLabel("model");
+        modelLabel.setFont(modelLabel.getFont().deriveFont(Font.BOLD));
+
+        downloadButton = new JButton("download");
+        downloadButton.addActionListener(e -> controller.downloadModelCheckpoint());
+        downloadButton.setEnabled(false);
+
+        uploadButton = new JButton("upload");
+        uploadButton.addActionListener(e -> controller.uploadModelCheckpoint());
+        uploadButton.setEnabled(false);
+
+        panel.add(modelLabel);
+        panel.add(Box.createHorizontalGlue());
+        panel.add(uploadButton);
+        panel.add(downloadButton);
+
+        return panel;
+    }
+
+    private JPanel createInferButtonPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         inferButton = new JButton("Infer");
         inferButton.addActionListener(e -> controller.infer());
         inferButton.setEnabled(false);
 
-        downloadButton = new JButton("Download");
-        downloadButton.addActionListener(e -> controller.downloadModelCheckpoint());
-        downloadButton.setEnabled(false);
-
         panel.add(inferButton);
-        panel.add(downloadButton);
 
         return panel;
     }
@@ -112,12 +134,14 @@ public class InferPanel extends JPanel {
     public void onStarted() {
         thresholdSlider.setEnabled(true);
         inferButton.setEnabled(true);
+        uploadButton.setEnabled(true);
         downloadButton.setEnabled(true);
     }
 
     public void onStopped() {
         thresholdSlider.setEnabled(false);
         inferButton.setEnabled(false);
+        uploadButton.setEnabled(false);
         downloadButton.setEnabled(false);
     }
 }

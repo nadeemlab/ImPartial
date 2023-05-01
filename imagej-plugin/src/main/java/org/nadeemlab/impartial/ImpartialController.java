@@ -734,6 +734,18 @@ public class ImpartialController {
         }
     }
 
+    public void uploadModelCheckpoint() {
+        String model = "impartial_" + numberOfChannels;
+        int res = fileChooser.showOpenDialog(mainFrame);
+        if (res == JFileChooser.APPROVE_OPTION) {
+            try {
+                monaiClient.putModel(model, fileChooser.getSelectedFile());
+            } catch (IOException e) {
+                showIOError(e);
+            }
+        }
+    }
+
     public JSONObject getSessions() {
         try {
             return sessionClient.getSessions();
