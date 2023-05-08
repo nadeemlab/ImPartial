@@ -1,19 +1,34 @@
 package org.nadeemlab.impartial;
 
+import okhttp3.FormBody;
 import okhttp3.HttpUrl;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.net.URL;
 
 public class SessionClient extends BaseApiClient {
-    public SessionClient() {
-        super();
+    private String token;
 
-       protocol = "https";
-       host = "impartial.mskcc.org";
-       port = 443;
+    public SessionClient(URL url) {
+        super(url);
+//       protocol = "https";
+//       host = "impartial.mskcc.org";
+//       host = "internal-alb-e06a1e5-1248497720.us-east-1.elb.amazonaws.com";
+//       port = 443;
+
+//       protocol = "http";
+//       host = "localhost";
+//       port = 5000;
+    }
+
+    protected Request.Builder getRequestBuilder() {
+        Request.Builder builder = new Request.Builder();
+        builder.addHeader("Authorization", token);
+
+        return builder;
     }
 
     public JSONObject getSessions() throws IOException {
@@ -62,7 +77,7 @@ public class SessionClient extends BaseApiClient {
         }
     }
 
-    public JSONObject restoreSession(String sessionId) throws IOException {
+    public void restoreSession(String sessionId) throws IOException {
         HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("session")
                 .addPathSegments("restore")
@@ -76,25 +91,23 @@ public class SessionClient extends BaseApiClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             raiseForStatus(response);
-            return new JSONObject(response.body().string());
         }
     }
 
-    public JSONObject postSession(String sessionId) throws IOException {
+    public String postSession() throws IOException {
         HttpUrl.Builder httpUrlBuilder = getHttpUrlBuilder();
         httpUrlBuilder.addPathSegments("session");
-        httpUrlBuilder.addQueryParameter("session_id", sessionId);
 
         HttpUrl url = httpUrlBuilder.build();
 
-        Request request = new Request.Builder()
+        Request request = getRequestBuilder()
                 .url(url)
                 .post(emptyBody)
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
             raiseForStatus(response);
-            return new JSONObject(response.body().string());
+            return new JSONObject(response.body().string()).getString("session_id");
         }
     }
 
@@ -114,4 +127,26 @@ public class SessionClient extends BaseApiClient {
         }
     }
 
+    public String postLogin(String username, String password) throws IOException {
+        HttpUrl url = getHttpUrlBuilder()
+                .addPathSegments("login")
+                .build();
+
+        Request request = new Request.Builder()
+                .url(url)
+                .post(new FormBody.Builder()
+                        .add("username", username)
+                        .add("password", password)
+                        .build())
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            raiseForStatus(response);
+            return new JSONObject(response.body().string()).getString("token");
+        }
+    }
+
+    public void setToken(String token) {
+        this.token = token;
+    }
 }

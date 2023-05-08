@@ -50,7 +50,7 @@ public class CapacityProvider implements PropertyChangeListener {
     class Task extends SwingWorker<Void, Void> {
         @Override
         public Void doInBackground() {
-            progressMonitor.setNote("validating token");
+            progressMonitor.setNote("validating user");
             setProgress(20);
 
             try {

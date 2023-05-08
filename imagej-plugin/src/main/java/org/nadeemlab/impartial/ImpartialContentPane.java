@@ -52,12 +52,12 @@ public class ImpartialContentPane extends JPanel {
     }
 
     // Server
-    public boolean getRequestServerCheckBox() {
-        return serverPanel.getRequestServerCheckBox();
-    }
-
     public URL getUrl() throws MalformedURLException {
         return serverPanel.getUrl();
+    }
+
+    public boolean getRequestServerCheckBox() {
+        return serverPanel.getRequestServerCheckBox();
     }
 
     public void setSession(String session_id) {
@@ -130,7 +130,6 @@ public class ImpartialContentPane extends JPanel {
         setEnabledInferAndEntropy(true);
         setSelectedInfer(true);
     }
-
 
     // Train
     public JSONObject getTrainParams() {
