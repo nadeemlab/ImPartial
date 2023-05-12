@@ -82,19 +82,18 @@ public class InferPanel extends JPanel {
     }
 
     private JPanel createModelPanel() {
-//        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
 
-        JLabel modelLabel = new JLabel("model");
-        modelLabel.setFont(modelLabel.getFont().deriveFont(Font.BOLD));
+        JLabel modelLabel = new JLabel("Model");
 
-        downloadButton = new JButton("download");
+        downloadButton = new JButton("Download");
         downloadButton.addActionListener(e -> controller.downloadModelCheckpoint());
         downloadButton.setEnabled(false);
 
-        uploadButton = new JButton("upload");
+        uploadButton = new JButton("Upload");
         uploadButton.addActionListener(e -> controller.uploadModelCheckpoint());
         uploadButton.setEnabled(false);
 
