@@ -14,14 +14,6 @@ public class SessionClient extends BaseApiClient {
 
     public SessionClient(URL url) {
         super(url);
-//       protocol = "https";
-//       host = "impartial.mskcc.org";
-//       host = "internal-alb-e06a1e5-1248497720.us-east-1.elb.amazonaws.com";
-//       port = 443;
-
-//       protocol = "http";
-//       host = "localhost";
-//       port = 5000;
     }
 
     protected Request.Builder getRequestBuilder() {

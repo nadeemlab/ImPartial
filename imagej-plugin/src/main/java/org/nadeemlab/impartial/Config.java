@@ -8,7 +8,7 @@ public class Config {
 
     static {
         try {
-            API_URL = new URL("http://localhost:5000");
+            API_URL = new URL("https://impartial.mskcc.org:443");
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
