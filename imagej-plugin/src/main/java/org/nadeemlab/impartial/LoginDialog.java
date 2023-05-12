@@ -20,7 +20,7 @@ public class LoginDialog extends JDialog {
 
         cs.fill = GridBagConstraints.HORIZONTAL;
 
-        JLabel usernameLabel = new JLabel("username");
+        JLabel usernameLabel = new JLabel("Username");
         cs.gridx = 0;
         cs.gridy = 0;
         cs.gridwidth = 1;
@@ -32,7 +32,7 @@ public class LoginDialog extends JDialog {
         cs.gridwidth = 2;
         panel.add(usernameField, cs);
 
-        JLabel passwordLabel = new JLabel("password");
+        JLabel passwordLabel = new JLabel("Password");
         cs.gridx = 0;
         cs.gridy = 1;
         cs.gridwidth = 1;

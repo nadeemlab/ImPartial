@@ -200,7 +200,7 @@ public class ImpartialController {
             boolean hasLabel = imageInfo.getJSONObject("labels").length() > 0;
 
             contentPane.setEnabledLabel(hasLabel);
-            contentPane.setEnabledSubmit(hasLabel && contentPane.getSelectedViews().contains("label"));
+            contentPane.setEnabledSubmit(hasLabel && contentPane.getSelectedViews().contains("Label"));
             if (!hasLabel)
                 contentPane.setSelectedLabel(false);
 
@@ -608,14 +608,14 @@ public class ImpartialController {
             ImagePlus image = imageWindow.getImagePlus();
             image.setHideOverlay(true);
 
-            if (selected.contains("entropy")) displayEntropy();
-            if (selected.contains("label")) displayLabel();
-            if (selected.contains("infer")) displayInfer();
+            if (selected.contains("Entropy")) displayEntropy();
+            if (selected.contains("Label")) displayLabel();
+            if (selected.contains("Infer")) displayInfer();
 
             String imageId = contentPane.getSelectedImageId();
             boolean hasLabel = getImageInfo(imageId).getJSONObject("labels").length() > 0;
             contentPane.setEnabledSubmit(
-                    !selected.contains("infer") && (!hasLabel || selected.contains("label"))
+                    !selected.contains("Infer") && (!hasLabel || selected.contains("Label"))
             );
 
             resetLayout();

@@ -17,7 +17,7 @@ public class CapacityProvider implements PropertyChangeListener {
 
     public void provisionServer() {
         progressMonitor = new ProgressMonitor(
-                controller.getContentPane(), "request server...", "", 0, 100
+                controller.getContentPane(), "Server request...", "", 0, 100
         );
 
         progressMonitor.setProgress(0);

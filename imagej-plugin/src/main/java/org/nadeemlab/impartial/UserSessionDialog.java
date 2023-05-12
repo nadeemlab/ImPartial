@@ -17,7 +17,7 @@ class UserSessionDialog extends JDialog {
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setSize(400, 300);
 
-        sessionTableModel = new DefaultTableModel(new Object[]{"id", "date", "images", "labels"}, 0) {
+        sessionTableModel = new DefaultTableModel(new Object[]{"Id", "Date", "Images", "Labels"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -40,7 +40,7 @@ class UserSessionDialog extends JDialog {
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(scrollPane, BorderLayout.CENTER);
 
-        JButton selectButton = new JButton("select");
+        JButton selectButton = new JButton("Select");
         selectButton.addActionListener(e -> {
             int selectedRow = sessionTable.getSelectedRow();
             if (selectedRow != -1) {
@@ -50,7 +50,7 @@ class UserSessionDialog extends JDialog {
             }
         });
 
-        JButton cancelButton = new JButton("cancel");
+        JButton cancelButton = new JButton("Cancel");
         cancelButton.addActionListener(e -> dispose());
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));

@@ -25,11 +25,17 @@ public class ImpartialContentPane extends JPanel {
         serverPanel = new ServerPanel(controller);
         mainPanel.add(serverPanel);
 
+        mainPanel.add(new JSeparator(SwingConstants.HORIZONTAL));
+
         datasetPanel = new DatasetPanel(controller);
         mainPanel.add(datasetPanel);
 
+        mainPanel.add(new JSeparator(SwingConstants.HORIZONTAL));
+
         inferPanel = new InferPanel(controller);
         mainPanel.add(inferPanel);
+
+        mainPanel.add(new JSeparator(SwingConstants.HORIZONTAL));
 
         trainPanel = new TrainPanel(controller);
         mainPanel.add(trainPanel);

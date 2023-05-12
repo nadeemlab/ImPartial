@@ -18,9 +18,15 @@ public class InferPanel extends JPanel {
         setAlignmentX(LEFT_ALIGNMENT);
 
         setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("INFER"),
+                BorderFactory.createTitledBorder("Infer"),
                 BorderFactory.createEmptyBorder(5, 5, 5, 5))
         );
+        setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
+
+        JLabel title = new JLabel("Infer");
+        title.setFont(new Font("sans-serif", Font.PLAIN, 15));
+        add(title);
+        add(Box.createVerticalStrut(10));
 
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -29,7 +35,7 @@ public class InferPanel extends JPanel {
         thresholdValue = new JLabel();
         thresholdValue.setAlignmentX(LEFT_ALIGNMENT);
         thresholdValue.setText(
-                String.format("<html> <strong>threshold</strong> %.2f",  normalizeValue(thresholdSlider.getValue()))
+                String.format("Threshold %.2f",  normalizeValue(thresholdSlider.getValue()))
         );
 
         panel.add(thresholdValue);
@@ -59,7 +65,7 @@ public class InferPanel extends JPanel {
             JSlider source = (JSlider) e.getSource();
             int value = source.getValue();
             thresholdValue.setText(
-                    String.format("<html> <strong>threshold</strong> %.2f",  normalizeValue(value))
+                    String.format("Threshold %.2f",  normalizeValue(value))
             );
             controller.updateDisplay();
         });
@@ -77,11 +83,11 @@ public class InferPanel extends JPanel {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        inferButton = new JButton("infer");
+        inferButton = new JButton("Infer");
         inferButton.addActionListener(e -> controller.infer());
         inferButton.setEnabled(false);
 
-        downloadButton = new JButton("download");
+        downloadButton = new JButton("Download");
         downloadButton.addActionListener(e -> controller.downloadModelCheckpoint());
         downloadButton.setEnabled(false);
 
