@@ -23,6 +23,7 @@ import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.FloatType;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.scijava.Context;
 import org.scijava.app.StatusService;
@@ -66,9 +67,7 @@ public class ImpartialController {
     private int currentEpoch = 0;
     private TimerTask endOfSessionWarningTask;
     private SwingWorker<Void, Void> trainWorker;
-    private String sessionId = null;
     private int numberOfChannels = 0;
-    private final Properties props = new Properties();
     @Parameter
     private OpService ops;
     @Parameter
@@ -138,7 +137,7 @@ public class ImpartialController {
 
     public void start() {
         if (contentPane.getRequestServerCheckBox()) {
-            capacityProvider.provisionServer();
+            capacityProvider.run();
         } else {
             try {
                 monaiClient = new MonaiLabelClient(contentPane.getUrl());
@@ -154,7 +153,12 @@ public class ImpartialController {
 
     public void onStarted() {
         if (contentPane.getRequestServerCheckBox()) {
-            contentPane.setSession(sessionId);
+            try {
+                String sessionId = sessionClient.getSessionDetails().getString("session_id");
+                contentPane.setSession(sessionId);
+            } catch (IOException e) {
+                showIOError(e);
+            }
         }
         numberOfChannels = getNumberOfChannels();
         contentPane.onStarted();
@@ -174,7 +178,6 @@ public class ImpartialController {
     public void onStopped() {
         contentPane.onStopped();
         modelOutputs.clear();
-        sessionId = null;
         numberOfChannels = 0;
 
         if (imageWindow != null) {
@@ -698,12 +701,16 @@ public class ImpartialController {
     }
 
     public JSONObject getImages() {
-        return getDatastore().getJSONObject("objects");
+        try {
+            return getDatastore().getJSONObject("objects");
+        } catch (JSONException e) {
+            return new JSONObject();
+        }
     }
 
     public void startSession() throws IOException {
         try {
-            sessionId = sessionClient.postSession();
+            sessionClient.postSession();
             scheduleEndOfSessionWarning(110);
         } catch (IOException e) {
             showIOError(e);
@@ -780,11 +787,7 @@ public class ImpartialController {
     }
 
     public void setSession(UserSession selectedSession) {
-        if (!sessionId.equals(selectedSession.getId())) {
-            sessionId = selectedSession.getId();
-            restoreSessionTask.run();
-            contentPane.setSession(selectedSession.getId());
-        }
+        restoreSessionTask.run(selectedSession.getId());
     }
 
     private void scheduleEndOfSessionWarning(int delayInMinutes) {
@@ -811,10 +814,6 @@ public class ImpartialController {
         };
 
         timer.schedule(endOfSessionWarningTask, 1000L * 60 * delayInMinutes);
-    }
-
-    public String getSessionId() {
-        return sessionId;
     }
 
     public void login(String username, String password) throws IOException {

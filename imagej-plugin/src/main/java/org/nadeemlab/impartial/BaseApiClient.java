@@ -57,20 +57,20 @@ public class BaseApiClient {
 
     protected void raiseForStatus(Response res) throws IOException {
         if (!res.isSuccessful()) {
-            String name = res.message();
+            String message = res.message();
             String description = "";
             if (res.body() != null && res.body().contentLength() > 0) {
                 try {
                     JSONObject jsonRes = new JSONObject(res.body().string());
-                    if (jsonRes.has("name"))
-                        name = jsonRes.getString("name");
+                    if (jsonRes.has("message"))
+                        message = jsonRes.getString("message");
                     description = jsonRes.has("description") ?
                             jsonRes.getString("description") : jsonRes.getString("detail");
                 } catch (JSONException ignore) {}
             }
 
             throw new IOException(
-                    String.format("%d %s: %s", res.code(), name, description
+                    String.format("%d %s \n%s", res.code(), message, description
                     ));
         }
     }

@@ -4,7 +4,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.io.IOException;
 
 public class CapacityProvider implements PropertyChangeListener {
     private final ImpartialController controller;
@@ -15,7 +14,7 @@ public class CapacityProvider implements PropertyChangeListener {
         this.controller = controller;
     }
 
-    public void provisionServer() {
+    public void run() {
         progressMonitor = new ProgressMonitor(
                 controller.getContentPane(), "Server request...", "", 0, 100
         );
@@ -49,46 +48,38 @@ public class CapacityProvider implements PropertyChangeListener {
 
     class Task extends SwingWorker<Void, Void> {
         @Override
-        public Void doInBackground() {
+        public Void doInBackground() throws Exception {
             progressMonitor.setNote("validating user");
             setProgress(20);
 
-            try {
-                controller.startSession();
+            controller.startSession();
 
-                String lastStatus = controller.getSessionDetails().getString("last_status");
+            String lastStatus = controller.getSessionDetails().getString("last_status");
 
-                while (!lastStatus.equals("RUNNING") && !isCancelled() && !progressMonitor.isCanceled()) {
-                    Thread.sleep(1000);
-                    lastStatus = controller.getSessionDetails().getString("last_status");
+            while (!lastStatus.equals("RUNNING") && !isCancelled() && !progressMonitor.isCanceled()) {
+                Thread.sleep(1000);
+                lastStatus = controller.getSessionDetails().getString("last_status");
 
-                    if (lastStatus.equals("PROVISIONING")) {
-                        progressMonitor.setNote("provisioning server");
-                        setProgress(40);
-                    }
-                    else if (lastStatus.equals("PENDING")) {
-                        progressMonitor.setNote("task pending");
-                        setProgress(60);
-                    }
+                if (lastStatus.equals("PROVISIONING")) {
+                    progressMonitor.setNote("provisioning server");
+                    setProgress(40);
+                } else if (lastStatus.equals("PENDING")) {
+                    progressMonitor.setNote("task pending");
+                    setProgress(60);
                 }
+            }
 
-                progressMonitor.setNote("starting server");
-                setProgress(80);
+            progressMonitor.setNote("starting server");
+            setProgress(80);
 
-                String healthStatus = controller.getSessionDetails().getString("health_status");
-                while (!healthStatus.equals("HEALTHY") && !isCancelled() && !progressMonitor.isCanceled()) {
-                    Thread.sleep(1000);
-                    healthStatus = controller.getSessionDetails().getString("health_status");
-                }
+            String healthStatus = controller.getSessionDetails().getString("health_status");
+            while (!healthStatus.equals("HEALTHY") && !isCancelled() && !progressMonitor.isCanceled()) {
+                Thread.sleep(1000);
+                healthStatus = controller.getSessionDetails().getString("health_status");
+            }
 
-                progressMonitor.setNote("done");
-                setProgress(100);
-
-            } catch (IOException e) {
-                this.cancel(true);
-                progressMonitor.close();
-                return null;
-            } catch (InterruptedException ignore) {}
+            progressMonitor.setNote("done");
+            setProgress(100);
 
             return null;
         }
@@ -96,8 +87,17 @@ public class CapacityProvider implements PropertyChangeListener {
         @Override
         public void done() {
             Toolkit.getDefaultToolkit().beep();
-            if (isCancelled()) controller.stop();
-            else controller.onStarted();
+            progressMonitor.close();
+            if (isCancelled()) {
+                controller.stop();
+            } else {
+                try {
+                    get();
+                    controller.onStarted();
+                } catch (Exception e) {
+                    controller.stop();
+                }
+            }
         }
     }
 }

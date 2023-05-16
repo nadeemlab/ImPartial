@@ -57,7 +57,6 @@ public class BackgroundTaskRunner<Void> extends SwingWorker<Void, Void> {
     @Override
     protected void done() {
         Toolkit.getDefaultToolkit().beep();
-        dialog.dispose();
         if (isCancelled()) {
             onCancel.run();
         } else {
@@ -68,5 +67,6 @@ public class BackgroundTaskRunner<Void> extends SwingWorker<Void, Void> {
                 onException.accept(e);
             }
         }
+        dialog.dispose();
     }
 }

@@ -10,11 +10,12 @@ public class RestoreSessionTask implements PropertyChangeListener {
     private final ImpartialController controller;
     private JDialog dialog;
     private Task task;
+
     public RestoreSessionTask(ImpartialController controller) {
         this.controller = controller;
     }
 
-    public void run() {
+    public void run(String sessionId) {
         JOptionPane optionPane = new JOptionPane(
                 "Restoring session...",
                 JOptionPane.INFORMATION_MESSAGE,
@@ -33,7 +34,7 @@ public class RestoreSessionTask implements PropertyChangeListener {
         dialog.pack();
         dialog.setVisible(true);
 
-        task = new Task();
+        task = new Task(sessionId);
         task.addPropertyChangeListener(this);
         task.execute();
     }
@@ -49,10 +50,16 @@ public class RestoreSessionTask implements PropertyChangeListener {
     }
 
     class Task extends SwingWorker<Void, Void> {
+        private final String sessionId;
+
+        public Task(String sessionId) {
+            this.sessionId = sessionId;
+        }
+
         @Override
         public Void doInBackground() {
             try {
-                controller.restoreSession(controller.getSessionId());
+                controller.restoreSession(sessionId);
                 setProgress(100);
             } catch (IOException e) {
                 this.cancel(true);
