@@ -44,8 +44,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Timer;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -759,6 +761,36 @@ public class ImpartialController {
             } catch (IOException e) {
                 showIOError(e);
             }
+        }
+    }
+
+    public void uploadModelCheckpoint() {
+        if (numberOfChannels == 0) {
+            JOptionPane.showMessageDialog(contentPane,
+                    "Please upload an image first.",
+                    "Upload error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        String model = "impartial_" + numberOfChannels;
+        int res = fileChooser.showOpenDialog(mainFrame);
+        if (res == JFileChooser.APPROVE_OPTION) {
+            Callable<Void> task = () -> {
+                monaiClient.putModel(model, fileChooser.getSelectedFile());
+                return null;
+            };
+            Consumer<Exception> onError = e -> JOptionPane.showMessageDialog(contentPane,
+                    "Error uploading model checkpoint: " + e.getMessage(),
+                    "Upload error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+
+            BackgroundTaskRunner<Void> taskRunner = new BackgroundTaskRunner<>(
+                    this.mainFrame, "Uploading model", task, onError
+            );
+            taskRunner.execute();
         }
     }
 
