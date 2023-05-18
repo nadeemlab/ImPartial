@@ -5,23 +5,11 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 
 public class MonaiLabelClient extends BaseApiClient {
-    public MonaiLabelClient() {
-        super();
-
-        protocol = "http";
-        host = "localhost";
-        port = 8000;
-    }
-
-    protected HttpUrl.Builder getHttpUrlBuilder() {
-        HttpUrl.Builder builder = super.getHttpUrlBuilder();
-
-        if (token != null)
-            builder.addPathSegments("proxy");
-
-        return builder;
+    public MonaiLabelClient(URL url) {
+        super(url);
     }
 
     public JSONObject getInfo() throws IOException {

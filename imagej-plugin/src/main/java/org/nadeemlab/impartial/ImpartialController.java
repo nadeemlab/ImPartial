@@ -23,6 +23,7 @@ import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.FloatType;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.scijava.Context;
 import org.scijava.app.StatusService;
@@ -33,12 +34,7 @@ import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.image.IndexColorModel;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InterruptedIOException;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -56,13 +52,13 @@ public class ImpartialController {
     final JFileChooser fileChooser = new JFileChooser();
     private final JFrame mainFrame = new JFrame("ImPartial");
     private final ImpartialContentPane contentPane = new ImpartialContentPane(this);
-    private final MonaiLabelClient monaiClient = new MonaiLabelClient();
-    private final SessionClient sessionClient = new SessionClient();
+    private MonaiLabelClient monaiClient;
+    private final SessionClient sessionClient = new SessionClient(Config.API_URL);
     private final Hashtable<String, ModelOutput> modelOutputs = new Hashtable<>();
     private final CapacityProvider capacityProvider = new CapacityProvider(this);
     private final RestoreSessionTask restoreSessionTask = new RestoreSessionTask(this);
     private final ImageUploader imageUploader = new ImageUploader(this);
-    private final IndexColorModel redGreenLut = LutLoader.getLut("redgreen");;
+    private final IndexColorModel redGreenLut = LutLoader.getLut("redgreen");
     private final Timer timer = new Timer();
     LabelRegionToPolygonConverter regionToPolygonConverter = new LabelRegionToPolygonConverter();
     private ImageWindow imageWindow;
@@ -71,7 +67,6 @@ public class ImpartialController {
     private int currentEpoch = 0;
     private TimerTask endOfSessionWarningTask;
     private SwingWorker<Void, Void> trainWorker;
-    private String sessionId = null;
     private int numberOfChannels = 0;
     @Parameter
     private OpService ops;
@@ -94,6 +89,18 @@ public class ImpartialController {
 
         mainFrame.pack();
         mainFrame.setVisible(true);
+    }
+
+    private static boolean containsWords(String input, String[] words) {
+        return Arrays.stream(words).allMatch(input::contains);
+    }
+
+    private static int epochFromLog(String line) {
+        String regex = "Epoch:\\s(.*?)\\/\\d+";
+        Pattern p = Pattern.compile(regex);
+        Matcher m = p.matcher(line);
+
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
     }
 
     private void showIOError(IOException e) {
@@ -130,22 +137,10 @@ public class ImpartialController {
 
     public void start() {
         if (contentPane.getRequestServerCheckBox()) {
-            try {
-                monaiClient.setUrl(
-                        new URL(String.format("%s://%s:%s",
-                                sessionClient.getProtocol(),
-                                sessionClient.getHost(),
-                                sessionClient.getPort()
-                        ))
-                );
-            } catch (MalformedURLException ignore) {
-            }
-
-            capacityProvider.provisionServer();
-
+            capacityProvider.run();
         } else {
             try {
-                monaiClient.setUrl(contentPane.getUrl());
+                monaiClient = new MonaiLabelClient(contentPane.getUrl());
                 monaiClient.getInfo();
             } catch (IOException e) {
                 onStopped();
@@ -158,7 +153,12 @@ public class ImpartialController {
 
     public void onStarted() {
         if (contentPane.getRequestServerCheckBox()) {
-            contentPane.setSession(sessionId);
+            try {
+                String sessionId = sessionClient.getSessionDetails().getString("session_id");
+                contentPane.setSession(sessionId);
+            } catch (IOException e) {
+                showIOError(e);
+            }
         }
         numberOfChannels = getNumberOfChannels();
         contentPane.onStarted();
@@ -178,9 +178,6 @@ public class ImpartialController {
     public void onStopped() {
         contentPane.onStopped();
         modelOutputs.clear();
-        monaiClient.setToken(null);
-        sessionClient.setToken(null);
-        sessionId = null;
         numberOfChannels = 0;
 
         if (imageWindow != null) {
@@ -190,10 +187,7 @@ public class ImpartialController {
 
     public void restoreSession(String sessionId) throws IOException {
         try {
-            String token = sessionClient.restoreSession(sessionId).getString("token");
-            monaiClient.setToken(token);
-            sessionClient.setToken(token);
-            sessionId = sessionClient.getSessionDetails().getString("session_id");
+            sessionClient.restoreSession(sessionId);
         } catch (IOException e) {
             showIOError(e);
             throw e;
@@ -211,16 +205,12 @@ public class ImpartialController {
             boolean hasLabel = imageInfo.getJSONObject("labels").length() > 0;
 
             contentPane.setEnabledLabel(hasLabel);
-            contentPane.setEnabledSubmit(hasLabel && contentPane.getSelectedViews().contains("label"));
+            contentPane.setEnabledSubmit(hasLabel && contentPane.getSelectedViews().contains("Label"));
             if (!hasLabel)
                 contentPane.setSelectedLabel(false);
 
             contentPane.setEnabledInfer(true);
-            if (modelOutputs.containsKey(imageId)) {
-                contentPane.setEnabledInferAndEntropy(true);
-            } else {
-                contentPane.setEnabledInferAndEntropy(false);
-            }
+            contentPane.setEnabledInferAndEntropy(modelOutputs.containsKey(imageId));
 
             updateDisplay();
 
@@ -466,18 +456,6 @@ public class ImpartialController {
 
     }
 
-    private static boolean containsWords(String input, String[] words) {
-        return Arrays.stream(words).allMatch(input::contains);
-    }
-
-    private static int epochFromLog(String line) {
-        String regex = "Epoch:\\s(.*?)\\/\\d+";
-        Pattern p = Pattern.compile(regex);
-        Matcher m = p.matcher(line);
-
-        return m.find() ? Integer.parseInt(m.group(1)) : 0;
-    }
-
     public void stopTraining() {
         try {
             trainWorker.cancel(true);
@@ -635,14 +613,14 @@ public class ImpartialController {
             ImagePlus image = imageWindow.getImagePlus();
             image.setHideOverlay(true);
 
-            if (selected.contains("entropy")) displayEntropy();
-            if (selected.contains("label")) displayLabel();
-            if (selected.contains("infer")) displayInfer();
+            if (selected.contains("Entropy")) displayEntropy();
+            if (selected.contains("Label")) displayLabel();
+            if (selected.contains("Infer")) displayInfer();
 
             String imageId = contentPane.getSelectedImageId();
             boolean hasLabel = getImageInfo(imageId).getJSONObject("labels").length() > 0;
             contentPane.setEnabledSubmit(
-                    !selected.contains("infer") && (!hasLabel || selected.contains("label"))
+                    !selected.contains("Infer") && (!hasLabel || selected.contains("Label"))
             );
 
             resetLayout();
@@ -723,15 +701,16 @@ public class ImpartialController {
     }
 
     public JSONObject getImages() {
-        return getDatastore().getJSONObject("objects");
+        try {
+            return getDatastore().getJSONObject("objects");
+        } catch (JSONException e) {
+            return new JSONObject();
+        }
     }
 
     public void startSession() throws IOException {
         try {
-            String token = sessionClient.postSession(sessionId).getString("token");
-            sessionClient.setToken(token);
-            monaiClient.setToken(token);
-            sessionId = sessionClient.getSessionDetails().getString("session_id");
+            sessionClient.postSession();
             scheduleEndOfSessionWarning(110);
         } catch (IOException e) {
             showIOError(e);
@@ -808,11 +787,7 @@ public class ImpartialController {
     }
 
     public void setSession(UserSession selectedSession) {
-        if (!sessionId.equals(selectedSession.getId())) {
-            sessionId = selectedSession.getId();
-            restoreSessionTask.run();
-            contentPane.setSession(selectedSession.getId());
-        }
+        restoreSessionTask.run(selectedSession.getId());
     }
 
     private void scheduleEndOfSessionWarning(int delayInMinutes) {
@@ -841,7 +816,14 @@ public class ImpartialController {
         timer.schedule(endOfSessionWarningTask, 1000L * 60 * delayInMinutes);
     }
 
-    public String getSessionId() {
-        return sessionId;
+    public void login(String username, String password) throws IOException {
+        try {
+            String token = sessionClient.postLogin(username, password);
+            sessionClient.setToken(token);
+            monaiClient = new ProxyMonaiLabelClient(Config.API_URL, token);
+        } catch (IOException e) {
+            showIOError(e);
+            throw e;
+        }
     }
 }

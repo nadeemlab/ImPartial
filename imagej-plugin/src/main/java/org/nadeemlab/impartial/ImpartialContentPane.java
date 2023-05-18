@@ -25,11 +25,17 @@ public class ImpartialContentPane extends JPanel {
         serverPanel = new ServerPanel(controller);
         mainPanel.add(serverPanel);
 
+        mainPanel.add(new JSeparator(SwingConstants.HORIZONTAL));
+
         datasetPanel = new DatasetPanel(controller);
         mainPanel.add(datasetPanel);
 
+        mainPanel.add(new JSeparator(SwingConstants.HORIZONTAL));
+
         inferPanel = new InferPanel(controller);
         mainPanel.add(inferPanel);
+
+        mainPanel.add(new JSeparator(SwingConstants.HORIZONTAL));
 
         trainPanel = new TrainPanel(controller);
         mainPanel.add(trainPanel);
@@ -52,12 +58,12 @@ public class ImpartialContentPane extends JPanel {
     }
 
     // Server
-    public boolean getRequestServerCheckBox() {
-        return serverPanel.getRequestServerCheckBox();
-    }
-
     public URL getUrl() throws MalformedURLException {
         return serverPanel.getUrl();
+    }
+
+    public boolean getRequestServerCheckBox() {
+        return serverPanel.getRequestServerCheckBox();
     }
 
     public void setSession(String session_id) {
@@ -130,7 +136,6 @@ public class ImpartialContentPane extends JPanel {
         setEnabledInferAndEntropy(true);
         setSelectedInfer(true);
     }
-
 
     // Train
     public JSONObject getTrainParams() {

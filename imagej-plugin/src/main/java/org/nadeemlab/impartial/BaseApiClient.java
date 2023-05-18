@@ -1,13 +1,13 @@
 package org.nadeemlab.impartial;
 
 import okhttp3.*;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -15,14 +15,11 @@ import java.util.concurrent.TimeUnit;
 
 public class BaseApiClient {
     protected final OkHttpClient httpClient;
-    protected String protocol;
-    protected String host;
-    protected Integer port;
-    protected String path = "";
-    protected String token;
+    protected URL url;
     protected RequestBody emptyBody = RequestBody.create(null, new byte[0]);
 
-    public BaseApiClient() {
+    public BaseApiClient(URL url) {
+        this.url = url;
         X509TrustManager TRUST_ALL_CERTS = new X509TrustManager() {
             @Override
             public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {
@@ -60,72 +57,30 @@ public class BaseApiClient {
 
     protected void raiseForStatus(Response res) throws IOException {
         if (!res.isSuccessful()) {
-            String name = res.message();
+            String message = res.message();
             String description = "";
             if (res.body() != null && res.body().contentLength() > 0) {
-                JSONObject jsonRes = new JSONObject(res.body().string());
-                if (jsonRes.has("name"))
-                    name = jsonRes.getString("name");
-                description = jsonRes.has("description") ?
-                        jsonRes.getString("description") : jsonRes.getString("detail");
+                try {
+                    JSONObject jsonRes = new JSONObject(res.body().string());
+                    if (jsonRes.has("message"))
+                        message = jsonRes.getString("message");
+                    description = jsonRes.has("description") ?
+                            jsonRes.getString("description") : jsonRes.getString("detail");
+                } catch (JSONException ignore) {}
             }
 
             throw new IOException(
-                    String.format("%d %s: %s", res.code(), name, description
+                    String.format("%d %s \n%s", res.code(), message, description
                     ));
         }
     }
 
     protected HttpUrl.Builder getHttpUrlBuilder() {
-        return new HttpUrl.Builder()
-                .scheme(protocol)
-                .host(host)
-                .port(port)
-                .addPathSegments(path);
+        HttpUrl httpUrl = HttpUrl.parse(url.toString());
+        return httpUrl.newBuilder();
     }
 
     protected Request.Builder getRequestBuilder() {
-        Request.Builder builder = new Request.Builder();
-
-        if (token != null)
-            builder.addHeader("Authorization", token);
-
-        return builder;
+        return new Request.Builder();
     }
-
-    public URL getUrl() {
-        try {
-            return new URL(String.format("%s://%s:%s/%s", protocol, host, port, path));
-        } catch (MalformedURLException ignore) {
-            return null;
-        }
-    }
-
-    public void setUrl(URL url) {
-        protocol = url.getProtocol();
-        host = url.getHost();
-        port = url.getPort() > 1 ? url.getPort() : url.getDefaultPort();
-        path = url.getPath();
-    }
-
-    public String getProtocol() {
-        return protocol;
-    }
-
-    public String getHost() {
-        return host;
-    }
-
-    public Integer getPort() {
-        return port;
-    }
-
-    public void setToken(String token) {
-        this.token = token;
-    }
-
-    public boolean hasToken() {
-        return this.token != null;
-    }
-
 }
