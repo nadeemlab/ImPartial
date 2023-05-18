@@ -67,5 +67,6 @@ public class BackgroundTaskRunner<Void> extends SwingWorker<Void, Void> {
                 onException.accept(e);
             }
         }
+        dialog.dispose();
     }
 }
