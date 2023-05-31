@@ -49,9 +49,9 @@ public class BaseApiClient {
         builder.hostnameVerifier((hostname, session) -> true);
 
         httpClient = builder
-                .connectTimeout(120, TimeUnit.SECONDS)
-                .writeTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(120, TimeUnit.SECONDS)
+                .connectTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(300, TimeUnit.SECONDS)
+                .readTimeout(300, TimeUnit.SECONDS)
                 .build();
     }
 
