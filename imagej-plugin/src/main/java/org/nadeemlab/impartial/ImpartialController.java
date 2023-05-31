@@ -47,6 +47,8 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static javax.swing.WindowConstants.DISPOSE_ON_CLOSE;
+
 
 public class ImpartialController {
     final JFileChooser fileChooser = new JFileChooser();
@@ -59,7 +61,8 @@ public class ImpartialController {
     private final RestoreSessionTask restoreSessionTask = new RestoreSessionTask(this);
     private final ImageUploader imageUploader = new ImageUploader(this);
     private final IndexColorModel redGreenLut = LutLoader.getLut("redgreen");
-    private final Timer timer = new Timer();
+    private final Timer warningTimer = new Timer();
+    private final Timer stopTimer = new Timer();
     LabelRegionToPolygonConverter regionToPolygonConverter = new LabelRegionToPolygonConverter();
     private ImageWindow imageWindow;
     private File imageFile;
@@ -797,13 +800,33 @@ public class ImpartialController {
         endOfSessionWarningTask = new TimerTask() {
             @Override
             public void run() {
-                int choice = JOptionPane.showOptionDialog(null,
-                        "Your session is about to expire.", "Session expiration warning",
-                        JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE,
-                        null, new String[]{"Extend", "Ok"}, "Ok");
+                JDialog dialog = new JDialog(mainFrame, "Session expiration warning", true);
+                dialog.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+                dialog.setLocationRelativeTo(mainFrame);
 
-                if (choice == JOptionPane.YES_OPTION) {
+                Object[] options = {"Extend", "Ok"};
+                JOptionPane optionPane = new JOptionPane(
+                        "Your session is about to expire.",
+                        JOptionPane.QUESTION_MESSAGE,
+                        JOptionPane.YES_NO_OPTION,
+                        null,
+                        options,
+                        options[1]
+                );
+                dialog.setContentPane(optionPane);
+                optionPane.addPropertyChangeListener(e -> {
+                    if (JOptionPane.VALUE_PROPERTY.equals(e.getPropertyName())) {
+                        dialog.dispose();
+                    }
+                });
+                dialog.pack();
+
+                TimerTask endOfSessionTask = scheduleEndOfSession(dialog, 5);
+                dialog.setVisible(true);
+
+                if (optionPane.getValue().equals("Extend")) {
                     try {
+                        endOfSessionTask.cancel();
                         sessionClient.extendSession();
                         scheduleEndOfSessionWarning(25);
                     } catch (IOException e) {
@@ -812,8 +835,20 @@ public class ImpartialController {
                 }
             }
         };
+        warningTimer.schedule(endOfSessionWarningTask, 1000L * 60 * delayInMinutes);
+    }
 
-        timer.schedule(endOfSessionWarningTask, 1000L * 60 * delayInMinutes);
+    private TimerTask scheduleEndOfSession(JDialog dialog, int delayInMinutes) {
+        TimerTask endOfSessionTask = new TimerTask() {
+            @Override
+            public void run() {
+                dialog.dispose();
+                stop();
+            }
+        };
+        stopTimer.schedule(endOfSessionTask, 1000L * 60 * delayInMinutes);
+
+        return endOfSessionTask;
     }
 
     public void login(String username, String password) throws IOException {
