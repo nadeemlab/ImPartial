@@ -3,88 +3,101 @@ package org.nadeemlab.impartial;
 import org.json.JSONObject;
 
 import javax.swing.*;
+import java.awt.*;
 
 public class TrainPanel extends JPanel {
-    private ImpartialController controller;
-    private final JPanel epochsPanel;
-    private final JPanel nchannelsPanel;
-    private final JPanel patchesPanel;
-    private final JPanel patiencePanel;
-    private JButton trainButton;
+    private final JTextField epochsField;
+    private final JTextField patchesField;
+    private final JTextField patienceField;
+    private final JButton startStopButton;
 
     TrainPanel(ImpartialController controller) {
-        this.controller = controller;
 
-        setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder("train"),
-            BorderFactory.createEmptyBorder(5, 5, 5, 5))
-        );
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setAlignmentX(LEFT_ALIGNMENT);
+        setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
 
-        JPanel mainPanel = new JPanel();
-        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.PAGE_AXIS));
+        JLabel title = new JLabel("Train");
+        title.setFont(new Font("sans-serif", Font.PLAIN, 15));
+        add(title);
+        add(Box.createVerticalStrut(10));
 
-        JPanel configPanel = new JPanel();
-        configPanel.setLayout(new BoxLayout(configPanel, BoxLayout.PAGE_AXIS));
+        JPanel configPanel = new JPanel(new GridBagLayout());
+        configPanel.setAlignmentX(LEFT_ALIGNMENT);
 
-        nchannelsPanel = createParamPanel("nchannels", 1);
-        nchannelsPanel.setToolTipText("number of channels for dataset");
+        epochsField = new JTextField("10", 3);
+        epochsField.setToolTipText("Max number of epochs to train");
 
-        epochsPanel = createParamPanel("epochs", 10);
-        epochsPanel.setToolTipText("max number of epochs to train");
+        patchesField = new JTextField("200", 3);
+        patchesField.setToolTipText("Number of patches sampled per epoch");
 
-        patchesPanel = createParamPanel("patches", 200);
-        patchesPanel.setToolTipText("number of patches sampled per epoch");
+        patienceField = new JTextField("10", 3);
+        patienceField.setToolTipText("Number of times the evaluation loss can no-decrease before the training stops");
 
-        patiencePanel = createParamPanel("patience", 10);
-        patiencePanel.setToolTipText("number of times the evaluation loss can no-decrease before the training stops");
+        addRow(configPanel, "Epochs", epochsField);
+        addRow(configPanel, "Patches", patchesField);
+        addRow(configPanel, "Patience", patienceField);
 
-        configPanel.add(nchannelsPanel);
-        configPanel.add(epochsPanel);
-        configPanel.add(patchesPanel);
-        configPanel.add(patiencePanel);
+        startStopButton = new JButton("Train");
+        startStopButton.setEnabled(false);
 
-        trainButton = new JButton("train");
-        trainButton.setActionCommand("train");
-        trainButton.addActionListener(e -> controller.train());
-        trainButton.setEnabled(false);
-        trainButton.setAlignmentY(BOTTOM_ALIGNMENT);
+        startStopButton.addActionListener(e -> {
+            if (startStopButton.getText().equals("Train")) {
+                controller.startTraining();
+                startStopButton.setText("Stop");
+            } else {
+                controller.stopTraining();
+                startStopButton.setText("Train");
+            }
+        });
 
-        mainPanel.add(configPanel);
-        mainPanel.add(trainButton);
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setAlignmentX(LEFT_ALIGNMENT);
+        buttonPanel.add(startStopButton);
 
-        add(mainPanel);
+        add(configPanel);
+        add(buttonPanel);
     }
 
-    private JPanel createParamPanel(String name, int value) {
-        JPanel epochsPanel = new JPanel();
+    private void addRow(JPanel panel, String labelText, JTextField textField) {
+        GridBagConstraints c = new GridBagConstraints();
+        c.gridx = 0;
+        c.gridy = GridBagConstraints.RELATIVE;
+        c.anchor = GridBagConstraints.LINE_START;
+        c.insets = new Insets(0, 0, 5, 0);
 
-        epochsPanel.add(new JLabel(name + ": "));
-        epochsPanel.add(new JTextField(String.valueOf(value), 4));
+        JLabel label = new JLabel(labelText);
+        panel.add(label, c);
 
-        return epochsPanel;
+        c.gridx = 1;
+        c.gridy = GridBagConstraints.RELATIVE;
+        c.weightx = 1;
+        c.anchor = GridBagConstraints.LINE_START;
+        c.insets = new Insets(0, 5, 5, 0);
+
+        panel.add(textField, c);
     }
+
 
     public JSONObject getTrainParams() {
         JSONObject params = new JSONObject();
 
-        JTextField nchannels = (JTextField) nchannelsPanel.getAccessibleContext().getAccessibleChild(1);
-        JTextField epochs = (JTextField) epochsPanel.getAccessibleContext().getAccessibleChild(1);
-        JTextField patches = (JTextField) patchesPanel.getAccessibleContext().getAccessibleChild(1);
-        JTextField patience = (JTextField) patiencePanel.getAccessibleContext().getAccessibleChild(1);
-
-        params.put("num_channels", Integer.parseInt(nchannels.getText()));
-        params.put("max_epochs", Integer.parseInt(epochs.getText()));
-        params.put("npatches_epoch", Integer.parseInt(patches.getText()));
-        params.put("early_stop_patience", Integer.parseInt(patience.getText()));
+        params.put("max_epochs", Integer.parseInt(epochsField.getText()));
+        params.put("npatches_epoch", Integer.parseInt(patchesField.getText()));
+        params.put("early_stop_patience", Integer.parseInt(patienceField.getText()));
 
         return params;
     }
 
-    public void onConnected() {
-        trainButton.setEnabled(true);
+    public void onStarted() {
+        startStopButton.setEnabled(true);
     }
 
-    public void onDisconnected() {
-        trainButton.setEnabled(false);
+    public void onStopped() {
+        startStopButton.setEnabled(false);
+    }
+
+    public void onTrainingStopped() {
+        startStopButton.setText("Train");
     }
 }

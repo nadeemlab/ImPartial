@@ -6,50 +6,49 @@ import java.util.Hashtable;
 
 public class InferPanel extends JPanel {
     private final ImpartialController controller;
+    private final JLabel thresholdValue;
     private JButton inferButton;
     private JButton downloadButton;
-    private JLabel inferInfo;
+    private JButton uploadButton;
     private final JSlider thresholdSlider = new JSlider(JSlider.HORIZONTAL, 0, 100, 50);
 
     InferPanel(ImpartialController controller) {
         this.controller = controller;
 
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setAlignmentX(LEFT_ALIGNMENT);
+
         setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("infer"),
+                BorderFactory.createTitledBorder("Infer"),
                 BorderFactory.createEmptyBorder(5, 5, 5, 5))
         );
+        setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
 
-        add(createInferPanel());
-    }
+        JLabel title = new JLabel("Infer");
+        title.setFont(new Font("sans-serif", Font.PLAIN, 15));
+        add(title);
+        add(Box.createVerticalStrut(10));
 
-    private JPanel createInferPanel() {
         JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setAlignmentX(LEFT_ALIGNMENT);
 
-        JPanel thresholdSlider = createThresholdSlider();
+        thresholdValue = new JLabel();
+        thresholdValue.setAlignmentX(LEFT_ALIGNMENT);
+        thresholdValue.setText(
+                String.format("Threshold %.2f",  normalizeValue(thresholdSlider.getValue()))
+        );
 
-        inferInfo = new JLabel("last run never");
-        inferInfo.setEnabled(false);
-        inferInfo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(thresholdValue);
+        panel.add(createThresholdSlider());
 
-        panel.add(thresholdSlider);
-        panel.add(inferInfo);
-        panel.add(createModelButtons());
-
-        return panel;
+        add(createModelPanel());
+        add(panel);
+        add(createInferButtonPanel());
     }
 
     private JPanel createThresholdSlider() {
-        JPanel panel = new JPanel();
-        panel.setAlignmentX(LEFT_ALIGNMENT);
-        panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
-
-        JLabel thresholdValue = new JLabel();
-        thresholdValue.setAlignmentX(LEFT_ALIGNMENT);
-        thresholdValue.setText("threshold " + normalizeValue(thresholdSlider.getValue()));
-
-        JPanel sliderPanel = new JPanel();
-        sliderPanel.setAlignmentX(LEFT_ALIGNMENT);
+        thresholdSlider.setAlignmentX(LEFT_ALIGNMENT);
 
         Hashtable<Integer, JLabel> labelTable = new Hashtable<>();
         labelTable.put(0, new JLabel("0"));
@@ -60,39 +59,61 @@ public class InferPanel extends JPanel {
         thresholdSlider.setMinorTickSpacing(10);
         thresholdSlider.setMajorTickSpacing(50);
         thresholdSlider.setPaintTicks(true);
-        thresholdSlider.setPreferredSize(new Dimension(150, 50));
+        thresholdSlider.setPreferredSize(new Dimension(150, thresholdSlider.getPreferredSize().height));
         thresholdSlider.setEnabled(false);
+        thresholdSlider.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
 
         thresholdSlider.addChangeListener(e -> {
             JSlider source = (JSlider) e.getSource();
             int value = source.getValue();
-            thresholdValue.setText("threshold " + normalizeValue(value));
+            thresholdValue.setText(
+                    String.format("Threshold %.2f",  normalizeValue(value))
+            );
             controller.updateDisplay();
         });
 
+        JPanel sliderPanel = new JPanel();
+        sliderPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
+        sliderPanel.setAlignmentX(LEFT_ALIGNMENT);
+        sliderPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
         sliderPanel.add(thresholdSlider);
 
-        panel.add(thresholdValue);
-        panel.add(sliderPanel);
+        return sliderPanel;
+    }
+
+    private JPanel createModelPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
+
+        JLabel modelLabel = new JLabel("Model");
+
+        downloadButton = new JButton("Download");
+        downloadButton.addActionListener(e -> controller.downloadModelCheckpoint());
+        downloadButton.setEnabled(false);
+
+        uploadButton = new JButton("Upload");
+        uploadButton.addActionListener(e -> controller.uploadModelCheckpoint());
+        uploadButton.setEnabled(false);
+
+        panel.add(modelLabel);
+        panel.add(Box.createHorizontalGlue());
+        panel.add(uploadButton);
+        panel.add(downloadButton);
 
         return panel;
     }
 
-    private JPanel createModelButtons() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.LINE_AXIS));
+    private JPanel createInferButtonPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        inferButton = new JButton("infer");
+        inferButton = new JButton("Infer");
         inferButton.addActionListener(e -> controller.infer());
         inferButton.setEnabled(false);
 
-        downloadButton = new JButton("download");
-        downloadButton.addActionListener(e -> controller.downloadModelCheckpoint());
-        downloadButton.setEnabled(false);
-
         panel.add(inferButton);
-        panel.add(downloadButton);
 
         return panel;
     }
@@ -109,19 +130,17 @@ public class InferPanel extends JPanel {
         inferButton.setEnabled(b);
     }
 
-    public void setTextInfer(String s) {
-        inferInfo.setText(s);
-    }
-
-    public void onConnected() {
+    public void onStarted() {
         thresholdSlider.setEnabled(true);
         inferButton.setEnabled(true);
+        uploadButton.setEnabled(true);
         downloadButton.setEnabled(true);
     }
 
-    public void onDisconnected() {
+    public void onStopped() {
         thresholdSlider.setEnabled(false);
         inferButton.setEnabled(false);
+        uploadButton.setEnabled(false);
         downloadButton.setEnabled(false);
     }
 }
