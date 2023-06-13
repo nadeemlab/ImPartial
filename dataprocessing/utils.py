@@ -31,6 +31,40 @@ def read_image(path):
     return image
 
 
+def read_label(path, image_shape):
+    extension = path.split(".")[-1].lower()
+
+    if extension == "tiff" or extension == "tif":
+        label = np.array(tiff.imread(path))
+
+    if extension == "zip" or extension == "ZIP":
+        roi = roifile.roiread(path)
+        label = np.zeros((image_shape[0], image_shape[1])).astype(np.int32)
+        convert_roi_to_label(label, roi)
+
+    label = (label).astype(np.float32)
+
+    return label
+
+
+def convert_roi_to_label(label, rois):
+
+    for i in range(0, len(rois)):
+        coord = rois[i].integer_coordinates
+        top = rois[i].top
+        left = rois[i].left
+        coord[:, 0] = coord[:, 0] + left
+        coord[:, 1] = coord[:, 1] + top
+
+        contour = []
+        for j in range(0, len(coord)):
+            contour.append([ coord[j][0], coord[j][1] ])
+
+        contour = np.asarray(coord).astype(np.int32)
+        # cv.drawContours(img, [contour], -1, (0,255,0), 1)
+        # cv.drawContours(label, [contour], -1, (i), 1)
+        cv.fillPoly(label, pts=[contour], color=i)
+
 def rois_to_mask(zip_path, size, sample_rate=1):
     rois = roifile.roiread(zip_path)
     mask = np.zeros(size).astype(np.uint8)

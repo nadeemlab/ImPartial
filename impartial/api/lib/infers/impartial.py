@@ -5,7 +5,8 @@ import os
 from typing import Any, Callable, Dict, List, Sequence, Union
 
 import numpy as np
-from dataprocessing.utils import read_image
+from dataprocessing.utils import read_image, read_label
+from general.evaluation import get_performance
 from lib.transforms import AggregateComponentOutputs, ComputeEntropy, GetImpartialOutputs
 from monai.config import PathLike
 from monai.data import ImageReader
@@ -122,12 +123,24 @@ class ZIPFileWriter:
 
         prob_map = data["output"]
 
+        label_path = os.path.join(base_dir, "labels/final/", f"{os.path.splitext(input_file)[0]}.zip")
+        print("Infers/impartial.py, label_path::", label_path)
+        metrics = {}
+
+        if os.path.exists(label_path):
+            label_gt = read_label(label_path, (data["image"].shape[1], data["image"].shape[2]))
+            label_gt = label_gt.astype(int)
+            # print("Infers/impartial.py, label shape: ", label_gt.shape)
+
+            metrics = get_performance(label_gt=label_gt, y_pred=prob_map, threshold=0.5, iou_threshold=0.5)
+            # print("Infers/impartial.py, metrics::", metrics)
+
         output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.zip")
         for contour in measure.find_contours((prob_map > self.threshold).astype(np.uint8), level=0.9999):
             roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
             roi.tofile(output_path)
 
-        return output_path, {"output": prob_map.tolist(), "entropy": data["entropy"].tolist()}
+        return output_path, {"output": prob_map.tolist(), "entropy": data["entropy"].tolist(), "metrics": metrics}
 
 
 class ImpartialImageReader(ImageReader):
