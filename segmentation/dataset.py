@@ -9,6 +9,7 @@ from torch.utils.data import Dataset
 sys.path.append('../')
 from dataprocessing.utils import read_label, percentile_normalization, erosion_labels
 
+
 class ImageSegDatasetTiff(Dataset):
 
     def __init__(self, data_dir, img_list, label_list, transform):
@@ -42,9 +43,25 @@ class ImageSegDatasetTiff(Dataset):
         if len(X.shape) <= 2:
             X = X[...,np.newaxis]
 
+
+        # print(X.shape, mask.shape)
+        if np.random.rand() > 0.5:
+            X = np.fliplr(X)
+            mask = np.fliplr(mask)
+            # print("fliplr: ", X.shape, mask.shape)
+
+        if np.random.rand() > 0.5:
+            X = np.flipud(X)
+            mask = np.flipud(mask)
+            # print("flipud: ", X.shape, mask.shape)
+        # print(X.shape, mask.shape)
+
         if self.transform:
-            X = self.transform(X)
-            mask = self.transform(mask)
+            # X = self.transform(X.copy())
+            # mask = self.transform(mask.copy())
+            X, mask = self.transform(X.copy(), mask.copy())
+
+        return img_fname, X, mask
 
         return img_fname, X, mask
 
@@ -109,10 +126,6 @@ class ImageDenoiseDatasetTiff(Dataset):
             X = self.transform(X)
 
         return img_fname, X, X
-
-
-
-
 
 
 
