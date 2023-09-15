@@ -99,9 +99,9 @@ cp target/impartial_imagej-0.1.jar /Applications/Fiji.app/plugins
 
 then restart **Fiji** and open `ImPartial` from the `Plugins` menu bar.
 
-<u>*Note</u>:*  *User can get a pre-compiled .jar file [here](ImPartial/imagej-plugin/impartial_imagej-0.1.jar). If using this file, you can skip setting up Maven and compiling the package. Copy the .jar file directly to the Fiji plugin folder mentioned above.*
+<u>*Note</u>:*  *User can get a pre-compiled .jar file [here](imagej-plugin/impartial_imagej-0.1.jar). If using this file, you can skip setting up Maven and compiling the package. Copy the .jar file directly to the Fiji plugin folder mentioned above.*
 
-A detailed guide for the Fiji plugin can be found [here](ImPartial/imagej-plugin/README.md). 
+A detailed guide for the Fiji plugin can be found [here](imagej-plugin/README.md). 
 
 ## Issues
 Please report all issues on the public forum.
