@@ -32,8 +32,21 @@ and component mixture are used to compute the mixture loss for the patch. Simult
 number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients 
 back to the U-Net architecture on the backward pass.*
 
+## Impartial Pipeline 
 
-## MONAI Label
+We  transitioned from a research workflow into a production ready environment,  where in the user can upload images, provide scribbles and also run deep learning based model training and inference. We utilized following three components to provide an end to end service:
+
+1. ImageJ/Fiji - Which acts as a client. Here user can add, delete or modify annotations to the uploaded image dataset. 
+We chose ImageJ because it is one of the most extensively used labeling and vewing tool used by expert annotators. 
+ 
+2. Monai label - For backend, we used Monai label which is a Pytorch based open source framework for deep learning healthcare imaging. It provides an out of the box inferfaces to plugin ImPartial DL pipeline via Restful API that ties together training, inference and selection strategy. 
+Active learning approach: Monai label suports an active learning based approch for user to actively train and give feedback to fine tune the model. 
+
+3. AWS - We deployed impartial using the AWS cloud pltform with Monai label to support Multi-user and  deploy impartial as a service.
+
+## Impartial Installation: 
+
+### MONAI Label
 
 Pre-requisites
 * Python 3
@@ -70,7 +83,7 @@ and navigate to http://localhost:8000
 ## ImageJ/Fiji Plugin
 
 Pre-requisites
-* [Fiji](https://imagej.net/software/fiji/downloads)
+* [Fiji](https://imagej.net/software/fiji/downloads) (version >= 2.3.0)
 * [Apache Maven](https://maven.apache.org/install.html) 
   (or use [brew](https://formulae.brew.sh/formula/maven) on macOS)
 
@@ -85,6 +98,10 @@ cp target/impartial_imagej-0.1.jar /Applications/Fiji.app/plugins
 ```
 
 then restart **Fiji** and open `ImPartial` from the `Plugins` menu bar.
+
+### Quick Demo
+For users with no GPU access, Impartial plugin gives an option to use our servers for upto 2 hours in a single session. 
+Each user has to create a personal Login id to use the server. The user id can also be used to restore past session data and 
 
 This repository provides a training and testing pipeline using the ImPartial framework.
 
