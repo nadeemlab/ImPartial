@@ -32,7 +32,7 @@ and component mixture are used to compute the mixture loss for the patch. Simult
 number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients 
 back to the U-Net architecture on the backward pass.*
 
-## Impartial Pipeline 
+## Impartial, Monai Label & Fiji Intergration 
 
 We  transitioned from a research workflow into a production ready environment,  where in the user can upload images, provide scribbles and also run deep learning based model training and inference. We utilized following three components to provide an end to end service:
 
