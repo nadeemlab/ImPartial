@@ -50,17 +50,20 @@ def read_label(path, image_shape):
 def convert_roi_to_label(label, rois):
 
     for i in range(0, len(rois)):
-        coord = rois[i].integer_coordinates
-        top = rois[i].top
-        left = rois[i].left
-        coord[:, 0] = coord[:, 0] + left
-        coord[:, 1] = coord[:, 1] + top
+        # coord = rois[i].integer_coordinates
+        # top = rois[i].top
+        # left = rois[i].left
+        # coord[:, 0] = coord[:, 0] + left
+        # coord[:, 1] = coord[:, 1] + top
 
-        contour = []
-        for j in range(0, len(coord)):
-            contour.append([ coord[j][0], coord[j][1] ])
+        # contour = []
+        # for j in range(0, len(coord)):
+        #     contour.append([ coord[j][0], coord[j][1] ])
 
-        contour = np.asarray(coord).astype(np.int32)
+        # contour = np.asarray(coord).astype(np.int32)
+        contour = get_contour(rois[i])
+
+
         # cv.drawContours(img, [contour], -1, (0,255,0), 1)
         # cv.drawContours(label, [contour], -1, (i), 1)
         cv.fillPoly(label, pts=[contour], color=i)
@@ -141,7 +144,6 @@ def get_contour(roi):
         raise RuntimeError("ROI type not supported")
 
     return np.asarray(coord).astype(np.int32)
-
 
 def read_files(path):
     filenames = os.listdir(path)
