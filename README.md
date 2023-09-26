@@ -24,7 +24,7 @@ performance of our approach for a variety of datasets acquired with different hi
 
 ## Pipeline
 
-![figure1_workflow](./images/figure1_workflow_novariance.png)
+![unet_arch](./images/unet_arch.png)
 *(A) Overview of the ImPartial pipeline. (B) Each image patch is separated into an imputation patch and a blind spot 
 patch. The blind spot patch is fed through the U-Net to recover the component mixture and the component statistics. The 
 latter statistics are averaged across the entire patch to enforce component consistency. Both the component statistics 
@@ -43,6 +43,10 @@ We chose ImageJ because it is one of the most extensively used labeling and vewi
 Active learning approach: Monai label suports an active learning based approch for user to actively train and give feedback to fine tune the model. 
 
 3. AWS - We deployed impartial using the AWS cloud pltform with Monai label to support Multi-user and  deploy impartial as a service.
+
+![pipline_impartial_fig](./images/pipline_impartial_fig.png)
+
+*This workflow diagram illustrates the interactive and iterative nature of the impartial pipeline, allowing users to actively contribute to the segmentation model's improvement through annotation and fine-tuning. The combination of user input and deep learning enables more accurate and adaptive whole cell image segmentation. `(1.) Setup:` The workflow begins with the user interacting with the Impartial plugin through the Fiji app to connect to an Impartial endpoint or a local server which runs MONAI label as its core backend service.  User uploads images to the tool which are stored into cloud storage system, such as Amazon S3, and a backend MONAI datastore.   `(2.) Scribbles:` For each uploaded image, the user utilizes Fiji's draw tool feature to manually mark cell boundaries for a small number of whole cells. This annotation process allows the user to provide initial guidance to the segmentation algorithm.  `(3.) Submit Scribbles:` Once the cell boundaries are marked, the user submits the annotations (scribbles) to the system. `(3.1)` These scribbles are linked and stored alongside original images.  `(3.2.)` Training configuration:  The user can configure the machine learning training job by tuning hyper parameters such as the number of epochs, learning rate, and other relevant parameters.  `(4.) Initiate Training Job:` With the training parameters set, the user initiates an asynchronous training job which will utilize the annotated data alongside image denoising to train a segmentation model. The progress of the training can be monitored in real-time via the plugin.   `(4.1) Model Update:` During training multiple image segmentation metrics are logged and the newly trained, better performing model is stored.   `(4.2) Model Inference:` Since, the impartial workflow is asynchronous, model inference can be run any time during and after the training  to obtain predictions for cell segmentation on new, unlabeled data.   `(5.) Visualization of Results:`  The user can visualize the results of the segmentation model. This includes viewing the provided images, scribbles, model predictions, and entropy maps simultaneously on a single canvas. This visualization aids in understanding the model's performance and identifying areas of high uncertainty in the segmentation. `(6.) Iterative Refinement:` Finally, users can further add additional scribbles or annotations based on the visualization results. With the new annotations, the training is  re-initiated triggering fine-tuning of the existing model with the new data.*
 
 ## Impartial Installation: 
 
