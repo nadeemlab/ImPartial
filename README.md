@@ -103,7 +103,12 @@ cp target/impartial_imagej-0.1.jar /Applications/Fiji.app/plugins
 
 then restart **Fiji** and open `ImPartial` from the `Plugins` menu bar.
 
-<u>*Note</u>:*  *User can get a pre-compiled .jar file [here](imagej-plugin/impartial_imagej-0.1.jar). If using this file, you can skip setting up Maven and compiling the package. Copy the .jar file directly to the Fiji plugin folder mentioned above.*
+## No-Code Cloud Deployment
+For ready to use plugin, User can get a pre-compiled .jar file [here](imagej-plugin/impartial_imagej-0.1.jar). With this option, you can skip setting up Maven and compiling the package. Copy the .jar file directly to the Fiji plugin folder mentioned above.
+
+User can request our cloud deployed Monai server to readily annotate and segment the data without needing to compile and run any code locally. 
+
+<img src="./images/fiji_impartial_plugin.png" height=500px> <img align="top" src="./images/fiji_app.png" width = 400px />
 
 A detailed guide for the Fiji plugin can be found [here](imagej-plugin/README.md). 
 
