@@ -25,12 +25,8 @@ performance of our approach for a variety of datasets acquired with different hi
 ## Pipeline
 
 ![unet_arch](./images/unet_arch.png)
-*(A) Overview of the ImPartial pipeline. (B) Each image patch is separated into an imputation patch and a blind spot 
-patch. The blind spot patch is fed through the U-Net to recover the component mixture and the component statistics. The 
-latter statistics are averaged across the entire patch to enforce component consistency. Both the component statistics 
-and component mixture are used to compute the mixture loss for the patch. Simultaneously, a scribble containing a small 
-number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients 
-back to the U-Net architecture on the backward pass.*
+*Each image patch is separated into an imputation patch and a blind spot patch. The blind spot patch is fed through the U-Net to recover the component mixture and the component statistics. The 
+latter statistics are averaged across the entire patch to enforce component consistency. Both the component statistics and component mixture are used to compute the mixture loss for the patch. Simultaneously, a scribble containing a small number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients back to the U-Net architecture on the backward pass. Additional scribbles can be added to fine-tune the model trained in the previous iteration. Uncertainty maps are computed and shown to guide the user to provide additional scribblles in high uncertainty regions.*
 
 ## ImPartial, MONAI-Label & Fiji Intergration 
 
