@@ -3,7 +3,6 @@ from scipy import ndimage
 import sys
 import os
 import numpy as np
-from torchvision import transforms
 import argparse
 
 
@@ -11,9 +10,9 @@ sys.path.append('../')
 
 from general.networks import UNet
 from general.evaluation import get_performance
-from segmentation.dataset import ImageSegDatasetTiff
-from segmentation.datalist import train_data, test_data
-from segmentation.losses import FocalLossBinary 
+from segmentation.dataset import ImageDenoiseSegDatasetTiff, ImageSegDatasetTiff
+from segmentation.datalist import get_tissuenet_datalist
+from segmentation.losses import ImpartialLoss 
 from segmentation.transforms import Compose, Resize, RandomVerticalFlip, RandomCrop, RandomHorizontalFlip, ToTensor
 
 #0. Args parser:
@@ -24,10 +23,10 @@ parser.add_argument('--exp_id', action='store', default="exp_id", type=str, help
 parser.add_argument('--dataset', action='store', default='CP_tissuenet', type=str, help='dataset')
 parser.add_argument('--model_name', action='store', default='ImPartial-lite', type=str, help='model_name')
 parser.add_argument('--mode', action='store', default='train', type=str, help='mode')
-parser.add_argument('--epochs', action='store', default=1, type=int, help='mode')
-parser.add_argument('--lr', action='store', default=0.001, type=float, help='mode')
-parser.add_argument('--budget', action='store', default=1.0, type=float, help='mode')
-
+parser.add_argument('--epochs', action='store', default=1, type=int, help='epochs')
+parser.add_argument('--lr', action='store', default=0.001, type=float, help='lr')
+parser.add_argument('--budget', action='store', default=1.0, type=float, help='budget')
+parser.add_argument('--ms_weight', action='store', default=1.0, type=float, help='ms_weight')
 
 parser = parser.parse_args()
 
@@ -36,14 +35,12 @@ print("model_name  : ", parser.model_name)
 print("mode  : ", parser.mode)
 print("epoch  : ", parser.epochs)
 print("lr  : ", parser.lr)
-print("budget  : ", parser.budget)
-
 
 
 # 1. Model
 model = UNet(
     n_channels=2,
-    n_classes=1,
+    n_classes=1+2,
     depth=4,
     base=64,
     activation='relu',
@@ -59,9 +56,6 @@ optimizer = torch.optim.Adam(model.parameters(), parser.lr)
 
 # 3. Dataset
 data_dir = "/nadeem_lab/Gunjan/code/Cellpose2.0/impartial_tissunet_data/"
-# data_dir = "/nadeem_lab/Gunjan/downloads/Vectra_WC_2CH_tiff_full_labels/"
-# data_dir = "/nadeem_lab/Gunjan/code/Cellpose2.0/impartial_tissunet_data/"
-# data_dir = "/Users/gshrivastava/Mskcc/Vectra_WC_2CH_tiff_full_labels/"
 
 transform_train = [
                     ToTensor(),
@@ -83,21 +77,13 @@ transform_test = Compose(transform_test)
 # dataset_files['images'] = image_list
 # dataset_files['labels'] = label_list
 
-image_list, label_list = train_data(data_dir)
+image_train_list, label_train_list = get_tissuenet_datalist(data_dir, train_val_test='train', platform=None)
+dataset_train = ImageDenoiseSegDatasetTiff(data_dir, image_train_list, label_train_list, transform_train, budget=parser.budget)
 
-image_train_list = image_list[:300]
-label_train_list = label_list[:300]
-dataset_train = ImageSegDatasetTiff(data_dir, image_train_list, label_train_list, transform_train, budget=parser.budget)
-
-image_val_list = image_list[300:]
-label_val_list = label_list[300:]
+image_val_list, label_val_list = get_tissuenet_datalist(data_dir, train_val_test='val', platform=None)
 dataset_val = ImageSegDatasetTiff(data_dir, image_val_list, label_val_list, transform_test)
 
-
-# (2) Make dataset test 
-# dataset_test = CPTissuenetDatasetTiff(data_dir, transform_test)
-data_test_dir = "/nadeem_lab/Gunjan/code/Cellpose2.0/impartial_tissunet_data/"
-image_test_list, label_test_list = test_data(data_test_dir)
+image_test_list, label_test_list = get_tissuenet_datalist(data_dir, train_val_test='test', platform=None)
 dataset_test = ImageSegDatasetTiff(data_dir, image_test_list, label_test_list, transform_test)
 
 print("Size dataset_train: ", len(dataset_train))
@@ -105,13 +91,13 @@ print("Size dataset_val: ", len(dataset_val))
 print("Size dataset_test: ", len(dataset_test))
 
 dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=64, shuffle=True, num_workers=32)
-dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=8, shuffle=False, num_workers=8)
-dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=8, shuffle=False, num_workers=8)
+dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=32, shuffle=False, num_workers=16)
+dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=32, shuffle=False, num_workers=16)
 
 
 # 4. Loss Function
 # criterio = torch.nn.BCEWithLogitsLoss()
-criterio = FocalLossBinary()
+criterio = ImpartialLoss(alpha=0.9, beta=0.1, gamma=0.0)
 
 # 5. Train function 
 def train(model, criterio, optimizer, dataloader_train, dataloader_val, dataloader_test):
@@ -127,7 +113,7 @@ def train(model, criterio, optimizer, dataloader_train, dataloader_val, dataload
         # 7. Enumerate data
         for batch_id, data in enumerate(dataloader_train):
 
-            img_fname, input, target = data
+            img_fname, input, target, orignal = data
 
             # print("img_fname: ", img_fname)
             # print("input shape: ", input.size())
@@ -135,12 +121,13 @@ def train(model, criterio, optimizer, dataloader_train, dataloader_val, dataload
 
             input = input.to(device='cuda')
             target = target.to(device='cuda')
+            orignal = orignal.to(device='cuda')
 
             # 8. Model forward, backward, loss
             output = model.forward(input)
             # print("output shape: ", output.size())
 
-            loss = criterio(output, target)
+            loss = criterio(output, target, orignal)
             
             loss.backward()
             optimizer.step()
@@ -189,7 +176,8 @@ def test(model, dataloader_test, epoch, save=False):
         target = target.to(device='cuda')
 
         # 8. Model forward, backward, loss
-        output = model.forward(input)
+        predictions = model.forward(input)
+        output = predictions[:,0,:,:].unsqueeze(1)
 
         # print("predictions shape : ", output.shape) 
         
@@ -237,3 +225,8 @@ if mode == 'test':
 #plot out
 #commit notebooks to git. 
 # test(model, dataloader_test)
+
+
+
+
+# CUDA_VISIBLE_DEVICES=0 python3.9 train_impartial.py --dataset="CP_tissuenet_vectra" --model_name="TN_unet_supervised_vectra2ch_model_eroded_labels_focal_loss_transform_base64_lr5ex-4_denoise" --mode="train" --epochs=50 --lr=0.001

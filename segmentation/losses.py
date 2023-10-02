@@ -1,6 +1,11 @@
 import torch
 import torch.nn as nn
+import sys
 import torch.nn.functional as F
+
+sys.path.append('../')
+
+from general.losses import gradientLoss2d
 
 class FocalLossBinary(nn.Module):
     def __init__(self, alpha=None, gamma=2, reduction='mean'):
@@ -10,8 +15,8 @@ class FocalLossBinary(nn.Module):
         self.gamma = gamma
         self.reduction = reduction
 
-    def forward(self, inputs, targets):
-        bce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
+    def forward(self, outputs, targets):
+        bce_loss = F.binary_cross_entropy_with_logits(outputs, targets, reduction='none')
 
         # Compute the focal weight (alpha * (1 - pt)^gamma)
         pt = torch.exp(-bce_loss)
@@ -29,6 +34,44 @@ class FocalLossBinary(nn.Module):
             return loss.sum()
         else:
             return loss
+
+
+class ImpartialLoss(nn.Module):
+    def __init__(self, alpha=0.8, beta=0.1, gamma=0.1):     # orig : alpha=0.9, beta=0.1, gamma=0.0
+        super(ImpartialLoss, self).__init__()
+        print("ImpartialLoss Loss ...")
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+        self.bce_loss = torch.nn.BCEWithLogitsLoss()
+        self.mse_loss = torch.nn.MSELoss()
+        self.mumford_loss = gradientLoss2d()
+
+    def forward(self, outputs, targets, inputs):
+        loss_bce = self.bce_loss(outputs[:,0,:,:], targets[:,0,:,:])
+        loss_mse = self.mse_loss(outputs[:,1:,:,:], inputs)
+        loss_mumford = self.mumford_loss(outputs[:,0,:,:].unsqueeze(1))
+        
+        loss = loss_bce * self.alpha + loss_mse * self.beta + loss_mumford  * self.gamma
+
+        return loss.mean()
+
+
+if __name__ == '__main__':
+
+
+    criterio = ImpartialLoss()
+    inputs = torch.rand(5,2,256,256)
+    targets = torch.rand(5,1,256,256)
+
+    outputs = torch.rand(5,3,256,256)
+    
+    loss = criterio(outputs, targets, inputs)
+
+    print("impartial loss = ", loss)
+
+
+
 
 # # Example usage:
 # # Assuming you have your model and data ready

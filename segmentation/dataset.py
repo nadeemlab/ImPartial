@@ -1,24 +1,23 @@
 import numpy as np
-import glob 
-import os 
 import tifffile as tiff 
 import sys
 
 from torch.utils.data import Dataset
 
 sys.path.append('../')
-from dataprocessing.utils import read_label, percentile_normalization, erosion_labels
+from dataprocessing.utils import read_label, percentile_normalization, erosion_labels, get_labels_budget
 
 
 class ImageSegDatasetTiff(Dataset):
 
-    def __init__(self, data_dir, img_list, label_list, transform):
+    def __init__(self, data_dir, img_list, label_list, transform, budget=1.0):
         self.data_dir = data_dir
 
         self.img_list = img_list
         self.label_list = label_list
 
         self.transform = transform
+        self.budget = budget
 
     def __len__(self):
         return len(self.img_list) 
@@ -32,36 +31,19 @@ class ImageSegDatasetTiff(Dataset):
         image = np.moveaxis(image, idx, -1)  
         
         label = read_label(label_fname, image.shape)
-        # label0 = erosion_labels(label,radius_pointer=1)
 
-        mask = (label > 0).astype(np.float32)
+        # mask = (label > 0).astype(np.float32)
+        mask = get_labels_budget(label, self.budget)
         
         X = np.array(image).astype(int)
         X = percentile_normalization(X, pmin=1, pmax=98, clip = False)
         X = X.astype(np.float32)
 
         if len(X.shape) <= 2:
-            X = X[...,np.newaxis]
-
-
-        # print(X.shape, mask.shape)
-        if np.random.rand() > 0.5:
-            X = np.fliplr(X)
-            mask = np.fliplr(mask)
-            # print("fliplr: ", X.shape, mask.shape)
-
-        if np.random.rand() > 0.5:
-            X = np.flipud(X)
-            mask = np.flipud(mask)
-            # print("flipud: ", X.shape, mask.shape)
-        # print(X.shape, mask.shape)
+            X = X[..., np.newaxis]
 
         if self.transform:
-            # X = self.transform(X.copy())
-            # mask = self.transform(mask.copy())
             X, mask = self.transform(X.copy(), mask.copy())
-
-        return img_fname, X, mask
 
         return img_fname, X, mask
 
@@ -129,8 +111,47 @@ class ImageDenoiseDatasetTiff(Dataset):
 
 
 
+class ImageDenoiseSegDatasetTiff(Dataset):
+
+    def __init__(self, data_dir, img_list, label_list, transform, budget=1.0):
+        self.data_dir = data_dir
+
+        self.img_list = img_list
+        self.label_list = label_list
+
+        self.transform = transform
+        self.budget = budget
+
+    def __len__(self):
+        return len(self.img_list) 
+
+    def __getitem__(self, idx):
+        img_fname = self.img_list[idx]
+        label_fname = self.label_list[idx]
+
+        image = tiff.imread(img_fname)
+        idx = np.argmin(image.shape)
+        image = np.moveaxis(image, idx, -1)  
+        
+        label = read_label(label_fname, image.shape)
+
+        # mask = (label > 0).astype(np.float32)
+        mask = get_labels_budget(label, self.budget)
+        
+        X = np.array(image).astype(int)
+        X = percentile_normalization(X, pmin=1, pmax=98, clip = False)
+        X = X.astype(np.float32)
+
+        if len(X.shape) <= 2:
+            X = X[..., np.newaxis]
+
+        if self.transform:
+            X, mask = self.transform(X.copy(), mask.copy())
+
+        return img_fname, X, mask, X
 
 
+"""
 ############### Delete Later
 class CPTissuenetDatasetTiff(Dataset):
 
@@ -199,3 +220,4 @@ class CPTissuenetDatasetTiff(Dataset):
             mask = self.transform(mask)
 
         return img_fname, X, mask
+"""
