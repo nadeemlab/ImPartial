@@ -9,7 +9,7 @@ from ignite.metrics.metric import reinit__is_reduced
 from monai.engines import SupervisedTrainer
 from monai.handlers import CheckpointSaver, IgniteMetric
 from monai.inferers import SimpleInferer
-from monai.transforms import AsChannelFirstd, RandFlipd, ScaleIntensityRangePercentiles
+from monai.transforms import EnsureChannelFirstd, RandFlipd, ScaleIntensityRangePercentiles
 from monai.utils import convert_to_numpy
 from torch import Tensor
 from torch.nn.modules.loss import _Loss
@@ -75,7 +75,7 @@ class Impartial(BasicTrainTask):
     def train_pre_transforms(self, context: Context):
         return [
             BlindSpotPatch(keys="image", input="input", mask="mask"),
-            AsChannelFirstd(keys=("image", "scribble")),
+            EnsureChannelFirstd(keys=("image", "scribble"), channel_dim=-1),
             RandFlipd(keys=("image", "scribble", "input", "mask"), spatial_axis=1),
         ]
 

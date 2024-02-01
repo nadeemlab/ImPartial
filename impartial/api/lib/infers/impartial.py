@@ -13,7 +13,7 @@ from monai.data import ImageReader
 from monai.data.image_reader import _copy_compatible_dict, _stack_images
 from monai.transforms import (
     Activationsd,
-    AsChannelFirstd,
+    EnsureChannelFirstd,
     LoadImaged,
     ScaleIntensityRangePercentilesd,
     ToNumpyd,
@@ -76,7 +76,7 @@ class Impartial(BasicInferTask):
                 clip=True
             ),
             ToTensord(keys="image"),
-            AsChannelFirstd(keys="image")
+            EnsureChannelFirstd(keys="image", channel_dim=-1)
         ]
 
     def post_transforms(self, data=None) -> Sequence[Callable]:
