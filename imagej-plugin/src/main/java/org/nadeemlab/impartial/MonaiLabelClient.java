@@ -87,6 +87,29 @@ public class MonaiLabelClient extends BaseApiClient {
         }
     }
 
+
+    public JSONObject postBatchInferJson(String model, JSONObject params) throws IOException {
+        final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+
+        RequestBody body = RequestBody.create(params.toString(), JSON);
+
+        HttpUrl url = getHttpUrlBuilder()
+                .addPathSegments("batch/infer/" + model)
+                // .addQueryParameter("images", "all")
+                .build();
+
+        Request request = getRequestBuilder()
+                .url(url)
+                .post(body)
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            raiseForStatus(response);
+            return new JSONObject(response.body().string());
+        }
+    }
+
+
     public JSONObject getTrain(boolean checkIfRunning) throws IOException {
         HttpUrl.Builder builder = getHttpUrlBuilder();
         builder.addPathSegments("train/");

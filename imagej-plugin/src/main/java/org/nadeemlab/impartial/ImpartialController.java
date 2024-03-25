@@ -476,6 +476,18 @@ public class ImpartialController {
         }
     }
 
+    public void batch_infer() {
+        // contentPane.setSampleStatus(sample, "running");
+        JSONObject params = new JSONObject();
+        params.put("threshold", (Float) contentPane.getThreshold());
+        String model = "impartial_" + numberOfChannels;
+        try {
+            JSONObject modelOutput = monaiClient.postBatchInferJson(model, params);
+        } catch (IOException e) {
+            showIOError(e);
+        }
+    }
+
     private void inferImage(Sample sample) {
         SwingWorker<JSONObject, Void> swingWorker = new SwingWorker<JSONObject, Void>() {
             @Override
