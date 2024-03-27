@@ -43,6 +43,7 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -76,6 +77,9 @@ public class ImpartialController {
     @Parameter
     private StatusService status;
 
+    private Semaphore mutex;
+
+
     public ImpartialController(final Context context) {
         context.inject(this);
         context.inject(regionToPolygonConverter);
@@ -92,6 +96,8 @@ public class ImpartialController {
 
         mainFrame.pack();
         mainFrame.setVisible(true);
+
+        mutex = new Semaphore(1);
     }
 
     private static boolean containsWords(String input, String[] words) {
@@ -480,23 +486,30 @@ public class ImpartialController {
         SwingWorker<JSONObject, Void> swingWorker = new SwingWorker<JSONObject, Void>() {
             @Override
             protected JSONObject doInBackground() throws IOException {
-                contentPane.setSampleStatus(sample, "running");
+                try {
+                    mutex.acquire();
+                    contentPane.setSampleStatus(sample, "running");
 
-                String imageId = sample.getName();
+                    String imageId = sample.getName();
 
-                JSONObject params = new JSONObject();
-                params.put("threshold", (Float) contentPane.getThreshold());
+                    JSONObject params = new JSONObject();
+                    params.put("threshold", (Float) contentPane.getThreshold());
 
-                String model = "impartial_" + numberOfChannels;
-                JSONObject modelOutput = monaiClient.postInferJson(model, imageId, params);
+                    String model = "impartial_" + numberOfChannels;
+                    JSONObject modelOutput = monaiClient.postInferJson(model, imageId, params);
 
-                modelOutput.put("epoch", currentEpoch);
+                    modelOutput.put("epoch", currentEpoch);
 
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
-                LocalDateTime time = LocalDateTime.now();
-                modelOutput.put("time", time.format(formatter));
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+                    LocalDateTime time = LocalDateTime.now();
+                    modelOutput.put("time", time.format(formatter));
 
-                return modelOutput;
+                    return modelOutput;
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                } finally {
+                    mutex.release();
+                }
             }
 
             @Override
@@ -531,7 +544,7 @@ public class ImpartialController {
 
                 } catch (InterruptedException | ExecutionException e) {
                     throw new RuntimeException(e);
-                }
+                } 
             }
         };
 
