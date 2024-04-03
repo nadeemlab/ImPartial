@@ -90,10 +90,10 @@ public class BaseApiClient {
         System.out.println("Request url: " + request.url());
         System.out.println("Request headers: " + request.headers());
 
-        if (request.body() != null && request.body().contentLength() > 0) {
-            System.out.println("Request body: " + request.body().toString());
-            System.out.println("Request body: " + bodyToString(request));
-        }
+        // if (request.body() != null && request.body().contentLength() > 0) {
+        //     System.out.println("Request body: " + request.body().toString());
+        //     System.out.println("Request body: " + bodyToString(request));
+        // }
 
         return httpClient.newCall(request).execute();
     }
@@ -109,31 +109,31 @@ public class BaseApiClient {
         int responseCode = response.code();
         String requestMethod = response.request().method();
 
-        String requestBody = null;
-        if (response.request().body() != null && response.request().body().contentLength() > 0) {
-            requestBody = response.request().body().toString();
-        }
+        // String requestBody = null;
+        // if (response.request().body() != null && response.request().body().contentLength() > 0) {
+        //     requestBody = response.request().body().toString();
+        // }
 
         return "++++++++++++++++++++++++++++++++<ERROR LOG>++++++++++++++++++++++++++++++++++++++" + "\n" +
                 "Response for url: " + response.request().url() + "\n" +
                 "Request method: " + requestMethod + "\n" +
                 "Request headers: " + response.request().headers() + "\n" +
-                "Request body: " + requestBody + "\n" +
-                "Request body: " + bodyToString(response.request()) + "\n" +
+                // "Request body: " + requestBody + "\n" +
+                // "Request body: " + bodyToString(response.request()) + "\n" +
                 "~~~~~~~~~~~~~~~~~~~~~~~\n" +
                 "Response headers: " + response.headers() + "\n" +
                 "Response code: " + responseCode + "\n" +
-                "Response body: " + responseBody + "\n" +
+                // "Response body: " + responseBody + "\n" +
                 "++++++++++++++++++++++++++++++++</ERROR LOG>++++++++++++++++++++++++++++++++++++++" + "\n";
     }
 
-    private static String bodyToString(final Request request) {
-        try (Buffer buffer = new Buffer()) {
-            final Request copy = request.newBuilder().build();
-            copy.body().writeTo(buffer);
-            return buffer.readUtf8();
-        } catch (final IOException e) {
-            return "Body could not be parsed";
-        }
-    }
+    // private static String bodyToString(final Request request) {
+    //     try (Buffer buffer = new Buffer()) {
+    //         final Request copy = request.newBuilder().build();
+    //         copy.body().writeTo(buffer);
+    //         return buffer.readUtf8();
+    //     } catch (final IOException e) {
+    //         return "Body could not be parsed";
+    //     }
+    // }
 }
