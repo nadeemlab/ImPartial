@@ -73,7 +73,8 @@ public class MonaiLabelClient extends BaseApiClient {
         HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("infer/" + model)
                 .addQueryParameter("image", imageId)
-                .addQueryParameter("output", "json")
+                // .addQueryParameter("output", "json")
+                .addQueryParameter("output", "image")
                 .build();
 
         Request request = getRequestBuilder()

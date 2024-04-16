@@ -480,6 +480,8 @@ public class ImpartialController {
         // contentPane.setSampleStatus(sample, "running");
         JSONObject params = new JSONObject();
         params.put("threshold", (Float) contentPane.getThreshold());
+        params.put("save_label", true);
+        params.put("label_tag", "batch_iter1");
         String model = "impartial_" + numberOfChannels;
         try {
             JSONObject modelOutput = monaiClient.postBatchInferJson(model, params);
@@ -498,6 +500,8 @@ public class ImpartialController {
 
                 JSONObject params = new JSONObject();
                 params.put("threshold", (Float) contentPane.getThreshold());
+                params.put("save_label", true);
+                params.put("label_tag", "iter1");
 
                 String model = "impartial_" + numberOfChannels;
                 JSONObject modelOutput = monaiClient.postInferJson(model, imageId, params);
