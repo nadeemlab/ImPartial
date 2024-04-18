@@ -131,40 +131,19 @@ class ZIPFileWriter:
         if os.path.exists(label_path):
             label_gt = read_label(label_path, (data["image"].shape[1], data["image"].shape[2]))
             label_gt = label_gt.astype(int)
-            # print("Infers/impartial.py, label shape: ", label_gt.shape)
 
             metrics = get_performance(label_gt=label_gt, y_pred=prob_map, threshold=0.5, iou_threshold=0.5)
-            # print("Infers/impartial.py, metrics::", metrics)
 
-        # out_dir = '/tmp/test/'
-        # output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.zip")
-        # out_path = os.path.join(out_dir, f"{os.path.splitext(input_file)[0]}.zip")
-        # # new_output_dir = '/home/ubuntu/Data/result_gs/'
-        # # new_output_path = os.path.join(new_output_dir, f"{os.path.splitext(input_file)[0]}.zip")
-        # roi = ImagejRoi.frompoints([[1.1, 2.2], [3.3, 4.4], [5.5, 6.6]])
-        # print(roi)
-        # try:
-        #     roi.tofile(output_path)
-        #     # roi.tofile(new_output_path)
-        # except:
-        #     print("GS: Failed w/ exception ............. ")
-
-        # out_dir = '/tmp/test/'
         output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.json")
-        # out_path = os.path.join(out_dir, f"{os.path.splitext(input_file)[0]}.zip")
-        # for contour in measure.find_contours((prob_map > self.threshold).astype(np.uint8), level=0.9999):
-        #     roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
-        #     roi.tofile(output_path)
 
         res = {"output": prob_map.tolist(), "entropy": data["entropy"].tolist(), "metrics": metrics}
-        # res = {"output": prob_map.tolist(), "metrics": metrics}
+
         with open(output_path, 'w') as fp:
             json.dump(res, fp)
         
         # return output_path, {"output": prob_map.tolist(), "entropy": data["entropy"].tolist(), "metrics": metrics}
         # return output_path, {"output": prob_map.tolist(), "metrics": metrics}
         return output_path, {} 
-        # return output_path, {}
 
 class ImpartialImageReader(ImageReader):
     def __init__(self):
