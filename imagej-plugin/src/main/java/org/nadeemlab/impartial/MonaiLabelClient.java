@@ -110,6 +110,23 @@ public class MonaiLabelClient extends BaseApiClient {
         }
     }
 
+    public JSONObject getBatchInfer() throws IOException {
+        HttpUrl.Builder builder = getHttpUrlBuilder();
+        builder.addPathSegments("batch/infer");
+
+        builder.addQueryParameter("check_if_running", "false");
+
+        HttpUrl url = builder.build();
+
+        Request request = getRequestBuilder()
+                .url(url)
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            raiseForStatus(response);
+            return new JSONObject(response.body().string());
+        }
+    }
 
     public JSONObject getTrain(boolean checkIfRunning) throws IOException {
         HttpUrl.Builder builder = getHttpUrlBuilder();
@@ -276,6 +293,24 @@ public class MonaiLabelClient extends BaseApiClient {
             return response.body().bytes();
         }
     }
+
+//     public byte[] getDatastoreLabel(String imageId, String tag) throws IOException {
+//         HttpUrl url = getHttpUrlBuilder()
+//                 .addPathSegments("datastore/label")
+//                 .addQueryParameter("label", imageId)
+//                 .addQueryParameter("tag", tag)
+//                 .build();
+
+//         Request request = getRequestBuilder()
+//                 .url(url)
+//                 .build();
+
+//         try (Response response = httpClient.newCall(request).execute()) {
+//             raiseForStatus(response);
+
+//             return response.body().bytes();
+//         }
+//     }
 
     public boolean headDatastoreImage(String imageId) throws IOException {
         HttpUrl url = getHttpUrlBuilder()

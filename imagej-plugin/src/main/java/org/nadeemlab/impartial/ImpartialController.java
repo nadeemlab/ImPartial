@@ -70,6 +70,7 @@ public class ImpartialController {
     private int currentEpoch = 0;
     private TimerTask endOfSessionWarningTask;
     private SwingWorker<Void, Void> trainWorker;
+    private SwingWorker<Void, Void> batchInferWorker;
     private int numberOfChannels = 0;
     @Parameter
     private OpService ops;
@@ -300,6 +301,7 @@ public class ImpartialController {
         try {
             String imageId = contentPane.getSelectedImageId();
             byte[] labelBytes = monaiClient.getDatastoreLabel(imageId);
+            // byte[] labelBytes = monaiClient.getDatastoreLabel(imageId, "final");
 
             FileOutputStream stream = new FileOutputStream(labelFile);
             stream.write(labelBytes);
@@ -476,6 +478,64 @@ public class ImpartialController {
         }
     }
 
+    private void monitorBatchInfer() {
+        batchInferWorker = new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws IOException, InterruptedException {
+
+                status.showStatus("Monitoring batch inference...");
+                
+                String flag = "RUNNING";
+                Integer count = 0;
+                while(flag.equals("DONE") == false) {
+                    Thread.sleep(1000);
+                    JSONObject jsonStatus = monaiClient.getBatchInfer();
+                    
+                    flag = jsonStatus.getString("status");
+                    status.showStatus(flag + count.toString());
+                    count += 1;
+                }
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                int maxEpochs = getMaxEpochs();
+                contentPane.onTrainingStopped();
+                try {
+                    get();
+                    status.showStatus("Batch Inference done."); 
+                    Thread.sleep(1000);
+                    status.showStatus("Fetching results..."); 
+                    // getInfer();
+                } catch (ExecutionException e) {
+                    status.showStatus("Stopped");
+//                    printLogs();
+                    JOptionPane.showMessageDialog(contentPane,
+                            "An error occurred while running batch inference. Please check the logs for more information.",
+                            "Batch Inference stopped",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                } catch (CancellationException ignore) {
+                    status.showStatus("Stopped");
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            private void printLogs() {
+                try {
+                    System.out.println(monaiClient.getLogs());
+                } catch (IOException ignore) {
+                }
+            }
+        };
+
+        batchInferWorker.execute();
+
+    }
+
+
     public void batch_infer() {
         // contentPane.setSampleStatus(sample, "running");
         JSONObject params = new JSONObject();
@@ -488,6 +548,7 @@ public class ImpartialController {
         } catch (IOException e) {
             showIOError(e);
         }
+        monitorBatchInfer();
     }
 
     private void inferImage(Sample sample) {
