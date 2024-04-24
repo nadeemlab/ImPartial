@@ -276,11 +276,11 @@ public class MonaiLabelClient extends BaseApiClient {
         }
     }
 
-    public byte[] getDatastoreLabel(String imageId) throws IOException {
+    public byte[] getDatastoreLabel(String imageId, String tag) throws IOException {
         HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("datastore/label")
                 .addQueryParameter("label", imageId)
-                .addQueryParameter("tag", "final")
+                .addQueryParameter("tag", tag)
                 .build();
 
         Request request = getRequestBuilder()
@@ -293,24 +293,6 @@ public class MonaiLabelClient extends BaseApiClient {
             return response.body().bytes();
         }
     }
-
-//     public byte[] getDatastoreLabel(String imageId, String tag) throws IOException {
-//         HttpUrl url = getHttpUrlBuilder()
-//                 .addPathSegments("datastore/label")
-//                 .addQueryParameter("label", imageId)
-//                 .addQueryParameter("tag", tag)
-//                 .build();
-
-//         Request request = getRequestBuilder()
-//                 .url(url)
-//                 .build();
-
-//         try (Response response = httpClient.newCall(request).execute()) {
-//             raiseForStatus(response);
-
-//             return response.body().bytes();
-//         }
-//     }
 
     public boolean headDatastoreImage(String imageId) throws IOException {
         HttpUrl url = getHttpUrlBuilder()

@@ -300,8 +300,8 @@ public class ImpartialController {
     public void displayLabel() {
         try {
             String imageId = contentPane.getSelectedImageId();
-            byte[] labelBytes = monaiClient.getDatastoreLabel(imageId);
-            // byte[] labelBytes = monaiClient.getDatastoreLabel(imageId, "final");
+            // byte[] labelBytes = monaiClient.getDatastoreLabel(imageId);
+            byte[] labelBytes = monaiClient.getDatastoreLabel(imageId, "final");
 
             FileOutputStream stream = new FileOutputStream(labelFile);
             stream.write(labelBytes);
