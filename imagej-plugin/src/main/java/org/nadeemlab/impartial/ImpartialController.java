@@ -551,6 +551,79 @@ public class ImpartialController {
         monitorBatchInfer();
     }
 
+    private void getInferImage(Sample sample) {
+        SwingWorker<JSONObject, Void> swingWorker = new SwingWorker<JSONObject, Void>() {
+            @Override
+            protected JSONObject doInBackground() throws IOException {
+                contentPane.setSampleStatus(sample, "running");
+
+                String imageId = sample.getName();
+
+                JSONObject params = new JSONObject();
+                params.put("threshold", (Float) contentPane.getThreshold());
+                params.put("save_label", true);
+                params.put("label_tag", "iter1");
+
+                String model = "impartial_" + numberOfChannels;
+
+                JSONObject modelOutput = monaiClient.postInferJson(model, imageId, params);
+
+                modelOutput.put("epoch", currentEpoch);
+
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+                LocalDateTime time = LocalDateTime.now();
+                modelOutput.put("time", time.format(formatter));
+
+                return modelOutput;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    JSONObject modelOutput = get();
+
+                    String imageId = sample.getName();
+
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+                    LocalDateTime time = LocalDateTime.now();
+
+                    FloatProcessor output = jsonArrayToProcessor(modelOutput.getJSONArray("output"));
+                    FloatProcessor entropy = jsonArrayToProcessor(modelOutput.getJSONArray("entropy"));
+                    ContrastEnhancer ce = new ContrastEnhancer();
+                    ce.equalize(entropy);
+                    ce.stretchHistogram(entropy, 0);
+                    entropy.setColorModel(redGreenLut);
+
+                    ModelOutput out = new ModelOutput(output, entropy, time.format(formatter), currentEpoch);
+
+                    modelOutputs.put(imageId, out);
+
+                    String selectedImageId = contentPane.getSelectedImageId();
+                    if (selectedImageId != null && selectedImageId.equals(imageId)) {
+                        updateImage();
+                    }
+
+                    contentPane.setSampleStatus(sample, "done");
+                    contentPane.setSampleEntropy(sample, entropy.getStatistics().mean);
+                    contentPane.sortList();
+
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
+
+        swingWorker.execute();
+    }
+
+   public void getInfer() {
+        ListModel listModel = contentPane.getListModel();
+
+        for (int i = 0; i < listModel.size(); i++) {
+            getInferImage(listModel.getElementAt(i));
+        }
+    }
+
     private void inferImage(Sample sample) {
         SwingWorker<JSONObject, Void> swingWorker = new SwingWorker<JSONObject, Void>() {
             @Override
