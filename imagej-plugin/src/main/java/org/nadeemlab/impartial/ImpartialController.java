@@ -300,7 +300,6 @@ public class ImpartialController {
     public void displayLabel() {
         try {
             String imageId = contentPane.getSelectedImageId();
-            // byte[] labelBytes = monaiClient.getDatastoreLabel(imageId);
             byte[] labelBytes = monaiClient.getDatastoreLabel(imageId, "final");
 
             FileOutputStream stream = new FileOutputStream(labelFile);
@@ -507,7 +506,7 @@ public class ImpartialController {
                     status.showStatus("Batch Inference done."); 
                     Thread.sleep(1000);
                     status.showStatus("Fetching results..."); 
-                    // getInfer();
+                    getInfer();
                 } catch (ExecutionException e) {
                     status.showStatus("Stopped");
 //                    printLogs();
@@ -542,7 +541,9 @@ public class ImpartialController {
         params.put("threshold", (Float) contentPane.getThreshold());
         params.put("save_label", true);
         params.put("label_tag", "batch_iter1");
+
         String model = "impartial_" + numberOfChannels;
+
         try {
             JSONObject modelOutput = monaiClient.postBatchInferJson(model, params);
         } catch (IOException e) {
@@ -555,20 +556,13 @@ public class ImpartialController {
         SwingWorker<JSONObject, Void> swingWorker = new SwingWorker<JSONObject, Void>() {
             @Override
             protected JSONObject doInBackground() throws IOException {
-                contentPane.setSampleStatus(sample, "running");
+                contentPane.setSampleStatus(sample, "fetching infer results ...");
 
                 String imageId = sample.getName();
 
-                JSONObject params = new JSONObject();
-                params.put("threshold", (Float) contentPane.getThreshold());
-                params.put("save_label", true);
-                params.put("label_tag", "iter1");
-
-                String model = "impartial_" + numberOfChannels;
-
-                JSONObject modelOutput = monaiClient.postInferJson(model, imageId, params);
-
-                modelOutput.put("epoch", currentEpoch);
+                byte[] modelOutputBytes = monaiClient.getDatastoreLabel(imageId, "batch_iter1");
+                String modelOutputStr = new String (modelOutputBytes);
+                JSONObject modelOutput = new JSONObject(modelOutputStr);
 
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
                 LocalDateTime time = LocalDateTime.now();
