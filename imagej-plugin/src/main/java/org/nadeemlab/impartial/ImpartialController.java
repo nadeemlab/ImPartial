@@ -206,7 +206,7 @@ public class ImpartialController {
             displayImage(imageId);
 
             JSONObject imageInfo = getImageInfo(imageId);
-            boolean hasLabel = imageInfo.getJSONObject("labels").length() > 0;
+            boolean hasLabel = imageInfo.getJSONObject("labels").has("final");
 
             contentPane.setEnabledLabel(hasLabel);
             contentPane.setEnabledSubmit(hasLabel && contentPane.getSelectedViews().contains("Label"));
@@ -765,7 +765,7 @@ public class ImpartialController {
             if (selected.contains("Infer")) displayInfer();
 
             String imageId = contentPane.getSelectedImageId();
-            boolean hasLabel = getImageInfo(imageId).getJSONObject("labels").length() > 0;
+            boolean hasLabel = getImageInfo(imageId).getJSONObject("labels").has("final");
             contentPane.setEnabledSubmit(
                     !selected.contains("Infer") && (!hasLabel || selected.contains("Label"))
             );
