@@ -46,7 +46,7 @@ public class InferPanel extends JPanel {
         add(createModelPanel());
         add(panel);
         add(createInferButtonPanel());
-        add(createBatchInferButtonPanel());
+        // add(createBatchInferButtonPanel());
     }
 
     private JPanel createThresholdSlider() {
@@ -115,24 +115,16 @@ public class InferPanel extends JPanel {
         inferButton.addActionListener(e -> controller.infer());
         inferButton.setEnabled(false);
 
-        panel.add(inferButton);
-
-        return panel;
-    }
-
-    private JPanel createBatchInferButtonPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
         batchInferButton = new JButton("Batch Infer");
         batchInferButton.addActionListener(e -> controller.batch_infer());
         batchInferButton.setEnabled(false);
 
+
+        panel.add(inferButton);
         panel.add(batchInferButton);
 
         return panel;
     }
-
 
     private float normalizeValue(int value) {
         return (float) value / 100;
