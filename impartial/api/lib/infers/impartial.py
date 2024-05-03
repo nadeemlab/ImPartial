@@ -2,6 +2,7 @@ import base64
 import io
 import logging
 import os
+import json
 from typing import Any, Callable, Dict, List, Sequence, Union
 
 import numpy as np
@@ -117,7 +118,7 @@ class ZIPFileWriter:
     def __call__(self, data):
 
         base_dir, input_file = os.path.split(data["image_path"])
-        output_dir = os.path.join(base_dir, "outputs")
+        output_dir = os.path.join(base_dir, "outputs/final/")
         
         os.makedirs(output_dir, exist_ok=True)
 
@@ -130,18 +131,19 @@ class ZIPFileWriter:
         if os.path.exists(label_path):
             label_gt = read_label(label_path, (data["image"].shape[1], data["image"].shape[2]))
             label_gt = label_gt.astype(int)
-            # print("Infers/impartial.py, label shape: ", label_gt.shape)
 
             metrics = get_performance(label_gt=label_gt, y_pred=prob_map, threshold=0.5, iou_threshold=0.5)
-            # print("Infers/impartial.py, metrics::", metrics)
 
-        output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.zip")
-        for contour in measure.find_contours((prob_map > self.threshold).astype(np.uint8), level=0.9999):
-            roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
-            roi.tofile(output_path)
+        output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.json")
 
-        return output_path, {"output": prob_map.tolist(), "entropy": data["entropy"].tolist(), "metrics": metrics}
+        res = {"output": prob_map.tolist(), "entropy": data["entropy"].tolist(), "metrics": metrics}
 
+        with open(output_path, 'w') as fp:
+            json.dump(res, fp)
+        
+        # return output_path, {"output": prob_map.tolist(), "entropy": data["entropy"].tolist(), "metrics": metrics}
+        # return output_path, {"output": prob_map.tolist(), "metrics": metrics}
+        return output_path, {} 
 
 class ImpartialImageReader(ImageReader):
     def __init__(self):

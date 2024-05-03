@@ -73,7 +73,8 @@ public class MonaiLabelClient extends BaseApiClient {
         HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("infer/" + model)
                 .addQueryParameter("image", imageId)
-                .addQueryParameter("output", "json")
+                // .addQueryParameter("output", "json")
+                .addQueryParameter("output", "image")
                 .build();
 
         Request request = getRequestBuilder()
@@ -82,6 +83,46 @@ public class MonaiLabelClient extends BaseApiClient {
                 .build();
 
         try (Response response = callHttpClientAndLogRequestInfo(request)) {
+            raiseForStatus(response);
+            return new JSONObject(response.body().string());
+        }
+    }
+
+
+    public JSONObject postBatchInferJson(String model, JSONObject params) throws IOException {
+        final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+
+        RequestBody body = RequestBody.create(params.toString(), JSON);
+
+        HttpUrl url = getHttpUrlBuilder()
+                .addPathSegments("batch/infer/" + model)
+                // .addQueryParameter("images", "all")
+                .build();
+
+        Request request = getRequestBuilder()
+                .url(url)
+                .post(body)
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            raiseForStatus(response);
+            return new JSONObject(response.body().string());
+        }
+    }
+
+    public JSONObject getBatchInfer() throws IOException {
+        HttpUrl.Builder builder = getHttpUrlBuilder();
+        builder.addPathSegments("batch/infer");
+
+        builder.addQueryParameter("check_if_running", "false");
+
+        HttpUrl url = builder.build();
+
+        Request request = getRequestBuilder()
+                .url(url)
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
             raiseForStatus(response);
             return new JSONObject(response.body().string());
         }
@@ -235,11 +276,11 @@ public class MonaiLabelClient extends BaseApiClient {
         }
     }
 
-    public byte[] getDatastoreLabel(String imageId) throws IOException {
+    public byte[] getDatastoreLabel(String imageId, String tag) throws IOException {
         HttpUrl url = getHttpUrlBuilder()
                 .addPathSegments("datastore/label")
                 .addQueryParameter("label", imageId)
-                .addQueryParameter("tag", "final")
+                .addQueryParameter("tag", tag)
                 .build();
 
         Request request = getRequestBuilder()

@@ -71,6 +71,7 @@ public class ImpartialController {
     private int currentEpoch = 0;
     private TimerTask endOfSessionWarningTask;
     private SwingWorker<Void, Void> trainWorker;
+    private SwingWorker<Void, Void> batchInferWorker;
     private int numberOfChannels = 0;
     @Parameter
     private OpService ops;
@@ -211,7 +212,7 @@ public class ImpartialController {
             displayImage(imageId);
 
             JSONObject imageInfo = getImageInfo(imageId);
-            boolean hasLabel = imageInfo.getJSONObject("labels").length() > 0;
+            boolean hasLabel = imageInfo.getJSONObject("labels").has("final");
 
             contentPane.setEnabledLabel(hasLabel);
             contentPane.setEnabledSubmit(hasLabel && contentPane.getSelectedViews().contains("Label"));
@@ -305,7 +306,7 @@ public class ImpartialController {
     public void displayLabel() {
         try {
             String imageId = contentPane.getSelectedImageId();
-            byte[] labelBytes = monaiClient.getDatastoreLabel(imageId);
+            byte[] labelBytes = monaiClient.getDatastoreLabel(imageId, "final");
 
             FileOutputStream stream = new FileOutputStream(labelFile);
             stream.write(labelBytes);
@@ -482,6 +483,147 @@ public class ImpartialController {
         }
     }
 
+    private void monitorBatchInfer() {
+        batchInferWorker = new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws IOException, InterruptedException {
+
+                status.showStatus("Monitoring batch inference...");
+                
+                String flag = "RUNNING";
+                Integer count = 0;
+                while(flag.equals("DONE") == false) {
+                    Thread.sleep(1000);
+                    JSONObject jsonStatus = monaiClient.getBatchInfer();
+                    
+                    flag = jsonStatus.getString("status");
+                    status.showStatus(flag + count.toString());
+                    count += 1;
+                }
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                int maxEpochs = getMaxEpochs();
+                contentPane.onTrainingStopped();
+                try {
+                    get();
+                    status.showStatus("Batch Inference done."); 
+                    Thread.sleep(1000);
+                    status.showStatus("Fetching results..."); 
+                    getInfer();
+                } catch (ExecutionException e) {
+                    status.showStatus("Stopped");
+//                    printLogs();
+                    JOptionPane.showMessageDialog(contentPane,
+                            "An error occurred while running batch inference. Please check the logs for more information.",
+                            "Batch Inference stopped",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                } catch (CancellationException ignore) {
+                    status.showStatus("Stopped");
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            private void printLogs() {
+                try {
+                    System.out.println(monaiClient.getLogs());
+                } catch (IOException ignore) {
+                }
+            }
+        };
+
+        batchInferWorker.execute();
+
+    }
+
+
+    public void batch_infer() {
+        // contentPane.setSampleStatus(sample, "running");
+        JSONObject params = new JSONObject();
+        params.put("threshold", (Float) contentPane.getThreshold());
+        params.put("save_label", true);
+        params.put("label_tag", "batch_iter1");
+
+        String model = "impartial_" + numberOfChannels;
+
+        try {
+            JSONObject modelOutput = monaiClient.postBatchInferJson(model, params);
+        } catch (IOException e) {
+            showIOError(e);
+        }
+        monitorBatchInfer();
+    }
+
+    private void getInferImage(Sample sample) {
+        SwingWorker<JSONObject, Void> swingWorker = new SwingWorker<JSONObject, Void>() {
+            @Override
+            protected JSONObject doInBackground() throws IOException {
+                contentPane.setSampleStatus(sample, "fetching infer results ...");
+
+                String imageId = sample.getName();
+
+                byte[] modelOutputBytes = monaiClient.getDatastoreLabel(imageId, "batch_iter1");
+                String modelOutputStr = new String (modelOutputBytes);
+                JSONObject modelOutput = new JSONObject(modelOutputStr);
+
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+                LocalDateTime time = LocalDateTime.now();
+                modelOutput.put("time", time.format(formatter));
+
+                return modelOutput;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    JSONObject modelOutput = get();
+
+                    String imageId = sample.getName();
+
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+                    LocalDateTime time = LocalDateTime.now();
+
+                    FloatProcessor output = jsonArrayToProcessor(modelOutput.getJSONArray("output"));
+                    FloatProcessor entropy = jsonArrayToProcessor(modelOutput.getJSONArray("entropy"));
+                    ContrastEnhancer ce = new ContrastEnhancer();
+                    ce.equalize(entropy);
+                    ce.stretchHistogram(entropy, 0);
+                    entropy.setColorModel(redGreenLut);
+
+                    ModelOutput out = new ModelOutput(output, entropy, time.format(formatter), currentEpoch);
+
+                    modelOutputs.put(imageId, out);
+
+                    String selectedImageId = contentPane.getSelectedImageId();
+                    if (selectedImageId != null && selectedImageId.equals(imageId)) {
+                        updateImage();
+                    }
+
+                    contentPane.setSampleStatus(sample, "done");
+                    contentPane.setSampleEntropy(sample, entropy.getStatistics().mean);
+                    contentPane.sortList();
+
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
+
+        swingWorker.execute();
+    }
+
+   public void getInfer() {
+        ListModel listModel = contentPane.getListModel();
+
+        for (int i = 0; i < listModel.size(); i++) {
+            getInferImage(listModel.getElementAt(i));
+        }
+    }
+
     private void inferImage(Sample sample) {
         SwingWorker<JSONObject, Void> swingWorker = new SwingWorker<JSONObject, Void>() {
             @Override
@@ -494,6 +636,8 @@ public class ImpartialController {
 
                     JSONObject params = new JSONObject();
                     params.put("threshold", (Float) contentPane.getThreshold());
+                    params.put("save_label", true);
+                    params.put("label_tag", "iter1");
 
                     String model = "impartial_" + numberOfChannels;
                     JSONObject modelOutput = monaiClient.postInferJson(model, imageId, params);
@@ -634,7 +778,7 @@ public class ImpartialController {
             if (selected.contains("Infer")) displayInfer();
 
             String imageId = contentPane.getSelectedImageId();
-            boolean hasLabel = getImageInfo(imageId).getJSONObject("labels").length() > 0;
+            boolean hasLabel = getImageInfo(imageId).getJSONObject("labels").has("final");
             contentPane.setEnabledSubmit(
                     !selected.contains("Infer") && (!hasLabel || selected.contains("Label"))
             );

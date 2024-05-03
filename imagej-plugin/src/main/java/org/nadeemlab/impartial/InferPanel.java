@@ -8,6 +8,7 @@ public class InferPanel extends JPanel {
     private final ImpartialController controller;
     private final JLabel thresholdValue;
     private JButton inferButton;
+    private JButton batchInferButton;
     private JButton downloadButton;
     private JButton uploadButton;
     private final JSlider thresholdSlider = new JSlider(JSlider.HORIZONTAL, 0, 100, 50);
@@ -45,6 +46,7 @@ public class InferPanel extends JPanel {
         add(createModelPanel());
         add(panel);
         add(createInferButtonPanel());
+        // add(createBatchInferButtonPanel());
     }
 
     private JPanel createThresholdSlider() {
@@ -113,7 +115,13 @@ public class InferPanel extends JPanel {
         inferButton.addActionListener(e -> controller.infer());
         inferButton.setEnabled(false);
 
+        batchInferButton = new JButton("Batch Infer");
+        batchInferButton.addActionListener(e -> controller.batch_infer());
+        batchInferButton.setEnabled(false);
+
+
         panel.add(inferButton);
+        panel.add(batchInferButton);
 
         return panel;
     }
@@ -128,11 +136,13 @@ public class InferPanel extends JPanel {
 
     public void setEnabledInfer(boolean b) {
         inferButton.setEnabled(b);
+        batchInferButton.setEnabled(b);
     }
 
     public void onStarted() {
         thresholdSlider.setEnabled(true);
         inferButton.setEnabled(true);
+        batchInferButton.setEnabled(true);
         uploadButton.setEnabled(true);
         downloadButton.setEnabled(true);
     }
@@ -140,6 +150,7 @@ public class InferPanel extends JPanel {
     public void onStopped() {
         thresholdSlider.setEnabled(false);
         inferButton.setEnabled(false);
+        batchInferButton.setEnabled(false);
         uploadButton.setEnabled(false);
         downloadButton.setEnabled(false);
     }
