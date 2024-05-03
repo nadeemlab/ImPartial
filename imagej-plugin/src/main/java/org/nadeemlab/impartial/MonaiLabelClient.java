@@ -21,7 +21,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .url(url)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
             return new JSONObject(response.body().string());
         }
@@ -36,7 +36,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .url(url)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
             return response.body().bytes();
         }
@@ -59,7 +59,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .put(requestBody)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
         }
     }
@@ -82,7 +82,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .post(body)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
             return new JSONObject(response.body().string());
         }
@@ -141,7 +141,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .url(url)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
             return new JSONObject(response.body().string());
         }
@@ -161,7 +161,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .post(body)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
 
             return response.body().string();
@@ -178,7 +178,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .delete()
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
         }
     }
@@ -204,7 +204,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .put(requestBody)
                 .build();
 
-        try (Response response = this.httpClient.newCall(request).execute()) {
+        try (Response response = this.callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
 
             return new JSONObject(response.body().string());
@@ -234,7 +234,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .put(requestBody)
                 .build();
 
-        try (Response response = this.httpClient.newCall(request).execute()) {
+        try (Response response = this.callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
         }
     }
@@ -251,7 +251,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .delete()
                 .build();
 
-        try (Response response = this.httpClient.newCall(request).execute()) {
+        try (Response response = this.callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
         }
     }
@@ -270,7 +270,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .url(url)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
             return new JSONObject(response.body().string());
         }
@@ -287,7 +287,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .url(url)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
 
             return response.body().bytes();
@@ -305,7 +305,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .head()
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             return response.code() == 200;
         }
     }
@@ -320,7 +320,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .url(url)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
 
             return response.body().bytes();
@@ -337,7 +337,7 @@ public class MonaiLabelClient extends BaseApiClient {
                 .url(url)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
 
             return response.body().string();

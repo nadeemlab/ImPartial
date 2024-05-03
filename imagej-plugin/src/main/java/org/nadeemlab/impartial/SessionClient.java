@@ -32,7 +32,7 @@ public class SessionClient extends BaseApiClient {
                 .url(url)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
             return new JSONObject(response.body().string());
         }
@@ -48,7 +48,7 @@ public class SessionClient extends BaseApiClient {
                 .url(url)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
             return new JSONObject(response.body().string());
         }
@@ -64,7 +64,7 @@ public class SessionClient extends BaseApiClient {
                 .delete()
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
         }
     }
@@ -81,7 +81,7 @@ public class SessionClient extends BaseApiClient {
                 .post(emptyBody)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
         }
     }
@@ -97,7 +97,7 @@ public class SessionClient extends BaseApiClient {
                 .post(emptyBody)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
             return new JSONObject(response.body().string()).getString("session_id");
         }
@@ -114,7 +114,7 @@ public class SessionClient extends BaseApiClient {
                 .post(emptyBody)
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
         }
     }
@@ -132,7 +132,7 @@ public class SessionClient extends BaseApiClient {
                         .build())
                 .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
+        try (Response response = callHttpClientAndLogRequestInfo(request)) {
             raiseForStatus(response);
             return new JSONObject(response.body().string()).getString("token");
         }
