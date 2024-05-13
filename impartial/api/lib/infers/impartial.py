@@ -3,12 +3,17 @@ import io
 import logging
 import os
 import json
-from typing import Any, Callable, Dict, List, Sequence, Union
-
 import numpy as np
+import torch
+from typing import Any, Callable, Dict, List, Sequence, Union
+from PIL import Image
+from roifile import ImagejRoi
+from skimage import measure
+
 from dataprocessing.utils import read_image, read_label
 from general.evaluation import get_performance
-from lib.transforms import AggregateComponentOutputs, ComputeEntropy, GetImpartialOutputs
+from lib.transforms import GetImpartialOutputsFinal, AggregateComponentOutputs, ComputeEntropy, GetImpartialOutputs
+
 from monai.config import PathLike
 from monai.data import ImageReader
 from monai.data.image_reader import _copy_compatible_dict, _stack_images
@@ -20,12 +25,9 @@ from monai.transforms import (
     ToNumpyd,
     ToTensord,
 )
-from PIL import Image
-from roifile import ImagejRoi
-from skimage import measure
-
 from monailabel.interfaces.tasks.infer_v2 import InferType
 from monailabel.tasks.infer.basic_infer import BasicInferTask
+from monai.inferers import Inferer
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +61,12 @@ class Impartial(BasicInferTask):
             config={"label_colors": label_colors},
             input_key="image"
         )
+        # self.inferer = MCDropoutInferer(iconfig)
 
+
+    def inferer(self, data=None) -> Inferer:
+        return MCDropoutInferer(self.iconfig)
+    
     def info(self) -> Dict[str, Any]:
         d = super().info()
         d["pathology"] = True
@@ -80,13 +87,19 @@ class Impartial(BasicInferTask):
             EnsureChannelFirstd(keys="image", channel_dim=-1)
         ]
 
+    # def post_transforms(self, data=None) -> Sequence[Callable]:
+    #     return [
+    #         GetImpartialOutputs(iconfig=self.iconfig),
+    #         Activationsd(keys="output", softmax=True),
+    #         AggregateComponentOutputs(keys="output", iconfig=self.iconfig),
+    #         ComputeEntropy(),
+    #         # AsDiscreted(keys="output", threshold=data.get("threshold", 0.5)),
+    #         ToNumpyd(keys=("output", "entropy"))
+    #     ]
+
     def post_transforms(self, data=None) -> Sequence[Callable]:
         return [
-            GetImpartialOutputs(iconfig=self.iconfig),
-            Activationsd(keys="output", softmax=True),
-            AggregateComponentOutputs(keys="output", iconfig=self.iconfig),
-            ComputeEntropy(),
-            # AsDiscreted(keys="output", threshold=data.get("threshold", 0.5)),
+            GetImpartialOutputsFinal(iconfig=self.iconfig),
             ToNumpyd(keys=("output", "entropy"))
         ]
 
@@ -99,6 +112,57 @@ class Impartial(BasicInferTask):
         return writer(data)
 
 
+def to_np(t):
+    return t.cpu().detach().numpy()
+
+class MCDropoutInferer(Inferer):
+    """
+    MCDropoutInferer is the normal inference method that run model forward() directly.
+    Usage example can be found in the :py:class:`monai.inferers.Inferer` base class.
+
+    """
+
+    def __init__(self, iconfig) -> None:
+        Inferer.__init__(self)
+        self.iconfig = iconfig
+        print("MCDropoutInferer intialized ... ")
+
+    def __call__(
+        self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
+    ) -> torch.Tensor:
+        
+        # assume batch_size = 1 
+        # 40, 12, h, w
+        
+        print("inputs size: ", inputs.size())
+        print("Calling MCDropoutInferer ............... ############# ..............")
+        predictions = np.empty((0, self.iconfig.n_output, inputs.size(-2), inputs.size(-1)))
+        network.enable_dropout()
+        print(' ....running mcdrop iterations: ', self.iconfig.MCdrop_it)
+        # start_mcdropout_time = time.time()
+        for it in range(self.iconfig.MCdrop_it):
+            with torch.no_grad():
+                out = to_np(network(inputs, *args, **kwargs))
+                out = out[0] # assume batch_isze = 1 
+                print("GS:: mc dropout out shape: ", out.shape)
+                predictions = np.vstack((predictions, out[np.newaxis,...]))
+
+        print("mc dropout predictions size: ", predictions.shape)
+
+        out = predictions[np.newaxis, ...]
+        print("mc drop out out shape : ", out.shape)
+        out = torch.from_numpy(out)
+
+        # # return predictions
+        # out = network(inputs, *args, **kwargs)
+        # print("single out shape : ", out.shape)
+
+        # out = out[np.newaxis, ...]
+        # print("single out shape : ", out.shape)
+
+        return out
+    
+        
 def pil_to_b64(i):
     buff = io.BytesIO()
     i.save(buff, format="PNG")

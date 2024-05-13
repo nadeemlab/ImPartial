@@ -1,12 +1,14 @@
 import copy
 import logging
-from typing import Tuple
-
 import numpy as np
 import torch
+from typing import Tuple
+from scipy.special import softmax
+
 from dataprocessing.dataloaders import compute_probability_map, random_crop, blind_spot_patch
 from dataprocessing.utils import compute_entropy
 from impartial.Impartial_classes import ImPartialConfig
+
 from monai.config import KeysCollection
 from monai.transforms import MapTransform, Randomizable, Transform
 
@@ -114,10 +116,12 @@ class GetImpartialOutputs(Transform):
 
     def __call__(self, data):
         d = dict(data)
-
+        print("GetImpartial Outputs: ", d["pred"].shape)
         # tasks = self.iconfig.classification_tasks
         # d["output"] = outputs_by_task(tasks, torch.unsqueeze(d["pred"], 0))
-        d["output"] = d["pred"][:4, ...]
+
+        # d["output"] = d["pred"][:4, ...]
+        d["output"] = d["pred"][0, :4, ...]
 
         return d
 
@@ -140,8 +144,15 @@ class AggregateComponentOutputs(MapTransform):
         assert len(self.iconfig.classification_tasks["0"]["ncomponents"]) == 2
         step = task["ncomponents"][0]
 
-        for key in self.key_iterator(d):
-            d[key] = torch.sum(d[key][:step, ...], dim=0)
+        print("AggregateComponentOutputs ....... ------------------", d.keys())
+        print(step)
+
+        print("AggregateComponentOutputs: ---- ", d['output'].shape)
+        d['output'] = torch.sum(d['output'][:step, ...], dim=0)
+
+        # for key in self.key_iterator(d):
+        #     print("key: ", key)
+        #     d[key] = torch.sum(d[key][:step, ...], dim=0)
         return d
 
 
@@ -150,6 +161,53 @@ class ComputeEntropy(Transform):
         d = dict(data)
 
         d["entropy"] = compute_entropy(data["output"].cpu())
+
+        return d
+
+
+
+
+
+class GetImpartialOutputsFinal(Transform):
+    def __init__(self, iconfig: ImPartialConfig):
+        self.iconfig = iconfig
+
+    def __call__(self, data):
+        d = dict(data)
+        print("GetImpartial Outputs: ", d["pred"].shape)
+
+        # 1, 40, 12, h, w  -> 40, 12, h, w
+        # 1, 1, 12, h, w   --> 1, 12, h, w 
+        out = d["pred"][:, :4, ...]
+        out_seg = torch.softmax(out[:, :4, ...], dim=1)
+        
+
+        # assume 1 task
+        assert len(self.iconfig.classification_tasks) == 1
+        task = self.iconfig.classification_tasks["0"]
+
+        # assume 1 class (+ background) components
+        assert len(self.iconfig.classification_tasks["0"]["ncomponents"]) == 2
+        step = task["ncomponents"][0]
+
+        print("AggregateComponentOutputs ....... ------------------", d.keys())
+        print(step)
+
+        aux = torch.sum(out_seg[:, :step, ...], dim=1)
+
+        print("AUX size: ....... : ", aux.size() )
+
+        ## class segmentations
+        mean_classification = torch.mean(aux, dim=0)
+        variance_classification = torch.var(aux, dim=0)
+
+        print("mean_classification size: ....... : ", mean_classification.size() )
+        print("variance_classification size: ....... : ", variance_classification.size() )
+
+        # d["entropy"] = variance_classification
+        d["output"] = mean_classification
+        d["entropy"] = compute_entropy(mean_classification.cpu())
+        
 
         return d
 

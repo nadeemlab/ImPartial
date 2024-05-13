@@ -1,9 +1,12 @@
 import collections
 import logging
+import numpy as np
 from typing import Dict, List, Optional, Sequence, Union
 
-import numpy as np
 import torch
+from torch import Tensor
+from torch.nn.modules.loss import _Loss
+
 from ignite.metrics import Loss
 from ignite.metrics.metric import reinit__is_reduced
 from monai.engines import SupervisedTrainer
@@ -11,16 +14,14 @@ from monai.handlers import CheckpointSaver, IgniteMetric
 from monai.inferers import SimpleInferer
 from monai.transforms import EnsureChannelFirstd, RandFlipd, ScaleIntensityRangePercentiles
 from monai.utils import convert_to_numpy
-from torch import Tensor
-from torch.nn.modules.loss import _Loss
+from monailabel.interfaces.datastore import Datastore
+from monailabel.tasks.train.basic_train import BasicTrainTask, Context
 
 from dataprocessing.dataloaders import sample_patches
 from dataprocessing.utils import read_image, rois_to_labels, validation_mask
 from general.losses import reclosses, seglosses
 from impartial.Impartial_functions import compute_impartial_losses
 from lib.transforms import BlindSpotPatch, GetImpartialOutputs
-from monailabel.interfaces.datastore import Datastore
-from monailabel.tasks.train.basic_train import BasicTrainTask, Context
 
 logger = logging.getLogger(__name__)
 
