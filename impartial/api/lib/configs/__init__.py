@@ -59,6 +59,7 @@ class Config_CH2(ImPartialConfig):
             unet_base=64,
             BATCH_SIZE=8,
             n_channels=2,
+            dropout=True,
             classification_tasks={
                 '0': {'classes': 1, 'rec_channels': [0,1], 'ncomponents': [2, 2]}
             }

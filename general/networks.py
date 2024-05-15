@@ -41,12 +41,12 @@ class Down(nn.Module):
     """Downscaling with maxpool then double conv"""
 
     def __init__(self, in_channels, out_channels, activation = 'relu',
-                 batchnorm = True, dropout=False,p_drop = 0.5):
+                 batchnorm = True, dropout=False, p_drop = 0.5):
         super().__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool2d(2),
             DoubleConv(in_channels, out_channels, activation = activation,
-                       batchnorm = batchnorm, dropout=dropout,p_drop = p_drop)
+                       batchnorm = batchnorm, dropout=dropout, p_drop = p_drop)
         )
 
     def forward(self, x):
