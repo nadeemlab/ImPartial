@@ -116,7 +116,7 @@ class GetImpartialOutputs(Transform):
 
     def __call__(self, data):
         d = dict(data)
-        print("GetImpartial Outputs: ", d["pred"].shape)
+        # print("GetImpartial Outputs: ", d["pred"].shape)
         # tasks = self.iconfig.classification_tasks
         # d["output"] = outputs_by_task(tasks, torch.unsqueeze(d["pred"], 0))
 
@@ -144,10 +144,6 @@ class AggregateComponentOutputs(MapTransform):
         assert len(self.iconfig.classification_tasks["0"]["ncomponents"]) == 2
         step = task["ncomponents"][0]
 
-        print("AggregateComponentOutputs ....... ------------------", d.keys())
-        print(step)
-
-        print("AggregateComponentOutputs: ---- ", d['output'].shape)
         d['output'] = torch.sum(d['output'][:step, ...], dim=0)
 
         # for key in self.key_iterator(d):
@@ -165,9 +161,6 @@ class ComputeEntropy(Transform):
         return d
 
 
-
-
-
 class GetImpartialOutputsFinal(Transform):
     def __init__(self, iconfig: ImPartialConfig):
         self.iconfig = iconfig
@@ -180,7 +173,6 @@ class GetImpartialOutputsFinal(Transform):
         # 1, 1, 12, h, w   --> 1, 12, h, w 
         out = d["pred"][:, :4, ...]
         out_seg = torch.softmax(out[:, :4, ...], dim=1)
-        
 
         # assume 1 task
         assert len(self.iconfig.classification_tasks) == 1
@@ -190,23 +182,15 @@ class GetImpartialOutputsFinal(Transform):
         assert len(self.iconfig.classification_tasks["0"]["ncomponents"]) == 2
         step = task["ncomponents"][0]
 
-        print("AggregateComponentOutputs ....... ------------------", d.keys())
-        print(step)
-
         aux = torch.sum(out_seg[:, :step, ...], dim=1)
-
-        print("AUX size: ....... : ", aux.size() )
 
         ## class segmentations
         mean_classification = torch.mean(aux, dim=0)
         variance_classification = torch.var(aux, dim=0)
 
-        print("mean_classification size: ....... : ", mean_classification.size() )
-        print("variance_classification size: ....... : ", variance_classification.size() )
-
-        # d["entropy"] = variance_classification
+        d["entropy"] = variance_classification
         d["output"] = mean_classification
-        d["entropy"] = compute_entropy(mean_classification.cpu())
+        # d["entropy"] = compute_entropy(mean_classification.cpu())
         
 
         return d

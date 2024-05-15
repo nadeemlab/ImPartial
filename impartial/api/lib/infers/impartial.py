@@ -131,34 +131,17 @@ class MCDropoutInferer(Inferer):
         self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
     ) -> torch.Tensor:
         
-        # assume batch_size = 1 
-        # 40, 12, h, w
-        
-        print("inputs size: ", inputs.size())
-        print("Calling MCDropoutInferer ............... ############# ..............")
         predictions = np.empty((0, self.iconfig.n_output, inputs.size(-2), inputs.size(-1)))
         network.enable_dropout()
-        print(' ....running mcdrop iterations: ', self.iconfig.MCdrop_it)
         # start_mcdropout_time = time.time()
         for it in range(self.iconfig.MCdrop_it):
             with torch.no_grad():
                 out = to_np(network(inputs, *args, **kwargs))
                 out = out[0] # assume batch_isze = 1 
-                print("GS:: mc dropout out shape: ", out.shape)
                 predictions = np.vstack((predictions, out[np.newaxis,...]))
 
-        print("mc dropout predictions size: ", predictions.shape)
-
         out = predictions[np.newaxis, ...]
-        print("mc drop out out shape : ", out.shape)
         out = torch.from_numpy(out)
-
-        # # return predictions
-        # out = network(inputs, *args, **kwargs)
-        # print("single out shape : ", out.shape)
-
-        # out = out[np.newaxis, ...]
-        # print("single out shape : ", out.shape)
 
         return out
     
