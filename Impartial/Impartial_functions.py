@@ -32,7 +32,7 @@ def compute_impartial_losses(out, input, scribble, mask, config, criterio_seg, c
             out_seg = torch.nn.Softmax(dim=1)(out[:, ix:ix + np.sum(ncomponents),...]) # batch_size x channels x h x w
         else:
             out_seg = torch.nn.Softmax(dim=2)(out[:, :, ix:ix + np.sum(ncomponents), ...])  #predictions x batch_size x channels x h x w
-            out_seg = torch.mean(out_seg,0)
+            out_seg = torch.mean(out_seg, 0)
         ix += np.sum(ncomponents)
 
         ## foreground scribbles loss for each class ##
@@ -88,7 +88,7 @@ def compute_impartial_losses(out, input, scribble, mask, config, criterio_seg, c
                 if config.mean:  # mean values per fore+back
                     # mean_values = torch.mean(out[:, ix:ix + np.sum(ncomponents), ...], [2, 3]) #batch x (nfore*nclasses + nback)
                     if len(out.shape) <= 4:
-                        mean_values = torch.sum(out[:, ix: ix + np.sum(ncomponents), ...]*out_seg,[2, 3])  # batch x (nfore*nclasses + nback)
+                        mean_values = torch.sum(out[:, ix: ix + np.sum(ncomponents), ...]*out_seg, [2, 3])  # batch x (nfore*nclasses + nback)
                     else:
                         mean_values = torch.sum(torch.mean(out[:, :, ix: ix + np.sum(ncomponents), ...],0)*out_seg, [2, 3])  # prediction x batch x (nfore*nclasses + nback)
                     mean_values = mean_values/torch.sum(out_seg,[2, 3])
@@ -101,7 +101,7 @@ def compute_impartial_losses(out, input, scribble, mask, config, criterio_seg, c
                 if config.std:  # logstd values per fore+back
                     # std_values = torch.mean(out[:, ix:ix + np.sum(ncomponents), ...],[2, 3])  # assume this is log(std)
                     if len(out.shape) <= 4:
-                        std_values = torch.sum(out[:, ix:ix + np.sum(ncomponents), ...]*out_seg, [2, 3])
+                        std_values = torch.sum(out[:, ix: ix + np.sum(ncomponents), ...]*out_seg, [2, 3])
                     else:
                         std_values = torch.sum(torch.mean(out[:, :, ix: ix + np.sum(ncomponents), ...],0)*out_seg, [2, 3])
                     std_values = std_values/torch.sum(out_seg,[2, 3])

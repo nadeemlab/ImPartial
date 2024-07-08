@@ -16,14 +16,14 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
     mask_sk = morphology.skeletonize(mask_image) * mask_image
     if radius_pointer > 0:
         selem = morphology.disk(radius_pointer)
-        mask_sk = morphology.dilation(mask_sk, selem=selem) * mask_image
+        mask_sk = morphology.dilation(mask_sk, footprint=selem) * mask_image
     if disk_scribble:
         selem = morphology.disk(3)
-        outline_arc = morphology.erosion(mask_image, selem=selem) - \
-                      morphology.erosion(morphology.erosion(mask_image, selem=selem), selem=morphology.disk(1))
+        outline_arc = morphology.erosion(mask_image, footprint=selem) - \
+                      morphology.erosion(morphology.erosion(mask_image, footprint=selem), footprint=morphology.disk(1))
         if radius_pointer > 0:
             selem = morphology.disk(radius_pointer)
-            outline_arc = morphology.dilation(outline_arc, selem=selem)
+            outline_arc = morphology.dilation(outline_arc, footprint=selem)
 
         mask_sk += outline_arc
         mask_sk[mask_sk > 0] = 1
@@ -33,7 +33,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
     labels_image_res = np.array(label_image)
 
     back_aux = np.array(mask_image)
-    back_aux = morphology.dilation(back_aux, selem=morphology.disk(4))
+    back_aux = morphology.dilation(back_aux, footprint=morphology.disk(4))
 
     fov_image_res = np.array(1-mask_image)*back_aux #background entre foreground
     fov_image_res = morphology.skeletonize(fov_image_res)
@@ -44,7 +44,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
     # plt.subplot(1, 2, 2)
 
     back_aux = morphology.skeletonize(1-back_aux)
-    fov_image_res += morphology.dilation(back_aux,selem=morphology.disk(4))
+    fov_image_res += morphology.dilation(back_aux,footprint=morphology.disk(4))
 
     # plt.imshow(fov_image_res)
     # plt.show()
@@ -85,7 +85,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
                 ## foreground
                 foreground += label_aux * mask_sk
 
-                back_aux = morphology.dilation(label_aux, selem=morphology.disk(4))
+                back_aux = morphology.dilation(label_aux, footprint=morphology.disk(4))
                 back_aux += bb_image
                 back_aux = back_aux * (1 - mask_image)
                 back_aux[back_aux > 0] = 1
@@ -93,7 +93,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
 
                 if radius_pointer > 0:
                     selem = morphology.disk(radius_pointer)
-                    back_aux = morphology.dilation(back_aux, selem=selem) * (1 - mask_image)
+                    back_aux = morphology.dilation(back_aux, footprint=selem) * (1 - mask_image)
 
                 background += back_aux * (1 - mask_image)  # double secure
 
@@ -106,7 +106,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
                 back_aux = morphology.skeletonize(bb_image*(1-mask_image)*fov_image_res) ## box with background
                 if radius_pointer > 0:
                     selem = morphology.disk(radius_pointer)
-                    back_aux = morphology.dilation(back_aux, selem=selem) * (1 - mask_image)
+                    back_aux = morphology.dilation(back_aux, footprint=selem) * (1 - mask_image)
                 background += back_aux * (1 - mask_image)  # double secure
                 # ix0_nonz, ix1_nonz = np.nonzero(back_aux)
                 # # if radius_pointer > 0:
