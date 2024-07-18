@@ -3,6 +3,7 @@ import os
 import pickle
 import time
 import numpy as np
+import logging 
 
 import torch
 import torch.nn as nn
@@ -11,6 +12,122 @@ from torch import optim
 sys.path.append("../")
 from general.utils import model_params_load, mkdir, to_np, TravellingMean
 from Impartial.Impartial_functions import get_impartial_outputs
+
+import logging
+logger = logging.getLogger(__name__)
+
+class Trainer:
+
+    def __init__(self, device, model, criterion, optimizer):
+        self.epochs = 100
+        self.device = device
+        self.criterion = criterion
+        self.optimizer = optimizer
+        self.model = model 
+
+    def train(self, dataloader_train, dataloader_val):
+        print("Start training ... ")
+        
+        losses_all = []
+        for epoch in range(1, self.epochs):
+            
+            for batch, data in enumerate(dataloader_train):
+
+                x = data['input'].to(self.device) #input image with blind spots replaced randomly
+                mask = data['mask'].to(self.device)
+                scribble = data['scribble'].to(self.device)
+                target = data['target'].to(self.device) #input image with non blind spots
+
+                # print(x.size(), mask.size(), scribble.size(), target.size())
+
+                out = self.model(x)
+                losses = self.criterion.compute_loss(out, target, scribble, mask)
+
+                # print(out.size())
+ 
+                # print("Epoch: ", epoch)
+                # print("Batch: ", batch)
+                # print("Loss: ", losses)
+                
+                loss_batch = 0
+
+                # TODO: check weighted loss 
+                for key in self.criterion.config.weight_objectives.keys():
+                    loss_batch += losses[key] * self.criterion.config.weight_objectives[key]
+
+                self.optimizer.zero_grad()
+
+                loss_batch.backward()
+
+                # logger.debug("Epoch: {} Batch: {} Loss: {}".format(epoch, batch, loss_batch.item()))
+                losses_all.append(loss_batch.item())
+                self.optimizer.step()
+
+            logger.info("Train :::: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
+            self.validate(dataloader_val)
+
+
+    def validate(self, dataloader_val):
+        losses_all = []
+        for batch, data in enumerate(dataloader_val):
+
+            x = data['input'].to(self.device) #input image with blind spots replaced randomly
+            mask = data['mask'].to(self.device)
+            scribble = data['scribble'].to(self.device)
+            target = data['target'].to(self.device) #input image with non blind spots
+
+            out = self.model(x)
+            losses = self.criterion.compute_loss(out, target, scribble, mask)
+
+            loss_batch = 0
+            # TODO: check weighted loss 
+            for key in self.criterion.config.weight_objectives.keys():
+                loss_batch += losses[key] * self.criterion.config.weight_objectives[key]
+
+            losses_all.append(loss_batch.item())
+
+        logger.info("Val :::: Batch: {} Loss: {}".format(batch, np.mean(losses_all)))
+
+
+    def evaluate(self, dataloader_eval):
+
+        output_list = []
+        gt_list = []
+        print('Start evaluation in training ...')
+        for batch, data in enumerate(dataloader_eval):
+
+            Xinput = data['input'].to(self.device)
+            Ylabel = data['label'].numpy()
+            
+            gt_list.append(Ylabel)
+
+            self.model.eval()
+            with torch.no_grad():
+                predictions = (self.model(Xinput)).cpu().numpy()
+
+            
+            # TODO: Check get impartial outputs function
+            # output = get_impartial_outputs(predictions, config)  # output has keys: class_segmentation, factors
+
+            # print("impartial_training_debug_predictions", predictions)
+            # print("impartial_training_debug_output", output)
+            
+            # output_list.append(output)
+
+        return output_list, gt_list
+    
+
+class Inferer:
+
+    def __init__(self, ):
+        pass 
+
+
+    def infer(self):
+        pass 
+
+
+# TODO: delete below code later 
 
 def epoch_recseg_loss(dataloader, model, optimizer, config, criterio, train_type=True):
     #criterio has to output loss, seg_fore loss, seg_back loss and rec loss
