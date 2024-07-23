@@ -13,7 +13,9 @@ from torchvision import transforms
 sys.path.append("../")
 from general.utils import model_params_load, mkdir, save_json
 from general.evaluation import get_performance
-from dataprocessing.dataloaders import Normalize, ToTensor, RandomFlip, ImageSegDataset, ImageBlindSpotDataset
+from general.networks import UNet
+
+from ImPartial.dataprocessing.datasets import Normalize, ToTensor, RandomFlip, ImageSegDataset, ImageBlindSpotDataset
 
 class ImPartialConfig(argparse.Namespace):
 
@@ -177,7 +179,6 @@ class ImPartialModel:
         self.config = config
 
         ### Network Unet ###
-        from general.networks import UNet
         self.model = UNet(config.n_channels, config.n_output,
                      depth=config.unet_depth,
                      base=config.unet_base,
@@ -192,31 +193,8 @@ class ImPartialModel:
             self.optimizer = optim.Adam(self.model.parameters(), lr=config.LEARNING_RATE,
                                    weight_decay=config.optim_weight_decay)
 
-        else:
-            if config.optimizer == 'RMSprop':
-                self.optimizer = optim.RMSprop(self.model.parameters(), lr=config.LEARNING_RATE,
-                                          weight_decay=config.optim_weight_decay)
-            else:
-                self.optimizer = optim.SGD(self.model.parameters(), lr=config.LEARNING_RATE)
-
-        self.model_output_dir = os.path.join(self.config.basedir, self.config.model_name)
-        print('---------------- Impartial model config created ----------------------------')
-        print()
-        print('Model directory:', self.model_output_dir) # todo gs
-        print()
-        print('-- Config file :')
-        print(self.config)
-        print('')
-        print()
-        print('-- Network : ')
-        print(self.model)
-        print()
-        print()
-        print('-- Optimizer : ')
-        print(self.optimizer)
-        print()
-        print()
-        mkdir(self.model_output_dir)  # todo gs
+        if config.optimizer == 'sgd':
+            self.optimizer = optim.SGD(self.model.parameters(), lr=config.LEARNING_RATE)
 
         self.dataloader_train = None
         self.dataloader_val = None

@@ -4,7 +4,15 @@ from scipy.special import softmax
 import torch
 
 
+
+# TODO: delete this later
 def compute_impartial_losses(out, input, scribble, mask, config, criterio_seg, criterio_rec, criterio_reg=None):
+    config.classification_tasks 
+    config.weight_tasks
+    config.mean
+    config.std
+    config.DEVICE
+
     rec_loss_dic = {}
     seg_fore_loss_dic = {}
     seg_back_loss_dic = {}
@@ -126,6 +134,9 @@ def compute_impartial_losses(out, input, scribble, mask, config, criterio_seg, c
 
     return total_loss
 
+
+
+# TODO: delete this later
 def get_impartial_outputs(out, config):
     output = {}
 
