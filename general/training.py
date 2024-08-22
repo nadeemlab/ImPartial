@@ -3,29 +3,34 @@ import os
 import pickle
 import time
 import numpy as np
-import logging 
+import logging
+import mlflow 
 
 import torch
 import torch.nn as nn
 from torch import optim
+import matplotlib.pyplot as plt
 
 sys.path.append("../")
 from general.utils import model_params_load, mkdir, to_np, TravellingMean
-from Impartial.Impartial_functions import get_impartial_outputs
+from general.inference import get_impartial_outputs
 
 import logging
 logger = logging.getLogger(__name__)
 
 class Trainer:
 
-    def __init__(self, device, model, criterion, optimizer):
-        self.epochs = 100
+    def __init__(self, device, model, criterion, optimizer, output_dir):
+        self.epochs = 300
         self.device = device
         self.criterion = criterion
         self.optimizer = optimizer
         self.model = model 
+        self.output_dir = output_dir 
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
 
-    def train(self, dataloader_train, dataloader_val):
+    def train(self, dataloader_train, dataloader_val, dataloader_eval):
         print("Start training ... ")
         
         losses_all = []
@@ -43,31 +48,34 @@ class Trainer:
                 out = self.model(x)
                 losses = self.criterion.compute_loss(out, target, scribble, mask)
 
-                # print(out.size())
- 
-                # print("Epoch: ", epoch)
-                # print("Batch: ", batch)
-                # print("Loss: ", losses)
-                
                 loss_batch = 0
-
+                
                 # TODO: check weighted loss 
                 for key in self.criterion.config.weight_objectives.keys():
                     loss_batch += losses[key] * self.criterion.config.weight_objectives[key]
+                    if torch.is_tensor(losses[key]):
+                        mlflow.log_metric(key, losses[key].item())
+                    else:
+                        mlflow.log_metric(key, losses[key])
 
                 self.optimizer.zero_grad()
 
                 loss_batch.backward()
 
-                # logger.debug("Epoch: {} Batch: {} Loss: {}".format(epoch, batch, loss_batch.item()))
+                logger.debug("Epoch: {} Batch: {} Loss: {}".format(epoch, batch, loss_batch.item()))
                 losses_all.append(loss_batch.item())
                 self.optimizer.step()
 
+
             logger.info("Train :::: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
-            self.validate(dataloader_val)
+            mlflow.log_metric("train_loss", f"{np.mean(losses_all):6f}")
+
+            self.validate(dataloader_val, epoch=epoch)
+            if epoch % 5 == 0:
+                self.evaluate(dataloader_eval, epoch=epoch)
 
 
-    def validate(self, dataloader_val):
+    def validate(self, dataloader_val, epoch=0):
         losses_all = []
         for batch, data in enumerate(dataloader_val):
 
@@ -86,11 +94,13 @@ class Trainer:
 
             losses_all.append(loss_batch.item())
 
-        logger.info("Val :::: Batch: {} Loss: {}".format(batch, np.mean(losses_all)))
+        logger.info("Val :::: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
+        mlflow.log_metric("val_loss", f"{np.mean(losses_all):6f}")
 
 
-    def evaluate(self, dataloader_eval):
-
+    def evaluate(self, dataloader_eval, epoch=0):
+        
+        logger.info("Start eval :::: ")
         output_list = []
         gt_list = []
         print('Start evaluation in training ...')
@@ -105,17 +115,79 @@ class Trainer:
             with torch.no_grad():
                 predictions = (self.model(Xinput)).cpu().numpy()
 
+                # print("Eval: batch: predictions size: ", batch, predictions.shape)
+
+            output_file = os.path.join(self.output_dir, '{}_{}.png'.format(epoch, batch))
+            plot_save(predictions, output_file)
+
+            npz_prediction_path_dir = os.path.join(self.output_dir, 'predictions')
+            if not os.path.exists(npz_prediction_path_dir):
+                os.makedirs(npz_prediction_path_dir)
             
-            # TODO: Check get impartial outputs function
-            # output = get_impartial_outputs(predictions, config)  # output has keys: class_segmentation, factors
+            npz_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}.npz'.format(epoch, batch))
+            np.savez(npz_prediction_path, prediction=predictions)
+
+            # TODO: move config outside
+            classification_tasks = {'0': {'classes': 1, 'rec_channels': [0,1], 'ncomponents': [2,2]}}  # list containing classes 'object types'
+            mean = True
+            std = False
+            out = get_impartial_outputs(predictions, classification_tasks, mean, std)  # output has keys: class_segmentation, factors
+            out_seg = out['0']['class_segmentation'][0,0,:,:]
+            
+            png_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}.png'.format(epoch, batch))
+
+            # plot_predictions(data, out_seg, png_prediction_path)
+            plot_segmentation(out_seg, png_prediction_path)
+            mlflow.log_artifact(png_prediction_path, "predictions")
 
             # print("impartial_training_debug_predictions", predictions)
             # print("impartial_training_debug_output", output)
             
             # output_list.append(output)
 
+
+
         return output_list, gt_list
     
+
+
+def plot_save(predictions, output_file):
+
+    plt.figure(figsize=(10,10))
+    n = predictions.shape[1]
+    
+    # for i in range(n):
+    #     plt.subplot(1,12,i+1)
+    #     plt.imshow(predictions[0,i,:,:])
+
+    # plt.savefig(output_file)
+    # plt.save(output_file)
+    for i  in range(0,3) :
+
+        plt.subplot(3,4,1+(i*4))
+        plt.imshow(predictions[0,0+(i*4),:,:])
+
+        plt.subplot(3,4,2+(i*4))
+        plt.imshow(predictions[0,1+(i*4),:,:])
+
+        plt.subplot(3,4,3+(i*4))
+        plt.imshow(predictions[0,2+(i*4),:,:])
+
+        plt.subplot(3,4,4+(i*4))
+        plt.imshow(predictions[0,3+(i*4),:,:])
+
+        plt.show()
+
+    plt.savefig(output_file)
+    plt.close()
+
+    # plt.save(output_file)
+
+def plot_segmentation(prediction, output_file):
+    plt.figure(figsize=(10,5))
+    plt.subplot(1,1,1)
+    plt.imshow(prediction)
+    plt.savefig(output_file)
 
 class Inferer:
 
@@ -127,8 +199,10 @@ class Inferer:
         pass 
 
 
-# TODO: delete below code later 
 
+
+# TODO: delete below code later 
+"""
 def epoch_recseg_loss(dataloader, model, optimizer, config, criterio, train_type=True):
     #criterio has to output loss, seg_fore loss, seg_back loss and rec loss
 
@@ -496,3 +570,4 @@ def eval(dataloader_eval, model, optimizer, config, epoch, saveout=True, default
         output_list.append(output)
 
     return output_list, gt_list
+"""
