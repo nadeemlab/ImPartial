@@ -60,10 +60,13 @@ class ImageBlindSpotDataset(Dataset):
                 self.data_list.append([Xcrop[i,...], Scrop[i,...]])
 
             npatches += self.npatch_image
+            print("npatches: ", idx, npatches, len(self.data_list))
+
             if npatches > npatches_total:
                 break
 
     def __len__(self):
+
         return len(self.data_list)
 
     def __getitem__(self, idx):
@@ -85,10 +88,9 @@ class ImageBlindSpotDataset(Dataset):
     def generate_mask(self, input):
         #input size: patches x h x w x channel
 
-        ratio = self.ratio
         size_window = self.size_window
         size_data = input.shape
-        num_sample = int(size_data[0] * size_data[1] * (1 - ratio))
+        num_sample = int(size_data[0] * size_data[1] * (1 - self.ratio))
         # num_sample = int(size_data[1] * size_data[2] * (1 - ratio))
 
         mask = np.ones(size_data)
@@ -163,11 +165,11 @@ class ImageSegDataset(Dataset):
 
     def __getitem__(self, idx):
 
-        X = self.data['image']
+        X = self.data[idx]['image']
         if len(X.shape) <= 2:
             X= X[...,np.newaxis]
 
-        Y = self.data['label']
+        Y = self.data[idx]['label']
         if len(Y.shape) <= 2:
             Y= Y[..., np.newaxis]
 

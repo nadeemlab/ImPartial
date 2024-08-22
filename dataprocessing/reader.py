@@ -15,6 +15,20 @@ from csbdeep.utils import normalize
 from roifile import ImagejRoi
 from PIL import Image
 
+import torch
+
+
+def percentile_normalization(image, pmin=1, pmax=98, clip = False):
+    # Normalize the image using percentiles
+    lo, hi = np.percentile(image, (pmin, pmax))
+    image_norm_percentile = (image - lo) / (hi - lo)
+    
+    if clip:
+        image_norm_percentile[image_norm_percentile>1] = 1
+        image_norm_percentile[image_norm_percentile<0] = 0
+        
+    return image_norm_percentile
+
 
 def plot(image):
 
@@ -79,10 +93,10 @@ def readRoiFile(image, roi_path):
     rois = roifile.roiread(roi_path)
 
     label = np.zeros((image.shape[0], image.shape[1]))
-    print("label shape", label.shape)
-    print("label dtype: ", label.dtype)
+    # print("label shape", label.shape)
+    # print("label dtype: ", label.dtype)
     # .astype(np.int32)
-    print("len(rois): ", len(rois))
+    # print("len(rois): ", len(rois))
     # convert_roi_to_label(label, roi)
     for i in range(0, len(rois)):
         
@@ -108,21 +122,22 @@ def erosion_labels(label, radius_pointer=1):
             aux = morphology.dilation(mask_label, footprint=selem)
             if np.unique(aux*label).shape[0] > 2: #overlaps with other label
                 erode_label = morphology.erosion(mask_label, footprint=selem)
-                mask[erode_label>0] = 1
+                mask[erode_label>0] = vlabel
             else:
-                mask[mask_label>0] = 1
+                mask[mask_label>0] = vlabel
                 
     return mask
 
 
 
 def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
-                       radius_pointer=0, disk_scribble=False,sample_back = False):
+                       radius_pointer=0, disk_scribble=False, sample_back = False):
     mask_image = np.zeros_like(label_image)
     mask_image[label_image > 0] = 1.0
 
     nlabels = np.unique(label_image[label_image > 0]).shape[0]
     max_labels = np.minimum(max_labels, nlabels)
+    print("get_scribbles_mask: ", nlabels, max_labels)
 
     ### Set the instance scribble mask mask_sk
     mask_sk = morphology.skeletonize(mask_image) * mask_image
@@ -187,7 +202,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
 
         active_labels = labels_image_res * bb_image
 
-        if np.sum(active_labels>0)>0:
+        if np.sum(active_labels>0) > 0:
             active_labels = np.unique(active_labels[active_labels > 0])
 
             for label in active_labels:
@@ -214,7 +229,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
                 fov_image_res = fov_image_res * (1 - label_aux)
         else:
             #print('NO labels')
-            if (np.sum(fov_image_res*bb_image)>0):
+            if np.sum(fov_image_res*bb_image) > 0:
                 back_aux = morphology.skeletonize(bb_image*(1-mask_image)*fov_image_res) ## box with background
                 if radius_pointer > 0:
                     selem = morphology.disk(radius_pointer)
@@ -240,21 +255,26 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
     return mask_scribbles, max_labels - nbudget, nlabels
 
 
-def get_scribble(label, total_labels=100):
+def get_scribble(label, scribble_rate=1.0):
 
-    nlabels_budget = total_labels
+    unique_labels = np.unique(label).shape[0]
+    nlabels_budget = int(scribble_rate * unique_labels)
+    print("unique_labels: ", unique_labels)
+    print("nlabels_budget: ", nlabels_budget)
+
     label_mask = erosion_labels(label, radius_pointer=1)
 
     Y_gt_train_ch0_list = []
     Y_gt_train_ch0_list.append(label_mask)
     
 
-    Y_out_ch0_list, nscribbles_ch0_list, nlabels_ch0_list = get_scribbles_mask(Y_gt_train_ch0_list[0],
+    Y_out_ch0_list, nscribbles_ch0_list, nlabels_ch0_list = get_scribbles_mask(
+                                                                     Y_gt_train_ch0_list[0],
                                                                      fov_box=(32,32),
                                                                      max_labels=nlabels_budget,
                                                                      radius_pointer=0,
                                                                      disk_scribble = True,
-                                                                     sample_back = True)
+                                                                     sample_back = False) # True GS check
 
     Y_out_ch0_list = [Y_out_ch0_list]
 
@@ -271,7 +291,7 @@ def get_scribble(label, total_labels=100):
     scribble_task[scribble_task>0] = 1
         
     scribble = np.array(scribble_task)
-    print("scribble shape",  scribble.shape)
+    # print("scribble shape",  scribble.shape)
 
     return scribble
 
@@ -292,7 +312,7 @@ def get_fov_mask(image, scribble):
     ix_center = np.argmax(val_center)
     ix_row = int(np.floor(ix_center/image.shape[1]))
     ix_col = int(ix_center - ix_row * image.shape[1])
-    print(ix_center,ix_row,ix_col)
+    # print(ix_center,ix_row,ix_col)
 
     row_low = np.maximum(ix_row-region_val_size[0],0)
     row_high = np.minimum(row_low+region_val_size[0], image.shape[0])
@@ -303,7 +323,7 @@ def get_fov_mask(image, scribble):
     col_high = np.minimum(col_low+region_val_size[1], image.shape[1])
     col_low = np.maximum(col_high - 2*region_val_size[1],0)
     col_high = np.minimum(col_low+2*region_val_size[1], image.shape[1])
-    print(row_low,row_high,col_low,col_high)
+    # print(row_low,row_high,col_low,col_high)
 
     validation_mask = np.zeros([image.shape[0], image.shape[1]])
     validation_mask[row_low:row_high,
@@ -312,20 +332,35 @@ def get_fov_mask(image, scribble):
     return validation_mask 
 
 
-def prepare_data(image_path, roi_path):
+def prepare_data(image_path, roi_path, scribble_rate=1.0):
     sample = {}
-    sample['image'] = read_image(image_path)
+    sample['name'] = image_path
+    
+    img =  read_image(image_path)
+    img = img.astype(np.float32)
+    sample['image'] = percentile_normalization(img, pmin=1, pmax=98, clip = False)
+
+
     sample['label'] = readRoiFile(sample['image'], roi_path)
     eroded_label = erosion_labels(sample['label'], radius_pointer=1)
     mask = eroded_label.copy()
     mask[mask>0] = 1
     sample['mask'] = mask
-    sample['scribble'] = get_scribble(mask, total_labels=len(np.unique(sample['label'])))
+    # sample['scribble'] = get_scribble(mask, total_labels=len(np.unique(sample['label'])))
+    # sample['scribble'] = get_scribble(mask, total_labels=30)
+    sample['scribble'] = get_scribble(sample['label'], scribble_rate=scribble_rate)
     sample['fov_mask'] = get_fov_mask(sample['image'], sample['scribble'])
 
     return sample
 
 
+
+def save_model(model, path):
+    torch.save(model, path)
+
+def load_model(path):
+    model = torch.load(path)
+    model.eval()
 
 class DataProcessor():
     def __init__(self, data_dir):
@@ -338,16 +373,102 @@ class DataProcessor():
         test_paths = []
 
         for path in glob.iglob(f'{self.data_dir}/*.tif'):
-            print("path : ", path)
+            if not os.path.exists(path):
+                print("path does not exists")
+            # else:
+            #     print("path : ", path)
+
             name = path.split('/')[-1].split('.')[0]
-            # print("name: ",name)
+            print("name: ",name)
             rpath = self.data_dir + 'labels/final/' + name + '.zip'
                         
             if os.path.exists(rpath):
                 train_paths.append((path, rpath))
+                print("roi path : ", rpath)
             else:
                 test_paths.append(path)
+                print("test path : ", path)
 
-            print("roi path : ", rpath)
         return train_paths, test_paths
     
+
+
+
+
+def plot_sample(sample, output_file_path=None):
+
+    plt.figure(figsize=(10,10))
+    plt.subplot(1,5,1)
+    plt.title("image")
+    plt.imshow(sample['image'][:,:,0])
+    plt.subplot(1,5,2)
+    plt.imshow(sample['mask'])
+
+    plt.subplot(1,5,3)
+    plt.title('foreground')
+    plt.imshow(sample['scribble'][:,:,0])
+
+    plt.subplot(1,5,4)
+    plt.title('background')
+    plt.imshow(sample['scribble'][:,:,1])
+
+    plt.subplot(1,5,5)
+    plt.title('fov_mask')
+    plt.imshow(sample['fov_mask'])
+
+    if output_file_path:
+        plt.savefig(output_file_path)
+
+    plt.close()
+
+
+def plot_patch_sample(patch_sample, output_file_path=None):
+    # print("patch_sample['input'] shape: ", patch_sample['input'].shape)
+    # print("patch_sample['target'] shape: ", patch_sample['target'].shape)
+    # print("patch_sample['mask'] shape: ", patch_sample['mask'].shape)
+    # print("patch_sample['scribble'] shape: ", patch_sample['scribble'].shape)
+    # print("patch_sample['scribble'] shape: ", patch_sample['input'].shape)
+
+    plt.figure(figsize=(10,5))
+    plt.subplot(4,2,1)
+    plt.title("input ch1")
+    plt.imshow(patch_sample['input'][0,:,:])
+
+    plt.subplot(4,2,2)
+    plt.title("input ch2")
+    plt.imshow(patch_sample['input'][1,:,:])
+
+    plt.subplot(4,2,3)
+    plt.title("target ch1")
+    plt.imshow(patch_sample['target'][0,:,:])
+
+    plt.subplot(4,2,4)
+    plt.title("target ch2")
+    plt.imshow(patch_sample['target'][1,:,:])
+
+    plt.subplot(4,2,5)
+    plt.title("mask ch1")
+    plt.imshow(patch_sample['mask'][0,:,:])
+
+    plt.subplot(4,2,6)
+    plt.title("mask ch2")
+    plt.imshow(patch_sample['mask'][1,:,:])
+
+    plt.subplot(4,2,7)
+    plt.title('foreground')
+    plt.imshow(patch_sample['scribble'][0,:,:])
+
+    plt.subplot(4,2,8)
+    plt.title('background')
+    plt.imshow(patch_sample['scribble'][1,:,:])
+
+    if output_file_path:
+        plt.savefig(output_file_path)
+
+    plt.close()
+
+
+
+def plot_predictions(data, predictions, output_file_path=None):
+
+    pass 

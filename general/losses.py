@@ -15,32 +15,16 @@ from scipy.special import softmax
 import torch
 
 class LossConfig():
-    def __init__(self, device):
+    def __init__(self, device, classification_tasks, weight_tasks, weight_objectives):
         self.device = device
         self.rec_loss = 'gaussian'
         self.reg_loss = 'L1'
 
-        self.weight_tasks = None #per segmentation class reconstruction weight
-        classification_tasks = {'0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [1,2]}}  # list containing classes 'object types'
-        for key in classification_tasks.keys():
-            nrec = len(classification_tasks[key]['rec_channels'])
-            nclasses = classification_tasks[key]['classes']
-
-            if 'weight_classes' not in classification_tasks[key].keys():
-                classification_tasks[key]['weight_classes'] = [1/nclasses for _ in range(nclasses)]
-            if 'weight_rec_channels' not in classification_tasks[key].keys():
-                classification_tasks[key]['weight_rec_channels'] = [1/nrec for _ in range(nrec)]
-
-        if self.weight_tasks is None:
-            self.weight_tasks = {}
-            for key in classification_tasks.keys():
-                self.weight_tasks[key] = 1/len(classification_tasks.keys())
-
         self.classification_tasks = classification_tasks
-
+        self.weight_tasks = weight_tasks
+        self.weight_objectives = weight_objectives
         self.mean = True
         self.std = False
-        self.weight_objectives = {'seg_fore': 0.45, 'seg_back': 0.45, 'rec': 0.1, 'reg': 0.0}
 
 
 class ImpartialLoss():
@@ -105,9 +89,9 @@ class ImpartialLoss():
 
                 if torch.sum(num_scribbles) > 0:
                     seg_class_loss = self.criterio_seg(out_seg_class, scribbles_class) * scribbles_class #batch_size x h x w
-                    seg_class_loss = torch.sum(seg_class_loss, [1, 2]) / torch.max(num_scribbles,torch.ones_like(num_scribbles)) #batch_size
-                    seg_class_loss = torch.sum(seg_class_loss)/torch.sum(torch.min(num_scribbles,torch.ones_like(num_scribbles)))
-                    seg_fore_loss_dic[class_tasks_key] += classification_tasks['weight_classes'][ix_class]*seg_class_loss #mean of nonzero nscribbles across batch samples
+                    seg_class_loss = torch.sum(seg_class_loss, [1, 2]) / torch.max(num_scribbles, torch.ones_like(num_scribbles)) #batch_size
+                    seg_class_loss = torch.sum(seg_class_loss)/torch.sum(torch.min(num_scribbles, torch.ones_like(num_scribbles)))
+                    seg_fore_loss_dic[class_tasks_key] += classification_tasks['weight_classes'][ix_class] * seg_class_loss #mean of nonzero nscribbles across batch samples
 
             total_loss['seg_fore'] += seg_fore_loss_dic[class_tasks_key] * self.config.weight_tasks[class_tasks_key]
 
