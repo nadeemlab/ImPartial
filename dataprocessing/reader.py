@@ -55,8 +55,11 @@ def plotLabel(label, title):
 def read_image(path):
     extension = os.path.splitext(path)[-1][1:].lower()
 
-    if extension == "png":
-        image = np.array(Image.open(path))
+    if extension == "png":                              ####check and add conditions -->conveting 3 channel png to 2ch
+        image_org = np.array(Image.open(path))
+        image = np.zeros((image_org.shape[0], image_org.shape[1], 2))
+        image[:,:,0] = image_org[:,:,0]
+        image[:,:,1] = image_org[:,:,2]
     elif extension in ("tiff", "tif"):
         image = tiff.imread(path)
     else:
@@ -335,7 +338,7 @@ def get_fov_mask(image, scribble):
 def prepare_data(image_path, roi_path, scribble_rate=1.0):
     sample = {}
     sample['name'] = image_path
-    
+    print("image_path", image_path)
     img =  read_image(image_path)
     img = img.astype(np.float32)
     sample['image'] = percentile_normalization(img, pmin=1, pmax=98, clip = False)
@@ -350,6 +353,17 @@ def prepare_data(image_path, roi_path, scribble_rate=1.0):
     # sample['scribble'] = get_scribble(mask, total_labels=30)
     sample['scribble'] = get_scribble(sample['label'], scribble_rate=scribble_rate)
     sample['fov_mask'] = get_fov_mask(sample['image'], sample['scribble'])
+
+    return sample
+
+
+def prepare_data_test(image_path):
+    
+    sample = {}
+    sample['name'] = image_path
+    img =  read_image(image_path)
+    img = img.astype(np.float32)
+    sample['image'] = percentile_normalization(img, pmin=1, pmax=98, clip = False)
 
     return sample
 
@@ -372,7 +386,7 @@ class DataProcessor():
         train_paths = []
         test_paths = []
 
-        for path in glob.iglob(f'{self.data_dir}/*.tif'):
+        for path in glob.iglob(f'{self.data_dir}/*.tif'):           ## modify for png images
             if not os.path.exists(path):
                 print("path does not exists")
             # else:

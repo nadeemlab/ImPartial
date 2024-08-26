@@ -5,11 +5,15 @@ import time
 import numpy as np
 import logging
 import mlflow 
+from PIL import Image 
 
 import torch
 import torch.nn as nn
 from torch import optim
 import matplotlib.pyplot as plt
+
+from roifile import ImagejRoi
+from skimage import measure
 
 sys.path.append("../")
 from general.utils import model_params_load, mkdir, to_np, TravellingMean
@@ -21,7 +25,7 @@ logger = logging.getLogger(__name__)
 class Trainer:
 
     def __init__(self, device, model, criterion, optimizer, output_dir):
-        self.epochs = 300
+        self.epochs = 200
         self.device = device
         self.criterion = criterion
         self.optimizer = optimizer
@@ -30,7 +34,7 @@ class Trainer:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
-    def train(self, dataloader_train, dataloader_val, dataloader_eval):
+    def train(self, dataloader_train, dataloader_val, dataloader_eval, dataloader_infer):
         print("Start training ... ")
         
         losses_all = []
@@ -73,6 +77,7 @@ class Trainer:
             self.validate(dataloader_val, epoch=epoch)
             if epoch % 5 == 0:
                 self.evaluate(dataloader_eval, epoch=epoch)
+                self.infer(dataloader_infer, epoch=epoch)
 
 
     def validate(self, dataloader_val, epoch=0):
@@ -96,6 +101,69 @@ class Trainer:
 
         logger.info("Val :::: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
         mlflow.log_metric("val_loss", f"{np.mean(losses_all):6f}")
+
+
+    def infer(self, dataloader_infer, epoch=0):
+        
+        logger.info("Start infer :::: ")
+        output_list = []
+        # gt_list = []
+        print('Start inference in training ...')
+        for batch, data in enumerate(dataloader_infer):
+
+            Xinput = data['input'].to(self.device)
+            # Ylabel = data['label'].numpy()
+            
+            # gt_list.append(Ylabel)
+
+            self.model.eval()
+            with torch.no_grad():
+                predictions = (self.model(Xinput)).cpu().numpy()
+
+                # print("Eval: batch: predictions size: ", batch, predictions.shape)
+
+            output_file = os.path.join(self.output_dir, '{}_{}.png'.format(epoch, batch))
+            plot_save(predictions, output_file)
+
+            npz_prediction_path_dir = os.path.join(self.output_dir, 'inference')
+            if not os.path.exists(npz_prediction_path_dir):
+                os.makedirs(npz_prediction_path_dir)
+            
+            npz_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}.npz'.format(epoch, batch))
+            np.savez(npz_prediction_path, prediction=predictions)
+
+            # TODO: move config outside
+            classification_tasks = {'0': {'classes': 1, 'rec_channels': [0,1], 'ncomponents': [2,2]}}  # list containing classes 'object types'
+            mean = True
+            std = False
+            out = get_impartial_outputs(predictions, classification_tasks, mean, std)  # output has keys: class_segmentation, factors
+            out_seg = out['0']['class_segmentation'][0,0,:,:]
+            
+            png_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}.png'.format(epoch, batch))
+
+            # plot_predictions(data, out_seg, png_prediction_path)
+            plot_segmentation(out_seg, png_prediction_path)
+
+
+            # threshold & save 
+            threshold = 0.98
+            out_mask = (out_seg > threshold).astype(np.uint8) * 255
+            png_mask_path = os.path.join(npz_prediction_path_dir, '{}_{}_mask.png'.format(epoch, batch))
+            out_mask = Image.fromarray(out_mask)
+            out_mask.save(png_mask_path)
+
+
+            roi_zip_path = os.path.join(npz_prediction_path_dir, '{}_{}_roi.zip'.format(epoch, batch))
+            for contour in measure.find_contours((out_seg > threshold).astype(np.uint8), level=0.9999):
+                roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
+                roi.tofile(roi_zip_path)
+
+            mlflow.log_artifact(png_prediction_path, "inference")
+            mlflow.log_artifact(png_mask_path, "inference")
+            mlflow.log_artifact(roi_zip_path, "inference")
+
+        return output_list
+    
 
 
     def evaluate(self, dataloader_eval, epoch=0):
@@ -149,7 +217,6 @@ class Trainer:
 
         return output_list, gt_list
     
-
 
 def plot_save(predictions, output_file):
 

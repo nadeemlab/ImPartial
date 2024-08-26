@@ -180,6 +180,29 @@ class ImageSegDataset(Dataset):
 
         return data
 
+class ImageDataset(Dataset):
+
+    def __init__(self, data,
+                 transform=None): 
+
+        self.data = data
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+
+        X = self.data[idx]['image']
+        if len(X.shape) <= 2:
+            X= X[...,np.newaxis]
+
+        data = {'input': X}
+
+        if self.transform:
+            data = self.transform(data)
+
+        return data
 
 class RandomFlip(object):
     def __call__(self, data):

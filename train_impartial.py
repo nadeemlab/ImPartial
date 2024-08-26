@@ -11,8 +11,8 @@ import torch.utils.data
 from torch.nn import functional as F
 from torchvision import transforms
 
-from dataprocessing.datasets import ImageBlindSpotDataset, ImageSegDataset, Normalize, ToTensor, RandomFlip
-from dataprocessing.reader import prepare_data, DataProcessor, save_model, plot_sample, plot_patch_sample
+from dataprocessing.datasets import ImageBlindSpotDataset, ImageSegDataset, ImageDataset, Normalize, ToTensor, RandomFlip
+from dataprocessing.reader import prepare_data, prepare_data_test, DataProcessor, save_model, plot_sample, plot_patch_sample
 from general.training import Trainer
 from general.networks import UNet
 from general.losses import ImpartialLoss, LossConfig
@@ -73,8 +73,8 @@ else:
 """
 
 # 0. Configs:
-optim_weight_decay = 0.001
-LEARNING_RATE = 0.001
+optim_weight_decay = 0.0001
+LEARNING_RATE = 0.0005 
 rec_loss = 'gaussian'
 reg_loss = 'L1'
 classification_tasks = {'0': {'classes': 1, 'rec_channels': [0,1], 'ncomponents': [2,2]}}  # list containing classes 'object types'
@@ -120,25 +120,28 @@ normstd = False #normalization
      
 # 1. Data processor 
 
-# dataset_dir = '/nadeem_lab/Gunjan/data/Vectra_WC_2CH_tiff_full_labels/'
+dataset_dir = '/nadeem_lab/Gunjan/data/Vectra_WC_2CH_tiff_full_labels/'
 # dataset_dir = '/nadeem_lab/Gunjan/data/Vectra_WC_2CH_tiff_batchsize64/'
-dataset_dir = '/nadeem_lab/Gunjan/data/segpath_cd3_sample/'
+# dataset_dir = '/nadeem_lab/Gunjan/data/segpath_cd3_sample/'
 
 dataProcessor = DataProcessor(dataset_dir)
 train_paths, test_paths = dataProcessor.get_file_list()
+print("train_paths: ", train_paths )
+print("test_paths: ", test_paths )
 
-data = []
+
+train_data = []
 for image_path, roi_path in train_paths: 
     sample = prepare_data(image_path, roi_path, scribble_rate=args.scribble_rate)
     output_file_path = os.path.join(output_dir, image_path.split('/')[-1] + '.png')
     plot_sample(sample, output_file_path)
     mlflow.log_artifact(output_file_path, "samples")
-    data.append(sample)
+    train_data.append(sample)
 
-# test_data = []
-# for image_path in test_paths: 
-#     sample = prepare_data(image_path)
-#     test_data.append(sample)
+test_data = []
+for image_path in test_paths: 
+    sample = prepare_data_test(image_path)
+    test_data.append(sample)
 
 
 transforms_list = []
@@ -150,7 +153,8 @@ transforms_list.append(ToTensor(dim_data=3))
 
 transform_train = transforms.Compose(transforms_list)
 
-train_dataset = ImageBlindSpotDataset(data, transform=transform_train, npatch_image=1000)
+#npatches =1000
+train_dataset = ImageBlindSpotDataset(train_data, transform=transform_train, npatch_image=1000)
 print("train_dataset.data_list: ", len(train_dataset.data_list))
 train_dataset.sample_patches_data()
 
@@ -162,10 +166,12 @@ transforms_list.append(ToTensor())
 transform_val = transforms.Compose(transforms_list)
 
 
-val_dataset = ImageBlindSpotDataset(data, transform=transform_val, validation=True, npatch_image=500)
+val_dataset = ImageBlindSpotDataset(train_data, transform=transform_val, validation=True, npatch_image=500)
 val_dataset.sample_patches_data()
 
-dataset_eval = ImageSegDataset(data, transform=transform_val)
+dataset_eval = ImageSegDataset(train_data, transform=transform_val)
+
+dataset_infer = ImageDataset(test_data, transform=transform_val)
 
 print("train_dataset: ", len(train_dataset))
 print("val_dataset: ", len(val_dataset))
@@ -180,6 +186,7 @@ num_workers = 24
 dataloader_train = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 dataloader_val = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 dataloader_eval = torch.utils.data.DataLoader(dataset_eval, batch_size=1, shuffle=False, num_workers=2) 
+dataloader_infer = torch.utils.data.DataLoader(dataset_infer, batch_size=1, shuffle=False, num_workers=2) 
 
 """
 # Code to plot paches
@@ -228,7 +235,7 @@ criterion = ImpartialLoss(loss_config=config_loss)
 # 3. Training code 
 trainer = Trainer(device=device, model=model, criterion=criterion, optimizer=optimizer, output_dir=output_dir)
 
-trainer.train(dataloader_train=dataloader_train, dataloader_val=dataloader_val, dataloader_eval=dataloader_eval) 
+trainer.train(dataloader_train=dataloader_train, dataloader_val=dataloader_val, dataloader_eval=dataloader_eval, dataloader_infer=dataloader_infer) 
 
 path = os.path.join(output_dir, 'best.pth')
 save_model(model, path)
