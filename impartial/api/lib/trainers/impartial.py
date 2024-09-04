@@ -1,5 +1,6 @@
 import collections
 import logging
+import random
 from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
@@ -7,18 +8,17 @@ import torch
 from ignite.metrics import Loss
 from ignite.metrics.metric import reinit__is_reduced
 from monai.engines import SupervisedTrainer
-from monai.handlers import CheckpointSaver, IgniteMetric
+from monai.handlers import CheckpointSaver, IgniteMetric, LrScheduleHandler
 from monai.inferers import SimpleInferer
 from monai.transforms import EnsureChannelFirstd, RandFlipd, ScaleIntensityRangePercentiles
-from monai.utils import convert_to_numpy
 from torch import Tensor
 from torch.nn.modules.loss import _Loss
 
 from dataprocessing.dataloaders import sample_patches
-from dataprocessing.utils import read_image, rois_to_labels, validation_mask
+from dataprocessing.utils import read_image, rois_to_labels, validation_mask, percentile_normalization
 from general.losses import reclosses, seglosses
 from impartial.Impartial_functions import compute_impartial_losses
-from lib.transforms import BlindSpotPatch, GetImpartialOutputs
+from lib.transforms import BlindSpotPatch, GetImpartialOutputs, DisplayInputs
 from monailabel.interfaces.datastore import Datastore
 from monailabel.tasks.train.basic_train import BasicTrainTask, Context
 
@@ -34,7 +34,7 @@ class Impartial(BasicTrainTask):
             network,
             labels,
             iconfig,
-            roi_size=(128, 128),
+            roi_size=(128, 128), # TODO: (256, 256)
             description="Interactive deep learning whole-cell segmentation and thresholding using partial annotations",
             **kwargs,
     ):
@@ -54,21 +54,31 @@ class Impartial(BasicTrainTask):
         return self._network
 
     def optimizer(self, context: Context):
-        return torch.optim.Adam(context.network.parameters(), 0.0001)
+        return torch.optim.Adam(context.network.parameters(), 0.0005, weight_decay=0.0001)
+
 
     def loss_function(self, context: Context):
         return ImpartialLoss(self.iconfig)
 
+    # def lr_scheduler_handler(self, context: Context):
+    #     # lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(context.optimizer, mode="min")
+    #     # return LrScheduleHandler(lr_scheduler, print_lr=True, step_transform=lambda x: x.state.output[0]["loss"])
+
+    #     lr_scheduler = torch.optim.lr_scheduler.StepLR(context.optimizer, step_size=5, gamma=0.95)
+    #     return LrScheduleHandler(lr_scheduler, print_lr=True)
+
     def pre_process(self, request, datastore: Datastore):
+        
         datalist = datastore.datalist().copy()
-        scaler = ScaleIntensityRangePercentiles(
-            lower=1, upper=98, b_min=0, b_max=1, clip=True
-        )
+        # scaler = ScaleIntensityRangePercentiles(lower=1, upper=98, b_min=0, b_max=1, clip=True)
 
         for d in datalist:
+            path = d["image"]
             img = read_image(path=d["image"])
-            d["image"] = convert_to_numpy(scaler(img.astype(np.float32)))
+            img = img.astype(np.float32)
+            d["image"] = percentile_normalization(img, pmin=1, pmax=98, clip=False)
             d["scribble"] = rois_to_labels(d["label"], size=(d["image"].shape[0], d["image"].shape[1]))
+            # TODO: Add code for visualization of image, scribble
 
         return datalist
 
@@ -76,7 +86,9 @@ class Impartial(BasicTrainTask):
         return [
             BlindSpotPatch(keys="image", input="input", mask="mask"),
             EnsureChannelFirstd(keys=("image", "scribble"), channel_dim=-1),
-            RandFlipd(keys=("image", "scribble", "input", "mask"), spatial_axis=1),
+            # DisplayInputs(iconfig=self.iconfig, output_dir="/tmp/vectra_datalist_input/"),
+            RandFlipd(keys=("image", "scribble", "input", "mask"), prob=0.5, spatial_axis=1),
+            # DisplayInputs(iconfig=self.iconfig, output_dir="/tmp/vectra_datalist_input/")
         ]
 
     def train_post_transforms(self, context: Context):
@@ -88,7 +100,8 @@ class Impartial(BasicTrainTask):
     def partition_datalist(self, context: Context, shuffle=False):
         datalist = context.datalist
 
-        val_split = context.request.get("val_split", 0.4)
+        # val_split = context.request.get("val_split", 0.4)        
+        val_split = 0.4     #was being overwritten from monai label earlier to 0.2
 
         images = [d["image"] for d in datalist]
         scribbles = [d["scribble"] for d in datalist]
@@ -101,13 +114,16 @@ class Impartial(BasicTrainTask):
             for s in scribbles
         ]
 
-        nval_patches = int(val_split * self.iconfig.npatches_epoch)
+        # TODO: Can write code to plot val masks here
+
         logger.info(f"iconfig.npatches_epoch:: {self.iconfig.npatches_epoch}")
         npatches_epoch = context.request["npatches_epoch"]
+        nval_patches = int(val_split * npatches_epoch)
         ntrain_patches = npatches_epoch - nval_patches
 
         logger.info(f"partition_datalist :: npatches_epoch: {npatches_epoch}")
         logger.info(f"partition_datalist :: ntrain_patches: {ntrain_patches}")
+        logger.info(f"partition_datalist :: nval_patches: {nval_patches}")
 
         train_patches = sample_patches(
             images=images,
@@ -138,6 +154,8 @@ class Impartial(BasicTrainTask):
         val_ds = to_dict(val_patches)
 
         logger.info(f"End:: Partition dataset {len(train_ds)} + {len(val_ds)}")
+        random.shuffle(train_ds)
+        random.shuffle(val_ds)
         return train_ds, val_ds
 
     def _create_evaluator(self, context: Context):
@@ -199,9 +217,9 @@ class ImpartialLoss(_Loss):
         self.criterio_seg = criterio_seg or seglosses()
         self.criterio_rec = criterio_rec or reclosses()
 
-    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+    def forward(self, output: Tensor, target: Tensor) -> Tensor:
         losses = compute_impartial_losses(
-            out=input,
+            out=output,
             input=target["image"],
             scribble=target["scribble"],
             mask=target["mask"],
@@ -209,6 +227,7 @@ class ImpartialLoss(_Loss):
             criterio_seg=self.criterio_seg,
             criterio_rec=self.criterio_rec
         )
+        # print("ImpartialLoss:  losses: keys(): ", losses.keys())
 
         loss_batch = 0
         for k, w in self.config.weight_objectives.items():

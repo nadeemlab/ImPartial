@@ -6,9 +6,9 @@ import json
 from typing import Any, Callable, Dict, List, Sequence, Union
 
 import numpy as np
-from dataprocessing.utils import read_image, read_label
+from dataprocessing.utils import read_image, read_label, percentile_normalization
 from general.evaluation import get_performance
-from lib.transforms import AggregateComponentOutputs, ComputeEntropy, GetImpartialOutputs
+from lib.transforms import AggregateComponentOutputs, ComputeEntropy, GetImpartialOutputs, DisplayOuputs, DisplayPredictions
 from monai.config import PathLike
 from monai.data import ImageReader
 from monai.data.image_reader import _copy_compatible_dict, _stack_images
@@ -68,14 +68,8 @@ class Impartial(BasicInferTask):
     def pre_transforms(self, data=None) -> Sequence[Callable]:
         return [
             LoadImaged(keys="image", reader=ImpartialImageReader),
-            ScaleIntensityRangePercentilesd(
-                keys="image",
-                lower=1,
-                upper=98,
-                b_min=0,
-                b_max=1,
-                clip=True
-            ),
+            # Note: do normalization duing image loading
+            # ScaleIntensityRangePercentilesd(keys="image", lower=1, upper=98, b_min=0, b_max=1, clip=True),
             ToTensord(keys="image"),
             EnsureChannelFirstd(keys="image", channel_dim=-1)
         ]
@@ -83,11 +77,13 @@ class Impartial(BasicInferTask):
     def post_transforms(self, data=None) -> Sequence[Callable]:
         return [
             GetImpartialOutputs(iconfig=self.iconfig),
-            Activationsd(keys="output", softmax=True),
+            DisplayOuputs(iconfig=self.iconfig, output_dir="/tmp/vectra_datalist_out_2024-08-10"),
+            # Activationsd(keys="output", softmax=True),
             AggregateComponentOutputs(keys="output", iconfig=self.iconfig),
             ComputeEntropy(),
             # AsDiscreted(keys="output", threshold=data.get("threshold", 0.5)),
-            ToNumpyd(keys=("output", "entropy"))
+            ToNumpyd(keys=("output", "entropy")),
+            DisplayPredictions(iconfig=self.iconfig, output_dir="/tmp/vectra_datalist_2024-08-10"),
         ]
 
     def writer(self, data, extension=None, dtype=None):
@@ -135,14 +131,26 @@ class ZIPFileWriter:
             metrics = get_performance(label_gt=label_gt, y_pred=prob_map, threshold=0.5, iou_threshold=0.5)
 
         output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.json")
-
         res = {"output": prob_map.tolist(), "entropy": data["entropy"].tolist(), "metrics": metrics}
+
+        # TODO: Delete later
+        output_path2 = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}_test.json")
+        roi_zip_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}_roi.zip")
+
+        with open(output_path2, 'w') as fp:
+            json.dump(res, fp)
+        
+        threshold = 0.95
+        
+        for contour in measure.find_contours((prob_map > threshold).astype(np.uint8), level=0.9999):
+            roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
+            roi.tofile(roi_zip_path)
+        # TODO: Delete later ^^
+
 
         with open(output_path, 'w') as fp:
             json.dump(res, fp)
-        
-        # return output_path, {"output": prob_map.tolist(), "entropy": data["entropy"].tolist(), "metrics": metrics}
-        # return output_path, {"output": prob_map.tolist(), "metrics": metrics}
+
         return output_path, {} 
 
 class ImpartialImageReader(ImageReader):
@@ -160,7 +168,9 @@ class ImpartialImageReader(ImageReader):
     def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
 
         path = data[0]
-        return read_image(path)
+        img = read_image(path)
+        img = percentile_normalization(img, pmin=1, pmax=98, clip=False)
+        return img
 
     def get_data(self, img):
         

@@ -36,6 +36,7 @@ def compute_impartial_losses(
         criterio_reg: Regularization loss function.
         from_npz: Set to True if loading data from .npz files (original ImPartial pipelines).
     """
+
     total_loss = collections.defaultdict(int)
 
     seg_fore_loss = collections.defaultdict(int)
@@ -147,7 +148,7 @@ def outputs_by_task(tasks, outputs):
 
         res[k] = {
             "segmentation": seg,
-            "reconstruction": outputs[:, out_idx:out_idx + step, ...],
+            "reconstruction": outputs[:, out_idx:out_idx + step*len(t['rec_channels']), ...], # Fix step
             "segmented": out_seg
         }
         out_idx += step
@@ -206,9 +207,14 @@ def scribble_loss(output, scribble, criterion):
     if output.shape[0] != scribble.shape[0] or output.shape[-2:] != scribble.shape[-2:]:
         raise RuntimeError(f"'scribble' ({scribble.shape}) and 'output' ({output.shape}) dims mismatch")
 
+
     batch_size = torch.sum(scribble, [1, 2])  # batch_size
+    # print("Scribble_loss:  ", scribble.shape, output.shape, batch_size.shape, torch.sum(batch_size))
     if torch.sum(batch_size) > 0:
+        # print("Scribble_loss:  ", scribble.shape, output.shape, torch.sum(output, 1).shape)
         loss = criterion(torch.sum(output, 1), scribble) * scribble  # batch_size x h x w
+        # print("Loss shape:  ", loss.shape)
+
         loss = torch.sum(loss, [1, 2]) / torch.max(batch_size, torch.ones_like(batch_size))
         # mean of nonzero nscribbles across batch samples
         return torch.sum(loss) / torch.sum(torch.min(batch_size, torch.ones_like(batch_size)))
@@ -221,22 +227,55 @@ def reconstruction_loss(input, output, out_seg, mask, task, criterion, config):
     Compute reconstruction loss.
     """
     # channel to reconstruct for this class object
+    # TODO: Get ncomponents from config
+    ncomponents = [2, 2]
 
-    def get_mean(zeros=False):
-        if zeros:
-            device = out_seg.get_device() if out_seg.get_device() >= 0 else torch.device("cpu")
-            ts = torch.zeros([out_seg.shape[0], out_seg.shape[1]]).to(device)
-        else:
-            ts = torch.sum(output * out_seg, [2, 3]) / torch.sum(out_seg, [2, 3]) # batch x (nfore*nclasses + nback)
-        return torch.sum(torch.unsqueeze(torch.unsqueeze(ts, -1), -1) * out_seg, 1)
+    # def get_mean(zeros=False):
+    #     if zeros:
+    #         device = out_seg.get_device() if out_seg.get_device() >= 0 else torch.device("cpu")
+    #         ts = torch.zeros([out_seg.shape[0], out_seg.shape[1]]).to(device)
+    #     else:
+    #         ts = torch.sum(output * out_seg, [2, 3]) / torch.sum(out_seg, [2, 3]) # batch x (nfore*nclasses + nback)
+    #     return torch.sum(torch.unsqueeze(torch.unsqueeze(ts, -1), -1) * out_seg, 1)
 
-    mean_x = get_mean(not config.mean)
-    std_x = get_mean(not config.std)
+    # mean_x = get_mean(not config.mean)
+    # std_x = get_mean(not config.std)
 
+    # print("output.shape, out_seg.shape: ", output.shape, out_seg.shape)
+    # print("config.mean: ", config.mean, config.std)
     loss = 0
     rec_channels = task['rec_channels']  # list with channels to reconstruct
+    ix = 0
     for i, ch in enumerate(rec_channels):
+        # print("i, ch, ix: ", i, ch, ix)
         mask_inv = 1 - mask[:, ch, :, :]
+
+        if config.mean: 
+            # print("output[:, ix: ix + np.sum(ncomponents), ...].shape: ", output[:, ix: ix + np.sum(ncomponents), ...].shape)
+            mean_values = torch.sum(output[:, ix: ix + np.sum(ncomponents), ...]*out_seg, [2, 3])  # batch x (nfore*nclasses + nback)
+            # print("mean_values.shape: ", mean_values.shape)
+            mean_values = mean_values/torch.sum(out_seg,[2, 3])
+            ix += np.sum(ncomponents)
+        else:
+            device = out_seg.get_device() if out_seg.get_device() >= 0 else torch.device("cpu")
+            mean_values = torch.zeros([out_seg.shape[0], np.sum(ncomponents)])
+            mean_values = mean_values.to(device)
+        
+        mean_values = torch.unsqueeze(torch.unsqueeze(mean_values, -1), -1)
+        mean_x = torch.sum(mean_values * out_seg, 1) 
+
+        if config.std:  # logstd values per fore+back
+            std_values = torch.sum(output[:, ix: ix + np.sum(ncomponents), ...]*out_seg, [2, 3])
+            std_values = std_values/torch.sum(out_seg,[2, 3])
+            ix += np.sum(ncomponents)
+        else:
+            device = out_seg.get_device() if out_seg.get_device() >= 0 else torch.device("cpu")
+            std_values = torch.zeros([out_seg.shape[0], np.sum(ncomponents)])  # assume this is log(std)
+            std_values = std_values.to(device)
+        
+        std_values = torch.unsqueeze(torch.unsqueeze(std_values, -1), -1)
+        std_x = torch.sum(std_values * out_seg, 1)
+
         rec_x = criterion(input[:, ch, ...], mean=mean_x, logstd=std_x) * mask_inv
         # average over al channels
         num_mask = torch.sum(mask_inv, [1, 2])  # size batch

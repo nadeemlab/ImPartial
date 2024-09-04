@@ -1,9 +1,11 @@
 import copy
+import os 
 import logging
 from typing import Tuple
-
 import numpy as np
+import matplotlib.pyplot as plt
 import torch
+
 from dataprocessing.dataloaders import compute_probability_map, random_crop, blind_spot_patch
 from dataprocessing.utils import compute_entropy
 from impartial.Impartial_classes import ImPartialConfig
@@ -38,7 +40,6 @@ class PercentileNormalization(MapTransform):
             image_norm_percentile[image_norm_percentile < 0] = 0
 
         res["image"] = image_norm_percentile
-
         return res
 
 
@@ -80,7 +81,6 @@ class SampleImage(MapTransform):
             npatch_image=self.npatch_image,
             shift_crop=self.shift_crop
         )
-
         return res
 
 
@@ -114,13 +114,87 @@ class GetImpartialOutputs(Transform):
 
     def __call__(self, data):
         d = dict(data)
-
         # tasks = self.iconfig.classification_tasks
         # d["output"] = outputs_by_task(tasks, torch.unsqueeze(d["pred"], 0))
-        d["output"] = d["pred"][:4, ...]
+        # d["output"] = d["pred"][:4, ...]
+        d["output"] = torch.nn.Softmax(dim=0)(d["pred"][:4, ...])
+
+        return d
+    
+
+class DisplayInputs(Transform):
+    def __init__(self, iconfig: ImPartialConfig, output_dir):
+        self.iconfig = iconfig
+        self.output_dir = output_dir
+        self.count = 0 
+
+    def __call__(self, data):
+        d = dict(data)
+        self.count += 1 
+        if self.count > 20:
+            return d
+
+        keys = ["image", "input", "mask", "scribble"]
+        for k in keys:
+            out = d[k]
+            print(k, out.shape)
+            plt.figure(figsize=(20,5))
+            for i in range(out.shape[0]):
+                plt.subplot(1,2,i+1)
+                plt.title('{}_{}'.format(k, i))
+                plt.imshow(out[i,:,:])                
+            
+            plt.savefig(os.path.join(self.output_dir, '{}_{}.png'.format(k, i)))
+            plt.close()
 
         return d
 
+class DisplayOuputs(Transform):
+    def __init__(self, iconfig: ImPartialConfig, output_dir):
+        self.iconfig = iconfig
+        self.output_dir = output_dir
+        self.count = 0 
+
+    def __call__(self, data):
+        d = dict(data)
+        out = d["pred"].cpu().detach().numpy()
+        self.count += 1 
+
+        if self.count > 20:
+            return d
+
+        plt.figure(figsize=(20,5))
+        for i in range(out.shape[0]):
+            plt.title('{}'.format(i))
+            plt.imshow(out[i,:,:])                
+            plt.savefig(os.path.join(self.output_dir, '{}.png'.format(i)))
+
+        return d
+
+class DisplayPredictions(Transform):
+    def __init__(self, iconfig: ImPartialConfig, output_dir):
+        self.iconfig = iconfig
+        self.output_dir = output_dir
+
+    def __call__(self, data):
+        d = dict(data)
+        keys = ["output", "entropy"]
+        image_path = d["image_path"]
+        print("DisplayPredictions::: image_path: ", image_path)
+        i = 1
+        plt.figure(figsize=(20,20))
+        for k in keys:
+            out = d[k]
+            print(k, out.shape)
+            plt.subplot(1,2, i)
+            plt.title('{}'.format(k))
+            plt.imshow(out)   
+            i += 1             
+            
+        plt.savefig(os.path.join(self.output_dir, 'output_pred_entropy_{}.png'.format(image_path.split('/')[-1])))
+        plt.close()
+
+        return d
 
 class AggregateComponentOutputs(MapTransform):
     def __init__(
@@ -128,7 +202,7 @@ class AggregateComponentOutputs(MapTransform):
     ):
         self.iconfig = iconfig
         super().__init__(keys)
-
+        
     def __call__(self, data):
         d = dict(data)
 
@@ -142,6 +216,7 @@ class AggregateComponentOutputs(MapTransform):
 
         for key in self.key_iterator(d):
             d[key] = torch.sum(d[key][:step, ...], dim=0)
+
         return d
 
 

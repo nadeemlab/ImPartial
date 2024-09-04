@@ -52,7 +52,8 @@ class ImPartialConfig(argparse.Namespace):
 
         ####  Dataloaders  ####
         self.n_channels = 1
-        self.patch_size = (128, 128)
+        # self.patch_size = (128, 128)
+        self.patch_size = (256, 256)
         self.p_scribble_crop = 0.6 #probability of sampling a patch with a scribble
         self.shift_crop = 32 #random shift window for the sampled center of the patch
         self.nepochs_sample_patches = 10 #number of epochs until sample patches is available again
@@ -121,9 +122,9 @@ class ImPartialConfig(argparse.Namespace):
             nrec = len(task['rec_channels'])
 
             if 'weight_classes' not in task.keys():
-                task['weight_classes'] = [1/nclasses for _ in range(nclasses)]
+                task['weight_classes'] = [1.0/nclasses for _ in range(nclasses)]
             if 'weight_rec_channels' not in task.keys():
-                task['weight_rec_channels'] = [1/nrec for _ in range(nrec)]
+                task['weight_rec_channels'] = [1.0/nrec for _ in range(nrec)]
 
         if self.weight_tasks is None:
             self.weight_tasks = {}
