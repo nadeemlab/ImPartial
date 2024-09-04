@@ -10,7 +10,11 @@ import ij.process.FloatProcessor;
 import net.imagej.ops.OpService;
 import net.imagej.ops.geom.geom2d.LabelRegionToPolygonConverter;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.morphology.Erosion;
+import net.imglib2.algorithm.morphology.Dilation;
+import net.imglib2.algorithm.morphology.StructuringElements;
 import net.imglib2.algorithm.binary.Thresholder;
+import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.algorithm.labeling.ConnectedComponents;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgs;
@@ -703,7 +707,17 @@ public class ImpartialController {
         Img<FloatType> img = ImageJFunctions.wrapFloat(imp);
 
         FloatType threshold = new FloatType(contentPane.getThreshold());
+        // FloatType threshold = new FloatType(0.98f);
+        // Img<BitType> binaryImg = Thresholder.threshold(img, threshold, true, 2);
+
         Img<BitType> binaryImg = Thresholder.threshold(img, threshold, true, 2);
+
+        // List< Shape > diamondStrelDecomp;
+        
+        // diamondStrelDecomp = StructuringElements.diamond( 2, 2, true);
+        // Img<BitType> result1 = Erosion.erode( binaryImg, diamondStrelDecomp, 1 );
+        // Img<BitType> result2 = Dilation.dilate( result1, diamondStrelDecomp, 1 );
+        // Erosion.erode( binaryImg, binaryImg, diamondStrelDecomp, 1 );
 
         final long[] dims = new long[binaryImg.numDimensions()];
         binaryImg.dimensions(dims);
@@ -750,7 +764,7 @@ public class ImpartialController {
         for (int i = 0; i < input.length(); i++) {
             JSONArray row = input.getJSONArray(i);
             for (int j = 0; j < row.length(); j++) {
-                processor.setf(j, i, (float) row.getDouble(j) * 255);
+                processor.setf(j, i, (float) row.getDouble(j));
             }
         }
 

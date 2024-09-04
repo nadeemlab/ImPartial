@@ -11,7 +11,7 @@ public class InferPanel extends JPanel {
     private JButton batchInferButton;
     private JButton downloadButton;
     private JButton uploadButton;
-    private final JSlider thresholdSlider = new JSlider(JSlider.HORIZONTAL, 0, 100, 50);
+    private final JSlider thresholdSlider = new JSlider(JSlider.HORIZONTAL, 0, 100, 98);
 
     InferPanel(ImpartialController controller) {
         this.controller = controller;
