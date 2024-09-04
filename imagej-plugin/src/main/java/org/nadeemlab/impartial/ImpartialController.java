@@ -764,7 +764,7 @@ public class ImpartialController {
         for (int i = 0; i < input.length(); i++) {
             JSONArray row = input.getJSONArray(i);
             for (int j = 0; j < row.length(); j++) {
-                processor.setf(j, i, (float) row.getDouble(j) * 255);
+                processor.setf(j, i, (float) row.getDouble(j));
             }
         }
 
