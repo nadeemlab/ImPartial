@@ -56,10 +56,10 @@ def read_image(path):
     extension = os.path.splitext(path)[-1][1:].lower()
 
     if extension == "png":                              ####check and add conditions -->conveting 3 channel png to 2ch
-        image_org = np.array(Image.open(path))
-        image = np.zeros((image_org.shape[0], image_org.shape[1], 2))
-        image[:,:,0] = image_org[:,:,0]
-        image[:,:,1] = image_org[:,:,2]
+        image = np.array(Image.open(path))
+        # image = np.zeros((image_org.shape[0], image_org.shape[1], 2)) #### change comment line 60-62 for 1 channel and tiff or 3 channel image
+        # image[:,:,0] = image_org[:,:,0]
+        # image[:,:,1] = image_org[:,:,2]
     elif extension in ("tiff", "tif"):
         image = tiff.imread(path)
     else:
@@ -386,13 +386,13 @@ class DataProcessor():
         train_paths = []
         test_paths = []
 
-        for path in glob.iglob(f'{self.data_dir}/*.tif'):           ## modify for png images
+        for path in glob.iglob(f'{self.data_dir}/*.tif'):           ## modify for tiff images  #change
             if not os.path.exists(path):
                 print("path does not exists")
             # else:
             #     print("path : ", path)
 
-            name = path.split('/')[-1].split('.')[0]
+            name = path.split('/')[-1].split('.tif')[0]
             print("name: ",name)
             rpath = self.data_dir + 'labels/final/' + name + '.zip'
                         
@@ -405,9 +405,6 @@ class DataProcessor():
 
         return train_paths, test_paths
     
-
-
-
 
 def plot_sample(sample, output_file_path=None):
 

@@ -178,6 +178,7 @@ class ImageSegDataset(Dataset):
         if self.transform:
             data = self.transform(data)
 
+        data['image_name'] = self.data[idx]['name']
         return data
 
 class ImageDataset(Dataset):
@@ -202,6 +203,7 @@ class ImageDataset(Dataset):
         if self.transform:
             data = self.transform(data)
 
+        data['image_name'] = self.data[idx]['name']
         return data
 
 class RandomFlip(object):
