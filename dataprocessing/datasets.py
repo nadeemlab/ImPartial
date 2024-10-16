@@ -1,6 +1,5 @@
 import numpy as np
 import copy
-import os
 import torch
 from skimage.util.shape import view_as_windows
 
