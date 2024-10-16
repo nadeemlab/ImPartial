@@ -8,7 +8,7 @@ class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""
 
     def __init__(self, in_channels, out_channels, mid_channels=None,
-                 kernel_size=3, activation = 'relu', batchnorm = True, dropout=False,p_drop = 0.5):
+                 kernel_size=3, activation='relu', batchnorm=True, dropout=False, p_drop = 0.5):
         super().__init__()
         if not mid_channels:
             mid_channels = out_channels
@@ -21,8 +21,10 @@ class DoubleConv(nn.Module):
             sequential_list.append(nn.Conv2d(in_ch, out_ch, kernel_size=kernel_size, padding=1))
             if dropout:
                 sequential_list.append(nn.Dropout(p=p_drop))
+
             if batchnorm:
                 sequential_list.append(nn.BatchNorm2d(out_ch))
+
             if activation == 'elu':
                 sequential_list.append(nn.ELU(inplace=True))
             else:
@@ -41,12 +43,12 @@ class Down(nn.Module):
     """Downscaling with maxpool then double conv"""
 
     def __init__(self, in_channels, out_channels, activation = 'relu',
-                 batchnorm = True, dropout=False,p_drop = 0.5):
+                 batchnorm = True, dropout=False, p_drop=0.5):
         super().__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool2d(2),
             DoubleConv(in_channels, out_channels, activation = activation,
-                       batchnorm = batchnorm, dropout=dropout,p_drop = p_drop)
+                       batchnorm = batchnorm, dropout=dropout, p_drop=p_drop)
         )
 
     def forward(self, x):
@@ -56,8 +58,8 @@ class Down(nn.Module):
 class Up(nn.Module):
     """Upscaling then double conv"""
 
-    def __init__(self, in_channels, out_channels, bilinear=True, activation = 'relu',
-                 batchnorm = True, dropout=False, p_drop = 0.5):
+    def __init__(self, in_channels, out_channels, bilinear=True, activation='relu',
+                 batchnorm=True, dropout=False, p_drop=0.5):
         super().__init__()
 
         # if bilinear, use the normal convolutions to reduce the number of channels
@@ -86,7 +88,7 @@ class Up(nn.Module):
         return self.conv(x)
 
 class OutConv(nn.Module):
-    def __init__(self, in_channels, out_channels, dropout=False, p_drop = 0.5):
+    def __init__(self, in_channels, out_channels, dropout=False, p_drop=0.5):
         super(OutConv, self).__init__()
         if dropout:
             self.conv = []
@@ -102,8 +104,8 @@ class OutConv(nn.Module):
 'The following UNet is adapted from: https://github.com/milesial/Pytorch-UNet'
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes, bilinear=True, base = 32, depth=4, activation = 'relu',
-                 batchnorm = True, dropout=False, dropout_lastconv=False, p_drop = 0.5):
+    def __init__(self, n_channels, n_classes, bilinear=True, base=32, depth=4, activation='relu',
+                 batchnorm=True, dropout=False, dropout_lastconv=False, p_drop=0.5):
         super(UNet, self).__init__()
         self.activation = activation
         self.batchnorm = batchnorm
@@ -113,17 +115,17 @@ class UNet(nn.Module):
         self.dropout = dropout
         self.dropout_lastconv = dropout_lastconv
 
-        self.inc = DoubleConv(n_channels, base, activation = self.activation, batchnorm = self.batchnorm)
+        self.inc = DoubleConv(n_channels, base, activation=self.activation, batchnorm=self.batchnorm)
         self.down_list = []
         base_i = base + 0
         if depth > 1:
             for i in range(depth-1):
-                self.down_list.append(Down(base_i, base_i*2, activation = self.activation,
-                                           batchnorm = self.batchnorm, dropout=self.dropout, p_drop = p_drop))
+                self.down_list.append(Down(base_i, base_i*2, activation=self.activation,
+                                           batchnorm=self.batchnorm, dropout=self.dropout, p_drop=p_drop))
                 base_i *= 2
         factor = 2 if bilinear else 1
-        self.down_list.append(Down(base_i, base_i*2 // factor , activation = self.activation,
-                                   batchnorm = self.batchnorm, dropout=self.dropout, p_drop = p_drop))
+        self.down_list.append(Down(base_i, base_i*2 // factor, activation=self.activation,
+                                   batchnorm=self.batchnorm, dropout=self.dropout, p_drop=p_drop))
         base_i *= 2
         self.down_list = nn.ModuleList(self.down_list)
 
