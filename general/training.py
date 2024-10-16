@@ -1,15 +1,12 @@
 import sys
 import os
-import pickle
-import time
 import numpy as np
 import logging
 import mlflow 
+import pandas as pd
 from PIL import Image 
 
 import torch
-import torch.nn as nn
-from torch import optim
 import matplotlib.pyplot as plt
 
 from roifile import ImagejRoi
@@ -18,19 +15,26 @@ from skimage import measure
 sys.path.append("../")
 from general.utils import model_params_load, mkdir, to_np, TravellingMean
 from general.inference import get_impartial_outputs
+from general.evaluation import get_performance
 
 import logging
 logger = logging.getLogger(__name__)
 
+
 class Trainer:
 
-    def __init__(self, device, model, criterion, optimizer, output_dir):
-        self.epochs = 200
+    def __init__(self, device, classification_tasks, model, criterion, optimizer, output_dir, n_output, MCdrop_it=0):
+        self.epochs = 30
         self.device = device
         self.criterion = criterion
         self.optimizer = optimizer
         self.model = model 
         self.output_dir = output_dir 
+        self.classification_tasks = classification_tasks
+
+        self.MCdrop_it = MCdrop_it
+        self.n_output = n_output 
+
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
@@ -51,7 +55,7 @@ class Trainer:
 
                 out = self.model(x)
                 losses = self.criterion.compute_loss(out, target, scribble, mask)
-
+                
                 loss_batch = 0
                 
                 # TODO: check weighted loss 
@@ -112,9 +116,8 @@ class Trainer:
         for batch, data in enumerate(dataloader_infer):
 
             Xinput = data['input'].to(self.device)
-            # Ylabel = data['label'].numpy()
-            
-            # gt_list.append(Ylabel)
+            image_name = data['image_name'][0]
+            image_name = image_name.split('/')[-1]
 
             self.model.eval()
             with torch.no_grad():
@@ -123,23 +126,21 @@ class Trainer:
                 # print("Eval: batch: predictions size: ", batch, predictions.shape)
 
             output_file = os.path.join(self.output_dir, '{}_{}.png'.format(epoch, batch))
-            plot_save(predictions, output_file)
+            # plot_save(predictions, output_file)
 
             npz_prediction_path_dir = os.path.join(self.output_dir, 'inference')
             if not os.path.exists(npz_prediction_path_dir):
                 os.makedirs(npz_prediction_path_dir)
             
-            npz_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}.npz'.format(epoch, batch))
+            npz_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}_{}.npz'.format(image_name, epoch, batch))
             np.savez(npz_prediction_path, prediction=predictions)
-
-            # TODO: move config outside
-            classification_tasks = {'0': {'classes': 1, 'rec_channels': [0,1], 'ncomponents': [2,2]}}  # list containing classes 'object types'
+            
             mean = True
             std = False
-            out = get_impartial_outputs(predictions, classification_tasks, mean, std)  # output has keys: class_segmentation, factors
+            out = get_impartial_outputs(predictions, self.classification_tasks, mean, std)  # output has keys: class_segmentation, factors
             out_seg = out['0']['class_segmentation'][0,0,:,:]
             
-            png_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}.png'.format(epoch, batch))
+            png_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}_{}.png'.format(image_name, epoch, batch))
 
             # plot_predictions(data, out_seg, png_prediction_path)
             plot_segmentation(out_seg, png_prediction_path)
@@ -148,12 +149,12 @@ class Trainer:
             # threshold & save 
             threshold = 0.98
             out_mask = (out_seg > threshold).astype(np.uint8) * 255
-            png_mask_path = os.path.join(npz_prediction_path_dir, '{}_{}_mask.png'.format(epoch, batch))
+            png_mask_path = os.path.join(npz_prediction_path_dir, '{}_{}_{}_mask.png'.format(image_name, epoch, batch))
             out_mask = Image.fromarray(out_mask)
             out_mask.save(png_mask_path)
 
 
-            roi_zip_path = os.path.join(npz_prediction_path_dir, '{}_{}_roi.zip'.format(epoch, batch))
+            roi_zip_path = os.path.join(npz_prediction_path_dir, '{}_{}_{}_roi.zip'.format(image_name, epoch, batch))
             for contour in measure.find_contours((out_seg > threshold).astype(np.uint8), level=0.9999):
                 roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
                 roi.tofile(roi_zip_path)
@@ -165,28 +166,26 @@ class Trainer:
         return output_list
     
 
-
     def evaluate(self, dataloader_eval, epoch=0):
         
         logger.info("Start eval :::: ")
-        output_list = []
-        gt_list = []
+        pd_rows = []
+ 
         print('Start evaluation in training ...')
         for batch, data in enumerate(dataloader_eval):
 
             Xinput = data['input'].to(self.device)
-            Ylabel = data['label'].numpy()
-            
-            gt_list.append(Ylabel)
+            Ylabel = data['label'].numpy()[0,0,:,:].astype('int')
+            image_name = data['image_name'][0]
+            image_name = image_name.split('/')[-1]
 
             self.model.eval()
             with torch.no_grad():
                 predictions = (self.model(Xinput)).cpu().numpy()
-
                 # print("Eval: batch: predictions size: ", batch, predictions.shape)
 
             output_file = os.path.join(self.output_dir, '{}_{}.png'.format(epoch, batch))
-            plot_save(predictions, output_file)
+            # plot_save(predictions, output_file)
 
             npz_prediction_path_dir = os.path.join(self.output_dir, 'predictions')
             if not os.path.exists(npz_prediction_path_dir):
@@ -195,27 +194,36 @@ class Trainer:
             npz_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}.npz'.format(epoch, batch))
             np.savez(npz_prediction_path, prediction=predictions)
 
-            # TODO: move config outside
-            classification_tasks = {'0': {'classes': 1, 'rec_channels': [0,1], 'ncomponents': [2,2]}}  # list containing classes 'object types'
             mean = True
             std = False
-            out = get_impartial_outputs(predictions, classification_tasks, mean, std)  # output has keys: class_segmentation, factors
+            out = get_impartial_outputs(predictions, self.classification_tasks, mean, std)  # output has keys: class_segmentation, factors
             out_seg = out['0']['class_segmentation'][0,0,:,:]
-            
-            png_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}.png'.format(epoch, batch))
+            # print("GS:::eval debug out_seg shape", out_seg.shape)
+            png_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}_{}.png'.format(image_name, epoch, batch))
 
             # plot_predictions(data, out_seg, png_prediction_path)
             plot_segmentation(out_seg, png_prediction_path)
             mlflow.log_artifact(png_prediction_path, "predictions")
 
-            # print("impartial_training_debug_predictions", predictions)
-            # print("impartial_training_debug_output", output)
             
-            # output_list.append(output)
+            row = [image_name]
+            print("GS:::eval debug Ylabel shape", Ylabel.shape)
 
+            metrics = get_performance(Ylabel, out_seg, threshold=0.5)
+            for key in metrics.keys():
+                row.append(metrics[key])
+            pd_rows.append(row)
 
+        columns = ['image_name']
+        for key in metrics.keys():
+            columns.append(key)
 
-        return output_list, gt_list
+        model_output_pd_summary_path = os.path.join(self.output_dir, 'eval_{}.csv'.format(epoch))
+        pd_summary = pd.DataFrame(data=pd_rows, columns=columns)
+        pd_summary.to_csv(model_output_pd_summary_path, index=0) 
+
+        mlflow.log_artifact(model_output_pd_summary_path, "evaluation")
+
     
 
 def plot_save(predictions, output_file):
@@ -255,6 +263,7 @@ def plot_segmentation(prediction, output_file):
     plt.subplot(1,1,1)
     plt.imshow(prediction)
     plt.savefig(output_file)
+    plt.close()
 
 class Inferer:
 
