@@ -17,6 +17,19 @@ from PIL import Image
 
 import torch
 
+def read_label(path, image_shape):
+    extension = path.split(".")[-1].lower()
+
+    if extension == "tiff" or extension == "tif":
+        label = np.array(tiff.imread(path))
+
+    if extension == "zip" or extension == "ZIP":
+        label = readRoiFile(path, image_shape)
+
+    label = (label).astype(np.float32)
+
+    return label
+
 
 def percentile_normalization(image, pmin=1, pmax=98, clip = False):
     # Normalize the image using percentiles
@@ -92,10 +105,10 @@ def get_contour(roi):
 
 
 
-def readRoiFile(image, roi_path):
+def readRoiFile(roi_path, image_shape):
     rois = roifile.roiread(roi_path)
 
-    label = np.zeros((image.shape[0], image.shape[1]))
+    label = np.zeros((image_shape[0], image_shape[1]))
     # print("label shape", label.shape)
     # print("label dtype: ", label.dtype)
     # .astype(np.int32)
@@ -140,7 +153,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
 
     nlabels = np.unique(label_image[label_image > 0]).shape[0]
     max_labels = np.minimum(max_labels, nlabels)
-    print("get_scribbles_mask: ", nlabels, max_labels)
+    print("get_scribbles_mask: nlabels: {}, max_labels: {}".format(nlabels, max_labels))
 
     ### Set the instance scribble mask mask_sk
     mask_sk = morphology.skeletonize(mask_image) * mask_image
@@ -262,9 +275,11 @@ def get_scribble(label, scribble_rate=1.0):
 
     unique_labels = np.unique(label).shape[0]
     nlabels_budget = int(scribble_rate * unique_labels)
-    print("unique_labels: ", unique_labels)
-    print("nlabels_budget: ", nlabels_budget)
+    print("unique_labels: {} nlabels_budget: {}".format(unique_labels, nlabels_budget))
 
+    if nlabels_budget < 2:
+        return None
+        
     label_mask = erosion_labels(label, radius_pointer=1)
 
     Y_gt_train_ch0_list = []
@@ -335,16 +350,15 @@ def get_fov_mask(image, scribble):
     return validation_mask 
 
 
-def prepare_data(image_path, roi_path, scribble_rate=1.0):
+def prepare_data_train(path, scribble_rate=1.0):
+    image_path, roi_path = path
     sample = {}
     sample['name'] = image_path
-    print("image_path", image_path)
     img =  read_image(image_path)
     img = img.astype(np.float32)
     sample['image'] = percentile_normalization(img, pmin=1, pmax=98, clip = False)
 
-
-    sample['label'] = readRoiFile(sample['image'], roi_path)
+    sample['label'] = read_label(roi_path, sample['image'].shape)
     eroded_label = erosion_labels(sample['label'], radius_pointer=1)
     mask = eroded_label.copy()
     mask[mask>0] = 1
@@ -352,12 +366,25 @@ def prepare_data(image_path, roi_path, scribble_rate=1.0):
     # sample['scribble'] = get_scribble(mask, total_labels=len(np.unique(sample['label'])))
     # sample['scribble'] = get_scribble(mask, total_labels=30)
     sample['scribble'] = get_scribble(sample['label'], scribble_rate=scribble_rate)
+    if sample['scribble'] is None:
+        return None
     sample['fov_mask'] = get_fov_mask(sample['image'], sample['scribble'])
 
     return sample
 
 
-def prepare_data_test(image_path):
+def prepare_data_test(path):
+    image_path, roi_path = path
+    sample = {}
+    sample['name'] = image_path
+    img =  read_image(image_path)
+    img = img.astype(np.float32)
+    sample['image'] = percentile_normalization(img, pmin=1, pmax=98, clip = False)
+    sample['label'] = read_label(roi_path, sample['image'].shape)
+    return sample
+
+
+def prepare_data_infer(image_path):
     
     sample = {}
     sample['name'] = image_path
@@ -376,34 +403,44 @@ def load_model(path):
     model = torch.load(path)
     model.eval()
 
+
+
 class DataProcessor():
-    def __init__(self, data_dir):
+    def __init__(self, data_dir, extension='tif'):
         self.data_dir = data_dir 
-
-    def get_file_list(self):
+        self.extension = extension
+        self.train_dir = os.path.join(data_dir, 'train')
+        self.test_dir = os.path.join(data_dir, 'test')
+        self.infer_dir = os.path.join(data_dir, 'infer')
         
-        # data_dir = '/nadeem_lab/Gunjan/data/Vectra_WC_2CH_tiff_full_labels/'
-        train_paths = []
-        test_paths = []
+    def get_file_list(self):
+        train_paths, _ = self._get_file_list(self.train_dir)
+        test_paths, _ = self._get_file_list(self.test_dir)
+        _, infer_paths = self._get_file_list(self.infer_dir)
+        
+        return train_paths, test_paths, infer_paths
+    
 
-        for path in glob.iglob(f'{self.data_dir}/*.tif'):           ## modify for tiff images  #change
+    def _get_file_list(self, data_dir):
+        
+        paths_w_gt = []
+        paths_no_gt = []
+
+        for path in glob.iglob(f'{data_dir}/*.{self.extension}'):           ## modify for tiff images  #change
             if not os.path.exists(path):
                 print("path does not exists")
-            # else:
-            #     print("path : ", path)
-
-            name = path.split('/')[-1].split('.tif')[0]
-            print("name: ",name)
-            rpath = self.data_dir + 'labels/final/' + name + '.zip'
-                        
+            name = path.split('/')[-1].split(f'.{self.extension}')[0]
+            rpath = os.path.join(data_dir, 'labels/final/', name + '_cp_masks.tif')
+            # rpath = os.path.join(data_dir, 'labels/final/', name + '.tif')
+            
             if os.path.exists(rpath):
-                train_paths.append((path, rpath))
-                print("roi path : ", rpath)
+                paths_w_gt.append((path, rpath))
+                # print("roi path : ", rpath)
             else:
-                test_paths.append(path)
-                print("test path : ", path)
+                paths_no_gt.append(path)
+                # print("paths_no_gt path : ", path)
 
-        return train_paths, test_paths
+        return paths_w_gt, paths_no_gt
     
 
 def plot_sample(sample, output_file_path=None):
@@ -483,3 +520,29 @@ def plot_patch_sample(patch_sample, output_file_path=None):
 def plot_predictions(data, predictions, output_file_path=None):
 
     pass 
+
+
+
+# merges separate nuclei and cytoplasm labels into whole cell label
+def merge_labels(label):
+
+    l1 = label[:,:,0] > 0
+    l2 = label[:,:,2] > 0
+
+    # print("label1", l1)
+
+    plt.figure(figsize=(20,5))
+    plt.title('label1')
+    plt.imshow((l1))    #prediction for class 0
+    # plt.colorbar()
+
+
+    l3 = np.logical_or(l1, l2).astype(int)
+    l3, _ = ndimage.label(l3)
+
+    plt.figure(figsize=(20,5))
+    plt.title('combo label')
+    plt.imshow((l3))    #prediction for class 0
+    # plt.colorbar()
+    
+    return l3
