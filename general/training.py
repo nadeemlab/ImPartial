@@ -71,6 +71,7 @@ class Trainer:
                 loss_batch.backward()
 
                 logger.debug("Epoch: {} Batch: {} Loss: {}".format(epoch, batch, loss_batch.item()))
+                mlflow.log_metric("train_loss_b", f"{loss_batch.item()}")
                 losses_all.append(loss_batch.item())
                 self.optimizer.step()
 
@@ -79,9 +80,10 @@ class Trainer:
             mlflow.log_metric("train_loss", f"{np.mean(losses_all):6f}")
 
             self.validate(dataloader_val, epoch=epoch)
-            if epoch % 5 == 0:
+            if epoch % 20 == 0:
                 self.evaluate(dataloader_eval, epoch=epoch)
-                self.infer(dataloader_infer, epoch=epoch)
+            # if epoch % 50 == 0:
+            #     self.infer(dataloader_infer, epoch=epoch)
 
 
     def validate(self, dataloader_val, epoch=0):
@@ -107,11 +109,10 @@ class Trainer:
         mlflow.log_metric("val_loss", f"{np.mean(losses_all):6f}")
 
 
+    # infer == when there in no gt available
     def infer(self, dataloader_infer, epoch=0):
         
         logger.info("Start infer :::: ")
-        output_list = []
-        # gt_list = []
         print('Start inference in training ...')
         for batch, data in enumerate(dataloader_infer):
 
@@ -119,73 +120,25 @@ class Trainer:
             image_name = data['image_name'][0]
             image_name = image_name.split('/')[-1]
 
-            self.model.eval()
-            if self.mcdrop_it == 0:
-                with torch.no_grad():
-                    predictions = (self.model(Xinput)).cpu().numpy()
-                    # print("Eval: batch: predictions size: ", batch, predictions.shape)
+            predictions = self.inference(Xinput)
 
-            ### TODO: Add MCDropout in Infer & Validate
-            if self.mcdrop_it > 0:
-                predictions = np.empty((0, Xinput.shape[0], self.n_output, Xinput.shape[-2], Xinput.shape[-1]))
-                self.model.enable_dropout()
-                print('Running MCDropout iterations: ', self.mcdrop_it)
-                for it in range(self.mcdrop_it):
-                    with torch.no_grad():
-                        out = to_np(self.model(Xinput))
-                        # print("MCDrop out test: ", it, out.shape)
-
-                    predictions = np.vstack((predictions, out[np.newaxis,...]))
-            
-            print("mcdropout test: ", predictions.shape)
-
-            output_file = os.path.join(self.output_dir, '{}_{}.png'.format(epoch, batch))
-            # plot_save(predictions, output_file)
-
-            npz_prediction_path_dir = os.path.join(self.output_dir, 'inference')
-            if not os.path.exists(npz_prediction_path_dir):
-                os.makedirs(npz_prediction_path_dir)
-            
-            npz_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}_{}.npz'.format(image_name, epoch, batch))
-            np.savez(npz_prediction_path, prediction=predictions)
-            
             mean = True
             std = False
             out = get_impartial_outputs(predictions, self.classification_tasks, mean, std)  # output has keys: class_segmentation, factors
             out_seg = out['0']['class_segmentation'][0,0,:,:]
+
+            output_dir = os.path.join(self.output_dir, 'pred_no_gt')
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            self.save_log_outputs(output_dir, image_name, epoch, predictions, out, out_seg, mlflow_tag='pred_no_gt')
             
-            png_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}_{}.png'.format(image_name, epoch, batch))
 
-            # plot_predictions(data, out_seg, png_prediction_path)
-            plot_segmentation(out_seg, png_prediction_path)
-
-
-            # threshold & save 
-            threshold = 0.98
-            out_mask = (out_seg > threshold).astype(np.uint8) * 255
-            png_mask_path = os.path.join(npz_prediction_path_dir, '{}_{}_{}_mask.png'.format(image_name, epoch, batch))
-            out_mask = Image.fromarray(out_mask)
-            out_mask.save(png_mask_path)
-
-
-            roi_zip_path = os.path.join(npz_prediction_path_dir, '{}_{}_{}_roi.zip'.format(image_name, epoch, batch))
-            for contour in measure.find_contours((out_seg > threshold).astype(np.uint8), level=0.9999):
-                roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
-                roi.tofile(roi_zip_path)
-
-            mlflow.log_artifact(png_prediction_path, "inference")
-            mlflow.log_artifact(png_mask_path, "inference")
-            mlflow.log_artifact(roi_zip_path, "inference")
-
-        return output_list
-    
-
+    # evaluate == when there in gt available
     def evaluate(self, dataloader_eval, epoch=0):
         
-        logger.info("Start eval :::: ")
-        pd_rows = []
- 
         print('Start evaluation in training ...')
+        metrics_rows_pd = []
         for batch, data in enumerate(dataloader_eval):
 
             Xinput = data['input'].to(self.device)
@@ -193,70 +146,93 @@ class Trainer:
             image_name = data['image_name'][0]
             image_name = image_name.split('/')[-1]
 
-            self.model.eval()
-            if self.mcdrop_it == 0:
-                with torch.no_grad():
-                    predictions = (self.model(Xinput)).cpu().numpy()
-                    # print("Eval: batch: predictions size: ", batch, predictions.shape)
-
-            ### TODO: Add MCDropout in Infer & Validate
-            if self.mcdrop_it > 0:
-                predictions = np.empty((0, Xinput.shape[0], self.n_output, Xinput.shape[-2], Xinput.shape[-1]))
-                self.model.enable_dropout()
-                print('Running MCDropout iterations: ', self.mcdrop_it)
-                for it in range(self.mcdrop_it):
-                    with torch.no_grad():
-                        out = to_np(self.model(Xinput))
-                        # print("MCDrop out test: ", it, out.shape)
-
-                    predictions = np.vstack((predictions, out[np.newaxis,...]))
+            predictions = self.inference(Xinput)
             
-            print("mcdropout test: ", predictions.shape)
-
-
-            output_file = os.path.join(self.output_dir, '{}_{}.png'.format(epoch, batch))
-            # plot_save(predictions, output_file)
-
-            npz_prediction_path_dir = os.path.join(self.output_dir, 'predictions')
-            if not os.path.exists(npz_prediction_path_dir):
-                os.makedirs(npz_prediction_path_dir)
-            
-            npz_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}.npz'.format(epoch, batch))
-            np.savez(npz_prediction_path, prediction=predictions)
-
             mean = True
             std = False
             out = get_impartial_outputs(predictions, self.classification_tasks, mean, std)  # output has keys: class_segmentation, factors
-            out_seg = out['0']['class_segmentation'][0,0,:,:]
-            # print("GS:::eval debug out_seg shape", out_seg.shape)
-            png_prediction_path = os.path.join(npz_prediction_path_dir, '{}_{}_{}.png'.format(image_name, epoch, batch))
+            out_seg = out['0']['class_segmentation'][0,0,:,:] 
 
-            # plot_predictions(data, out_seg, png_prediction_path)
-            plot_segmentation(out_seg, png_prediction_path)
-            mlflow.log_artifact(png_prediction_path, "predictions")
 
+            output_dir = os.path.join(self.output_dir, 'pred_w_gt')
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            self.save_log_outputs(output_dir, image_name, epoch, predictions, out, out_seg, mlflow_tag='pred_w_gt')
             
             row = [image_name]
-            print("GS:::eval debug Ylabel shape", Ylabel.shape)
-
             metrics = get_performance(Ylabel, out_seg, threshold=0.5)
             for key in metrics.keys():
                 row.append(metrics[key])
-            pd_rows.append(row)
+            metrics_rows_pd.append(row)
 
         columns = ['image_name']
         for key in metrics.keys():
             columns.append(key)
 
         model_output_pd_summary_path = os.path.join(self.output_dir, 'eval_{}.csv'.format(epoch))
-        pd_summary = pd.DataFrame(data=pd_rows, columns=columns)
+        pd_summary = pd.DataFrame(data=metrics_rows_pd, columns=columns)
         pd_summary.to_csv(model_output_pd_summary_path, index=0) 
 
         mlflow.log_artifact(model_output_pd_summary_path, "evaluation")
 
+
+    def save_log_outputs(self, output_dir, image_name, epoch, predictions, out, out_seg, mlflow_tag):
+        
+        png_components_path = os.path.join(output_dir, 'components_{}_{}.png'.format(image_name, epoch))
+        # npz_prediction_path = os.path.join(output_dir, 'pred_{}_{}.npz'.format(image_name, epoch))
+        # npz_impartial_outs_path = os.path.join(output_dir, 'out_{}_{}.npz'.format(image_name, epoch))
+        png_prediction_path = os.path.join(output_dir, '{}_{}.png'.format(image_name, epoch))
+
+        png_mask_path = os.path.join(output_dir, '{}_{}_mask.png'.format(image_name, epoch))
+        roi_zip_path = os.path.join(output_dir, '{}_{}_roi.zip'.format(image_name, epoch))
+
+        plot_impartial_outputs(out, png_components_path)
+        # np.savez(npz_prediction_path, prediction=predictions)
+        # np.savez(npz_impartial_outs_path, out=out)            
+        plot_segmentation(out_seg, png_prediction_path)
+
+        mlflow.log_artifact(png_prediction_path, mlflow_tag)
+        mlflow.log_artifact(png_components_path, mlflow_tag)
+
+
+        # threshold & save 
+        threshold = 0.98
+        out_mask = (out_seg > threshold).astype(np.uint8) * 255
+        out_mask = Image.fromarray(out_mask)
+        out_mask.save(png_mask_path)
+
+        for contour in measure.find_contours((out_seg > threshold).astype(np.uint8), level=0.9999):
+            roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
+            roi.tofile(roi_zip_path)
+
+        # mlflow.log_artifact(png_mask_path, mlflow_tag)
+        # mlflow.log_artifact(roi_zip_path, mlflow_tag)
+        
+
+    # just the inference call w/ and wo/ mcdropout
+    def inference(self, Xinput):
+        self.model.eval()
+        if self.mcdrop_it == 0:
+            with torch.no_grad():
+                predictions = to_np(self.model(Xinput))
+
+        if self.mcdrop_it > 0:
+            predictions = np.empty((0, Xinput.shape[0], self.n_output, Xinput.shape[-2], Xinput.shape[-1]))
+            self.model.enable_dropout()
+            print('Running MCDropout iterations: ', self.mcdrop_it)
+            for it in range(self.mcdrop_it):
+                with torch.no_grad():
+                    out = to_np(self.model(Xinput))
+
+                predictions = np.vstack((predictions, out[np.newaxis,...]))
+            
+        # print("mcdropout test: ", predictions.shape)
+        return predictions
+
     
 
-def plot_save(predictions, output_file):
+def plot_save_predictions(predictions, output_file):
 
     plt.figure(figsize=(10,10))
     n = predictions.shape[1]
@@ -283,6 +259,7 @@ def plot_save(predictions, output_file):
 
         plt.show()
 
+    plt.tight_layout()
     plt.savefig(output_file)
     plt.close()
 
@@ -292,6 +269,55 @@ def plot_segmentation(prediction, output_file):
     plt.figure(figsize=(10,5))
     plt.subplot(1,1,1)
     plt.imshow(prediction)
+    plt.tight_layout()
     plt.savefig(output_file)
     plt.close()
 
+
+
+def plot_impartial_outputs(out, output_file):
+    plt.figure(figsize=(15,15))
+
+    out = out['0']
+    print(out.keys())
+    print(out['factors'].keys())
+
+    plt.subplot(4, 2, 1)
+    plt.imshow(out['class_segmentation'][0,0,:,:])
+    plt.subplot(4, 2, 2)
+    plt.imshow(out['class_segmentation_variance'][0,0,:,:])
+    
+    output_factors = out['factors']
+    plt.subplot(4, 2, 3)
+    print("output_factors['components']: ", output_factors['components'].shape)
+    plt.imshow(output_factors['components'][0,0,:,:])
+    plt.subplot(4, 2, 4)
+    print("output_factors['components_variance']: ", output_factors['components_variance'].shape)
+    plt.imshow(output_factors['components_variance'][0,0,:,:])
+
+
+    plt.subplot(4, 2, 5)
+    plt.imshow(output_factors['mean_ch0'][0,0,:,:])
+    plt.subplot(4, 2, 6)
+    plt.imshow(output_factors['mean_variance_ch0'][0,0,:,:])
+
+    plt.subplot(4, 2, 7)
+    plt.imshow(output_factors['mean_ch1'][0,0,:,:])
+    plt.subplot(4, 2, 8)
+    plt.imshow(output_factors['mean_variance_ch1'][0,0,:,:])
+
+
+    # keys = ['class_segmentation', 'class_segmentation_variance']
+    # keys += ['components', 'components_variance']
+    # keys += ['mean_ch_0', 'mean_variance_ch_0']
+    # keys += ['mean_ch_1', 'mean_variance_ch_1']
+    # # keys += ['logstd_ch_0', 'logstd_variance_ch_0']
+    # # keys += ['logstd_ch_1', 'logstd_variance_ch_1']
+    
+    plt.tight_layout()
+    plt.savefig(output_file)
+    plt.close()
+
+
+
+# --output_dir experiments/impartial_vectra/ensemble_budget_0.4_scribble_test/
