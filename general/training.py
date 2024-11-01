@@ -13,7 +13,7 @@ from roifile import ImagejRoi
 from skimage import measure
 
 sys.path.append("../")
-from general.utils import model_params_load, mkdir, to_np
+from general.utils import model_params_save, mkdir, to_np, early_stopping
 from general.inference import get_impartial_outputs
 from general.evaluation import get_performance
 
@@ -40,6 +40,10 @@ class Trainer:
 
     def train(self, dataloader_train, dataloader_val, dataloader_eval, dataloader_infer):
         print("Start training ... ")
+        
+        patience = 10
+        stopper = early_stopping(patience, 0, np.inf) #only to save global best model
+        best_model_path = os.path.join(self.output_dir, "model_best.pth")
         
         losses_all = []
         for epoch in range(1, self.epochs):
@@ -79,9 +83,17 @@ class Trainer:
             logger.info("Train :::: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
             mlflow.log_metric("train_loss", f"{np.mean(losses_all):6f}")
 
-            self.validate(dataloader_val, epoch=epoch)
+            loss_mean = self.validate(dataloader_val, epoch=epoch)
+            
+            is_save, _ = stopper.evaluate(loss_mean)
+            if is_save:
+                logger.info("Saving the current best model: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
+                model_params_save(best_model_path, self.model, self.optimizer)  # save best model
+                mlflow.log_artifact(best_model_path, "model")
+
+
             if epoch % 20 == 0:
-                self.evaluate(dataloader_eval, epoch=epoch)
+                self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50)
             # if epoch % 50 == 0:
             #     self.infer(dataloader_infer, epoch=epoch)
 
@@ -105,9 +117,12 @@ class Trainer:
 
             losses_all.append(loss_batch.item())
 
-        logger.info("Val :::: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
-        mlflow.log_metric("val_loss", f"{np.mean(losses_all):6f}")
-
+        loss_mean = np.mean(losses_all)
+        logger.info("Val :::: Epoch: {} Loss: {}".format(epoch, loss_mean))
+        mlflow.log_metric("val_loss", f"{loss_mean:6f}")
+        
+        return loss_mean 
+    
 
     # infer == when there in no gt available
     def infer(self, dataloader_infer, epoch=0):
@@ -115,7 +130,7 @@ class Trainer:
         logger.info("Start infer :::: ")
         print('Start inference in training ...')
         for batch, data in enumerate(dataloader_infer):
-
+            logger.info("Infer: batch: {} / {}  mcdropout: {}".format(batch, len(dataloader_infer)), self.mcdrop_it)
             Xinput = data['input'].to(self.device)
             image_name = data['image_name'][0]
             image_name = image_name.split('/')[-1]
@@ -135,12 +150,13 @@ class Trainer:
             
 
     # evaluate == when there in gt available
-    def evaluate(self, dataloader_eval, epoch=0):
+    def evaluate(self, dataloader_eval, epoch=0, eval_freq=1):
         
         print('Start evaluation in training ...')
+        logger.info('Start evaluation in training ...')
         metrics_rows_pd = []
         for batch, data in enumerate(dataloader_eval):
-
+            logger.info("Eval: batch: {} / {}  mcdropout: {}".format(batch, len(dataloader_eval), self.mcdrop_it))
             Xinput = data['input'].to(self.device)
             Ylabel = data['label'].numpy()[0,0,:,:].astype('int')
             image_name = data['image_name'][0]
@@ -158,7 +174,9 @@ class Trainer:
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
 
-            self.save_log_outputs(output_dir, image_name, epoch, predictions, out, out_seg, mlflow_tag='pred_w_gt')
+            # TODO: Only save a few samples
+            if batch % eval_freq == 0:
+                self.save_log_outputs(output_dir, image_name, epoch, predictions, out, out_seg, mlflow_tag='pred_w_gt')
             
             row = [image_name]
             metrics = get_performance(Ylabel, out_seg, threshold=0.5)
@@ -187,13 +205,13 @@ class Trainer:
         png_mask_path = os.path.join(output_dir, '{}_{}_mask.png'.format(image_name, epoch))
         roi_zip_path = os.path.join(output_dir, '{}_{}_roi.zip'.format(image_name, epoch))
 
-        plot_impartial_outputs(out, png_components_path)
+        # plot_impartial_outputs(out, png_components_path) # uncomment
         # np.savez(npz_prediction_path, prediction=predictions)
         # np.savez(npz_impartial_outs_path, out=out)            
         plot_segmentation(out_seg, png_prediction_path)
 
         mlflow.log_artifact(png_prediction_path, mlflow_tag)
-        mlflow.log_artifact(png_components_path, mlflow_tag)
+        # mlflow.log_artifact(png_components_path, mlflow_tag) # uncomment
 
 
         # threshold & save 
@@ -220,7 +238,7 @@ class Trainer:
         if self.mcdrop_it > 0:
             predictions = np.empty((0, Xinput.shape[0], self.n_output, Xinput.shape[-2], Xinput.shape[-1]))
             self.model.enable_dropout()
-            print('Running MCDropout iterations: ', self.mcdrop_it)
+            # print('Running MCDropout iterations: ', self.mcdrop_it)
             for it in range(self.mcdrop_it):
                 with torch.no_grad():
                     out = to_np(self.model(Xinput))
@@ -230,7 +248,6 @@ class Trainer:
         # print("mcdropout test: ", predictions.shape)
         return predictions
 
-    
 
 def plot_save_predictions(predictions, output_file):
 
@@ -263,7 +280,6 @@ def plot_save_predictions(predictions, output_file):
     plt.savefig(output_file)
     plt.close()
 
-    # plt.save(output_file)
 
 def plot_segmentation(prediction, output_file):
     plt.figure(figsize=(10,5))
@@ -274,13 +290,12 @@ def plot_segmentation(prediction, output_file):
     plt.close()
 
 
-
 def plot_impartial_outputs(out, output_file):
     plt.figure(figsize=(15,15))
 
     out = out['0']
-    print(out.keys())
-    print(out['factors'].keys())
+    # print(out.keys())
+    # print(out['factors'].keys())
 
     plt.subplot(4, 2, 1)
     plt.imshow(out['class_segmentation'][0,0,:,:])
@@ -289,10 +304,10 @@ def plot_impartial_outputs(out, output_file):
     
     output_factors = out['factors']
     plt.subplot(4, 2, 3)
-    print("output_factors['components']: ", output_factors['components'].shape)
+    # print("output_factors['components']: ", output_factors['components'].shape)
     plt.imshow(output_factors['components'][0,0,:,:])
     plt.subplot(4, 2, 4)
-    print("output_factors['components_variance']: ", output_factors['components_variance'].shape)
+    # print("output_factors['components_variance']: ", output_factors['components_variance'].shape)
     plt.imshow(output_factors['components_variance'][0,0,:,:])
 
 
@@ -317,7 +332,3 @@ def plot_impartial_outputs(out, output_file):
     plt.tight_layout()
     plt.savefig(output_file)
     plt.close()
-
-
-
-# --output_dir experiments/impartial_vectra/ensemble_budget_0.4_scribble_test/
