@@ -1,21 +1,18 @@
 import os
-import sys
 import glob
 import roifile
 import cv2 as cv
 import tifffile as tiff
 import numpy as np
+import torch
 import matplotlib.pyplot as plt
-from skimage import morphology
 
-import copy
+from skimage import morphology
 from scipy import ndimage
 from csbdeep.utils import normalize
-
 from roifile import ImagejRoi
 from PIL import Image
 
-import torch
 
 def read_label(path, image_shape):
     extension = path.split(".")[-1].lower()
@@ -54,7 +51,6 @@ def plot(image):
     plt.imshow(image[:,:,1])
 
     plt.show()
-    pass
 
 
 def plotLabel(label, title):
@@ -62,7 +58,6 @@ def plotLabel(label, title):
     plt.imshow(label)
 
     plt.show()
-    pass
 
 
 def read_image(path):
@@ -86,6 +81,7 @@ def read_image(path):
 
     return image
 
+
 def get_contour(roi):
     new_coord = []
     if roi.integer_coordinates is not None:
@@ -104,7 +100,6 @@ def get_contour(roi):
     return np.asarray(coord).astype(np.int32)
 
 
-
 def readRoiFile(roi_path, image_shape):
     rois = roifile.roiread(roi_path)
 
@@ -115,13 +110,10 @@ def readRoiFile(roi_path, image_shape):
     # print("len(rois): ", len(rois))
     # convert_roi_to_label(label, roi)
     for i in range(0, len(rois)):
-        
         contour = get_contour(rois[i])
-
         cv.fillPoly(label, pts=[contour], color=i)
 
     label = (label).astype(np.float32)
-
     return label
 
 
@@ -143,7 +135,6 @@ def erosion_labels(label, radius_pointer=1):
                 mask[mask_label>0] = vlabel
                 
     return mask
-
 
 
 def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
@@ -314,7 +305,6 @@ def get_scribble(label, scribble_rate=1.0):
     return scribble
 
 
-
 def get_fov_mask(image, scribble):
 
     np.random.seed(44)
@@ -404,11 +394,11 @@ def load_model(path):
     model.eval()
 
 
-
 class DataProcessor():
-    def __init__(self, data_dir, extension='tif'):
+    def __init__(self, data_dir, extension_image='tif', extension_label='zip'):
         self.data_dir = data_dir 
-        self.extension = extension
+        self.extension_image = extension_image
+        self.extension_label = extension_label
         self.train_dir = os.path.join(data_dir, 'train')
         self.test_dir = os.path.join(data_dir, 'test')
         self.infer_dir = os.path.join(data_dir, 'infer')
@@ -426,13 +416,14 @@ class DataProcessor():
         paths_w_gt = []
         paths_no_gt = []
 
-        for path in glob.iglob(f'{data_dir}/*.{self.extension}'):           ## modify for tiff images  #change
+        for path in glob.iglob(f'{data_dir}/*.{self.extension_image}'):           ## modify for tiff images  #change
             if not os.path.exists(path):
                 print("path does not exists")
-            name = path.split('/')[-1].split(f'.{self.extension}')[0]
-            rpath = os.path.join(data_dir, 'labels/final/', name + '_cp_masks.tif')
-            # rpath = os.path.join(data_dir, 'labels/final/', name + '.tif')
-            
+            name = path.split('/')[-1].split(f'.{self.extension_image}')[0]
+            # rpath = os.path.join(data_dir, 'labels/final/', name + '_cp_masks.tif')
+            rpath = os.path.join(data_dir, 'labels/final/', name + '.' + self.extension_label)
+            # print("image name: ", name)
+            # print("rpath name: ", rpath)
             if os.path.exists(rpath):
                 paths_w_gt.append((path, rpath))
                 # print("roi path : ", rpath)
@@ -516,11 +507,9 @@ def plot_patch_sample(patch_sample, output_file_path=None):
     plt.close()
 
 
-
 def plot_predictions(data, predictions, output_file_path=None):
 
     pass 
-
 
 
 # merges separate nuclei and cytoplasm labels into whole cell label

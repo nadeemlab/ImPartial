@@ -59,7 +59,7 @@ class ImageBlindSpotDataset(Dataset):
                 self.data_list.append([Xcrop[i,...], Scrop[i,...]])
 
             npatches += self.npatch_image
-            print("npatches: ", idx, npatches, len(self.data_list))
+            # print("npatches: ", idx, npatches, len(self.data_list))
 
             if npatches > npatches_total:
                 break
@@ -231,10 +231,29 @@ class RandomFlip(object):
         return {'input': input, 'target': target, 'scribble': scribble, 'mask': mask}
 
 
+class RandomRotate(object):
+    def __call__(self, data):
+        # Random Left or Right Flip
+
+        # for key, value in data:
+        #     data[key] = 2 * (value / 255) - 1
+        #
+        # return data
+        input, target, scribble, mask = data['input'], data['target'], data['scribble'], data['mask']
+
+        np.random.randint(0,4)
+        input = np.rot90(input)
+        scribble = np.rot90(scribble)
+        mask = np.rot90(mask)
+        target = np.rot90(target)
+
+        return {'input': input, 'target': target, 'scribble': scribble, 'mask': mask}
+
+
 class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
 
-    def __init__(self,dim_data = 3):
+    def __init__(self, dim_data = 3):
         self.dim_data = dim_data
 
     def __call__(self, data):
