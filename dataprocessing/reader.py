@@ -23,9 +23,25 @@ def read_label(path, image_shape):
     if extension == "zip" or extension == "ZIP":
         label = readRoiFile(path, image_shape)
 
+    if extension == "PNG" or extension == "png":
+        mask = np.array(Image.open(path)) ## mask
+        label, _ = ndimage.label(mask)
+
     label = (label).astype(np.float32)
 
     return label
+
+
+def save_label(label, label_path):
+    label = label.astype(np.uint32)
+    print(label.dtype, label.shape, label.min(), label.max())
+    tiff.imwrite(label_path, label)
+
+
+def save_label_zip(label, label_path):
+    label = label.astype(np.uint32)
+    print(label.dtype, label.shape, label.min(), label.max())
+    # TODO: Add code to convert to zip
 
 
 def percentile_normalization(image, pmin=1, pmax=98, clip = False):
@@ -139,6 +155,7 @@ def erosion_labels(label, radius_pointer=1):
 
 def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
                        radius_pointer=0, disk_scribble=False, sample_back = False):
+    
     mask_image = np.zeros_like(label_image)
     mask_image[label_image > 0] = 1.0
 
@@ -293,11 +310,11 @@ def get_scribble(label, scribble_rate=1.0):
     iscribble = Y_out_ch0_list[0] 
 
     label_ch = np.array(label_gt)        
-    background = np.array(iscribble[...,1])*(1-label_ch) + 0 #make sure no foreground is set as background
+    background = np.array(iscribble[...,1]) * (1-label_ch) + 0 #make sure no foreground is set as background
     scribble_task = np.array(iscribble[...,0])[...,np.newaxis] + 0
             
-    scribble_task = np.concatenate([scribble_task,background[...,np.newaxis]],axis = -1)
-    scribble_task[scribble_task>0] = 1
+    scribble_task = np.concatenate([scribble_task, background[...,np.newaxis]], axis = -1)
+    scribble_task[scribble_task > 0] = 1
         
     scribble = np.array(scribble_task)
     # print("scribble shape",  scribble.shape)
@@ -307,13 +324,13 @@ def get_scribble(label, scribble_rate=1.0):
 
 def get_fov_mask(image, scribble):
 
-    np.random.seed(44)
+    # np.random.seed(44)
 
     val_perc = 0.4
 
     region_val_size = [int(image.shape[0] * val_perc/2),int(image.shape[1] * val_perc/2)] #validation region
     mask_scribbles = np.sum(scribble, axis = -1)
-    mask_scribbles[mask_scribbles>0] = 1
+    mask_scribbles[mask_scribbles > 0] = 1
     mask_scribbles = ndimage.convolve(mask_scribbles, np.ones([5,5]), mode='constant', cval=0.0)
 
     val_center = np.random.multinomial(1, mask_scribbles.flatten()/np.sum(mask_scribbles.flatten()), size=1).flatten()
@@ -437,21 +454,23 @@ class DataProcessor():
 def plot_sample(sample, output_file_path=None):
 
     plt.figure(figsize=(10,10))
-    plt.subplot(1,5,1)
-    plt.title("image")
-    plt.imshow(sample['image'][:,:,0])
-    plt.subplot(1,5,2)
+    for ch in range(sample['image'].shape[-1]):
+        plt.subplot(3,3,ch+1)
+        plt.title("image")
+        plt.imshow(sample['image'][:,:,ch])
+    
+    plt.subplot(3,3,4)
     plt.imshow(sample['mask'])
 
-    plt.subplot(1,5,3)
+    plt.subplot(3,3,7)
     plt.title('foreground')
     plt.imshow(sample['scribble'][:,:,0])
 
-    plt.subplot(1,5,4)
+    plt.subplot(3,3,8)
     plt.title('background')
     plt.imshow(sample['scribble'][:,:,1])
 
-    plt.subplot(1,5,5)
+    plt.subplot(3,3,9)
     plt.title('fov_mask')
     plt.imshow(sample['fov_mask'])
 

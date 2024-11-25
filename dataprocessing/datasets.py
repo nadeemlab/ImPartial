@@ -12,7 +12,8 @@ class ImageBlindSpotDataset(Dataset):
                  validation=False,
                  transform=None,
                  shift_crop=35, p_scribble_crop=0.5, ratio=0.95,
-                 size_window=(10,10), patch_size=(128,128), 
+                 size_window=(10,10), 
+                 patch_size=(256,256), 
                  npatch_image=8):
 
         self.patch_size = patch_size
@@ -129,10 +130,10 @@ class ImageBlindSpotDataset(Dataset):
         center_w = ix - center_h * w
         # print(center_h,center_w)
         # add random shift to the center
-        sign = np.random.binomial(1, 0.5,size = self.npatch_image)
+        sign = np.random.binomial(1, 0.5, size = self.npatch_image)
         value = np.random.randint(self.shift_crop,size = self.npatch_image)
         center_h = center_h + value * (1 - sign) + -1 * sign * value
-        sign = np.random.binomial(1, 0.5,size = self.npatch_image)
+        sign = np.random.binomial(1, 0.5, size = self.npatch_image)
         value = np.random.randint(self.shift_crop,size = self.npatch_image)
         center_w = center_w + value * (1 - sign) + -1 * sign * value
 
@@ -144,7 +145,7 @@ class ImageBlindSpotDataset(Dataset):
 
         
         patch_size = (new_h, new_w, X.shape[2])
-        X_patches = view_as_windows(X,patch_size)
+        X_patches = view_as_windows(X, patch_size)
         patch_size = (new_h, new_w, S.shape[2])
         S_patches = view_as_windows(S, patch_size)
 
@@ -241,11 +242,25 @@ class RandomRotate(object):
         # return data
         input, target, scribble, mask = data['input'], data['target'], data['scribble'], data['mask']
 
-        np.random.randint(0,4)
-        input = np.rot90(input)
-        scribble = np.rot90(scribble)
-        mask = np.rot90(mask)
-        target = np.rot90(target)
+        k = np.random.randint(0, 4)
+        input = np.rot90(input, k=k)
+        scribble = np.rot90(scribble, k=k)
+        mask = np.rot90(mask, k=k)
+        target = np.rot90(target, k=k)
+
+        return {'input': input, 'target': target, 'scribble': scribble, 'mask': mask}
+
+
+class RandomPermuteChannel(object):
+    def __call__(self, data):
+
+        permuted_channels = np.random.permutation(data['input'].shape[-1])
+        input, target, scribble, mask = data['input'], data['target'], data['scribble'], data['mask']
+
+        # Reorder the channels
+        input = input[..., permuted_channels]
+        target = target[..., permuted_channels]
+        mask = target[..., permuted_channels]
 
         return {'input': input, 'target': target, 'scribble': scribble, 'mask': mask}
 
