@@ -176,7 +176,7 @@ def matching(y_true, y_pred, thresh=0.5, criterion='iou', report_matches=False):
         not_trivial = n_matched > 0
         if not_trivial:
             # compute optimal matching with scores as tie-breaker
-            costs = -(scores >= thr).astype(float) - scores / (2*n_matched)
+            costs = -(scores >= thr).astype(float) - scores / (2 * n_matched)
             true_ind, pred_ind = linear_sum_assignment(costs)
             assert n_matched == len(true_ind) == len(pred_ind)
             match_ok = scores[true_ind,pred_ind] >= thr
@@ -189,13 +189,13 @@ def matching(y_true, y_pred, thresh=0.5, criterion='iou', report_matches=False):
         # assert tp+fn == n_true
 
         # the score sum over all matched objects (tp)
-        sum_matched_score = np.sum(scores[true_ind,pred_ind][match_ok]) if not_trivial else 0.0
+        sum_matched_score = np.sum(scores[true_ind, pred_ind][match_ok]) if not_trivial else 0.0
 
         # the score average over all matched objects (tp)
         mean_matched_score = _safe_divide(sum_matched_score, tp)
         # the score average over all gt/true objects
         mean_true_score    = _safe_divide(sum_matched_score, n_true)
-        panoptic_quality   = _safe_divide(sum_matched_score, tp+fp/2+fn/2)
+        panoptic_quality   = _safe_divide(sum_matched_score, tp + fp/2 + fn/2)
 
         stats_dict = dict (
             criterion          = criterion,
