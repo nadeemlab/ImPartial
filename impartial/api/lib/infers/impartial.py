@@ -77,13 +77,13 @@ class Impartial(BasicInferTask):
     def post_transforms(self, data=None) -> Sequence[Callable]:
         return [
             GetImpartialOutputs(iconfig=self.iconfig),
-            DisplayOuputs(iconfig=self.iconfig, output_dir="/tmp/vectra_datalist_out_2024-08-10"),
+            #DisplayOuputs(iconfig=self.iconfig, output_dir="/tmp/vectra_datalist_out_2024-08-10"),
             # Activationsd(keys="output", softmax=True),
             AggregateComponentOutputs(keys="output", iconfig=self.iconfig),
             ComputeEntropy(),
             # AsDiscreted(keys="output", threshold=data.get("threshold", 0.5)),
             ToNumpyd(keys=("output", "entropy")),
-            DisplayPredictions(iconfig=self.iconfig, output_dir="/tmp/vectra_datalist_2024-08-10"),
+            #DisplayPredictions(iconfig=self.iconfig, output_dir="/tmp/vectra_datalist_2024-08-10"),
         ]
 
     def writer(self, data, extension=None, dtype=None):
