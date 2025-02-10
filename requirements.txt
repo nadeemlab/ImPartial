@@ -1,4 +1,4 @@
-monailabel==0.7.0rc4
+monailabel==0.8.0
 pandas==1.5.0
 matplotlib==3.6.0
 scikit-learn==1.1.2
