@@ -8,7 +8,7 @@ import torch
 from ignite.metrics import Loss
 from ignite.metrics.metric import reinit__is_reduced
 from monai.engines import SupervisedTrainer
-from monai.handlers import CheckpointSaver, IgniteMetric, LrScheduleHandler
+from monai.handlers import CheckpointSaver, IgniteMetricHandler, LrScheduleHandler
 from monai.inferers import SimpleInferer
 from monai.transforms import EnsureChannelFirstd, RandFlipd, ScaleIntensityRangePercentiles
 from torch import Tensor
@@ -253,10 +253,10 @@ def impartial_prepare_batch(batchdata, device: Optional[Union[str, torch.device]
     )
 
 
-class ImpartialPerformanceMetric(IgniteMetric):
+#class ImpartialPerformanceMetric(IgniteMetric):
     # TODO: implement a metric that compute all ImPartial metrics
     # computed in evaluation.get_performance()
-    pass
+#    pass
 
 
 class ImpartialLossMetric(Loss):
