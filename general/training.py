@@ -100,8 +100,8 @@ class Trainer:
 
 
             if epoch % 20 == 0:
-                self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=True, dilate=True)
-                # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=1, is_save=True, dilate=True)
+                # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=True, dilate=True)
+                self.evaluate(dataloader_eval, epoch=epoch, eval_freq=1, is_save=True, dilate=True)
                 # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=True, dilate=True)
                 # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=False, dilate=True)
             # if epoch % 50 == 0:
@@ -254,8 +254,8 @@ class Trainer:
 
 
         # threshold & save 
-        # threshold = 0.98
-        threshold = 0.70
+        threshold = 0.95
+        # threshold = 0.70
         out_mask = (out_seg > threshold).astype(np.uint8) * 255
         out_mask = Image.fromarray(out_mask)
         out_mask.save(png_mask_path)
