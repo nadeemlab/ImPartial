@@ -1,6 +1,11 @@
 import numpy as np
 from scipy.special import softmax
 
+def get_entropy(out_seg):
+    entropy = -out_seg*np.log(np.maximum(out_seg, 1e-5))
+    entropy += -(1-out_seg)*np.log(np.maximum(1-out_seg, 1e-5))
+    return entropy
+    
 def get_impartial_outputs(out, classification_tasks, mean, std):
     output = {}
 
@@ -87,8 +92,11 @@ def get_impartial_outputs(out, classification_tasks, mean, std):
                         output_factors['logstd_ch' + str(ch)] = np.mean(out[:, :, ix:ix + np.sum(ncomponents), ...], axis=0)
                         output_factors['logstd_variance_ch' + str(ch)] = np.var(out[:, :, ix:ix + np.sum(ncomponents), ...], axis=0)
                         ix += np.sum(ncomponents)
+                        
             output_task['factors'] = output_factors
 
+            output_task['entropy'] = get_entropy(output_task['class_segmentation'])
+            
             #task
             output[class_tasks_key] = output_task
 
