@@ -17,7 +17,6 @@ import skimage
 from scipy import ndimage
 from general.outlines import dilate_masks, masks_to_outlines
 
-sys.path.append("../")
 from general.utils import model_params_save, to_np, early_stopping
 from general.inference import get_impartial_outputs, get_entropy
 from general.evaluation import get_performance

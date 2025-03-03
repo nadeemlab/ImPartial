@@ -11,7 +11,7 @@ import torch.utils.data
 from torchvision import transforms
 
 from dataprocessing.datasets import ImageBlindSpotDataset, ImageSegDataset, ImageDataset, Normalize, ToTensor, RandomFlip, RandomRotate, RandomPermuteChannel
-from dataprocessing.reader import prepare_data_train, prepare_data_test, prepare_data_infer, DataProcessor, plot_sample, plot_patch_sample
+from dataprocessing.reader import DataProcessor, prepare_data_train, prepare_data_test, prepare_data_infer, plot_sample, plot_patch_sample
 from general.training import Trainer
 from general.networks import UNet
 from general.losses import ImpartialLoss, LossConfig
@@ -100,8 +100,6 @@ weight_objectives = {'seg_fore': float(config.loss.seg_fore),
 print(weight_objectives)
 # weight_objectives = {'seg_fore': 0.45, 'seg_back': 0.45, 'rec': 0.1, 'reg': 0.0}
 # weight_objectives = {'seg_fore': 0.4, 'seg_back': 0.4, 'rec': 0.2, 'reg': 0.0}
-
-# exit()
 
 ### Checkpoint ensembles
 nsaves = 1 # number of checkpoints ensembles

@@ -1,7 +1,7 @@
 import os
 import glob
 import roifile
-import cv2 as cv
+import cv2
 import tifffile as tiff
 import numpy as np
 import torch
@@ -127,7 +127,7 @@ def readRoiFile(roi_path, image_shape):
     # convert_roi_to_label(label, roi)
     for i in range(0, len(rois)):
         contour = get_contour(rois[i])
-        cv.fillPoly(label, pts=[contour], color=i)
+        cv2.fillPoly(label, pts=[contour], color=i)
 
     label = (label).astype(np.float32)
     return label

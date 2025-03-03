@@ -1,18 +1,10 @@
-import sys
 import numpy as np
-
 import torch
 import torch.nn as nn
+
 from sklearn.metrics import roc_auc_score
+from utils import to_np
 
-sys.path.append("../")
-from .utils import to_np
-
-
-import sys
-import numpy as np
-from scipy.special import softmax
-import torch
 
 class LossConfig():
     def __init__(self, device, classification_tasks, weight_tasks, weight_objectives):

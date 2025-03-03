@@ -6,3 +6,10 @@ scripts/*/logs/*
 .DS_Store
 venv/
 log.txt
+
+experiments/
+notebooks/cvpr/*/*.png
+notebooks/cvpr/*/*.zip
+notebooks/cvpr/*/*.tif
+notebooks/cvpr/*/*.tiff
+notebooks/cvpr/*/*/*.png
