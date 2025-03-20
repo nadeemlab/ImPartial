@@ -100,9 +100,9 @@ class Trainer:
 
             if epoch % 20 == 0:
                 # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=True, dilate=True)
-                self.evaluate(dataloader_eval, epoch=epoch, eval_freq=1, is_save=True, dilate=True)
+                # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=1, is_save=True, dilate=True)
                 # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=True, dilate=True)
-                # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=False, dilate=True)
+                self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=False, dilate=True)
             # if epoch % 50 == 0:
             #     self.infer(dataloader_infer, epoch=epoch)
 
@@ -243,8 +243,8 @@ class Trainer:
         plot_impartial_outputs(out, png_components_path) # uncomment
         # np.savez(npz_prediction_path, prediction=predictions)
         
-        # with open(npz_impartial_outs_path, 'wb') as handle:
-        #     pickle.dump(out, handle)
+        with open(npz_impartial_outs_path, 'wb') as handle:
+            pickle.dump(out, handle)
 
         plot_segmentation(out_seg, png_prediction_path)
 
