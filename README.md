@@ -4,7 +4,6 @@
     <img src="./images/impartial-logo.png" width="50%">
     <h1 align="center"><strong>Interactive instance segmentation using partial annotations</strong></h1>
     <p align="center">
-    <a href="https://doi.org/10.1101/2021.01.20.427458">Read Link</a> |
     <a href="https://github.com/nadeemlab/ImPartial/issues">Report Bug</a> |
     <a href="https://github.com/nadeemlab/ImPartial/issues">Request Feature</a>
   </p>
