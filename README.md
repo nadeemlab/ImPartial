@@ -20,6 +20,12 @@ Interactive segmentation is a crucial area of research in medical image analysis
 *Each image patch is separated into an imputation patch and a blind spot patch. The blind spot patch is fed through the U-Net to recover the component mixture and the component statistics. The 
 latter statistics are averaged across the entire patch to enforce component consistency. Both the component statistics and component mixture are used to compute the mixture loss for the patch. Simultaneously, a scribble containing a small number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients back to the U-Net architecture on the backward pass. Additional scribbles can be added to fine-tune the model trained in the previous iteration. Uncertainty maps are computed and shown to guide the user to provide additional scribblles in high uncertainty regions.*
 
+
+## Iterative Pipeline
+![vectra_iterative](./images/vectra_iterative_v3.png)
+
+*Iterative analysis of the VECTRA 2-channel images. In the first iteration 20% scribbles were provided on image (0, 1, 3, 4, 5, 6, 7, 9). Based on the entropy visualization, an additional 20% scribbles were provided on images (1, 3, 9) as shown. The model was fine-tuned from iteration 1 using the original and additional scribbles. Note that no scribbles were provided for images (2, 8) during this iterative process. Here, we show the improvement through entropy-aware / guided human-in-the-loop approach. We also show the F1-score improvement across all images. The last three columns show the results from the Cellpose, Mesmer, and Cellotype pre-trained models.*
+
 ## ImPartial, MONAI-Label & Fiji Intergration 
 
 We have transitioned from research to a production-ready environment/workflow, where in the user can upload images, provide scribbles, and run deep learning based model training and inference. We have utilized the following three components to provide an end-to-end service:
