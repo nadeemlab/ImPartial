@@ -2,8 +2,7 @@
 <br />
 <p align="center">
     <img src="./images/impartial-logo.png" width="50%">
-    <h1 align="center"><strong>Interactive deep learning whole-cell Image segmentation and thresholding using Partial 
-		annotations</strong></h1>
+    <h1 align="center"><strong>Interactive instance segmentation using partial annotations</strong></h1>
     <p align="center">
     <a href="https://doi.org/10.1101/2021.01.20.427458">Read Link</a> |
     <a href="https://github.com/nadeemlab/ImPartial/issues">Report Bug</a> |
@@ -11,16 +10,9 @@
   </p>
 </p>
 
-Segmenting noisy multiplex spatial tissue images is a challenging task, since the characteristics of both the noise and 
-the biology being imaged differs significantly across tissues and modalities; this is compounded by the high monetary 
-and time costs associated with manual annotations. It is therefore important to create algorithms that can accurately 
-segment the noisy images based on a small number of expert annotations. *With **ImPartial**, we have developed an interactive deep learning algorithm to 
-perform segmentation using as few as 2-3 training images with minimal user-provided scribbles.* ImPartial augments the 
-segmentation objective via self-supervised multi-channel quantized imputation, meaning that each class of the 
-segmentation objective can be characterized by a mixture of distributions. This is based on the observation that perfect 
-pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and hence a self-supervised 
-classification objective that better aligns with the overall segmentation goal suffices. We demonstrate the superior 
-performance of our approach for a variety of datasets acquired with different highly-multiplexed imaging platforms. **ImPartial** has been optimized to train in less than 5 minutes on a low-end GPU. *With **MONAI-Label integration**, **cloud (Amazon Web Services) deployment**, and a user-friendly **ImageJ/Fiji plugin/interface**, **ImPartial** can be run iteratively on a new user-uploaded dataset in an active learning human-in-the-loop framework with a no-code execution. A new **multi-user support scheme** is deployed as well to allow users to sign-up/authenticate and simultaneously use our cloud resources with capabilities to end/restore user sessions and develop/share new models with the wider community as needed (hopefully resulting in an ImPartial-driven marketplace in the future where users can share their models with the wider community while being properly credited for their hard work).*
+Interactive segmentation is a crucial area of research in medical image analysis aiming to boost efficiency of costly annotations by incorporating human feedback. Two use cases where this is especially important are: (1) newer biological imaging modalities that do not have large amounts of expert-generated ground truth data and (2) refining and correcting under-/over-segmentation issues from state-of-the-art (SOTA) deep learning algorithms. In this paper, we present a new interactive deep learning segmentation algorithm, **ImPartial**, that incorporates human feedback during the training phase to create optimal models for images with small/thin repeatable objects (cells, neurons, vessels, etc). Specifically, ImPartial augments the segmentation objective via self-supervised multi-channel quantized imputation. This approach leverages the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and thus, introduces a self-supervised classification objective that better aligns with the overall segmentation goal. We demonstrate the effectiveness of our approach in (1) efficiently generating high-quality annotations from scratch for cells/vessels in multiplexed images with variable number of channels and (2) correction/refinement of results from SOTA automated algorithms. To make the results from our pipeline more reproducible and easy to benchmark, we also release new benchmark datasets and an opensource pipeline with a user-friendly ImageJ/FIJI interface and MONAI Label API server that can be run locally, on HPC or cloud.  
+
+*With **MONAI-Label integration**, **cloud (Amazon Web Services) deployment**, and a user-friendly **ImageJ/Fiji plugin/interface**, **ImPartial** can be run iteratively on a new user-uploaded dataset in an active learning human-in-the-loop framework with a no-code execution. A new **multi-user support scheme** is deployed as well to allow users to sign-up/authenticate and simultaneously use our cloud resources with capabilities to end/restore user sessions and develop/share new models with the wider community as needed (hopefully resulting in an ImPartial-driven marketplace in the future where users can share their models with the wider community while being properly credited for their hard work).*
 
 ## Pipeline
 
@@ -116,16 +108,3 @@ Please report all issues on the public forum.
 
 ## Funding
 This work is funded by the 7-year NIH/NCI R37 MERIT Award ([R37CA295658](https://reporter.nih.gov/search/5dgSOlHosEKepkZEAS5_kQ/project-details/11018883#description)).
-
-## Reference
-If you find our work useful in your research or if you use parts of this code, please cite our paper:
-```
-@article {Martinez2021.01.20.427458,
-	author = {Martinez, Natalia and Sapiro, Guillermo and Tannenbaum, Allen and Hollmann, Travis J. and Nadeem, Saad},
-	title = {ImPartial: Partial Annotations for Cell Instance Segmentation},
-	elocation-id = {2021.01.20.427458},
-	year = {2021},
-	doi = {10.1101/2021.01.20.427458},
-	publisher = {Cold Spring Harbor Laboratory}
-}
-```
