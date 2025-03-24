@@ -47,7 +47,8 @@ class Impartial(TaskConfig):
             base=self.iconfig.unet_base,
             activation=self.iconfig.activation,
             batchnorm=self.iconfig.batchnorm,
-            dropout=self.iconfig.dropout,
+            # dropout=self.iconfig.drop_encoder_decoder,
+            dropout=True,
             dropout_lastconv=self.iconfig.drop_last_conv,
             p_drop=self.iconfig.p_drop
         )
