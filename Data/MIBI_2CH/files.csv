@@ -1,5 +1,0 @@
-,prefix,input_file,group
-0,image0,image0.npz,train
-1,image1,image1.npz,train
-2,image2,image2.npz,test
-3,image3,image3.npz,train

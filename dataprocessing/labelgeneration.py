@@ -1,8 +1,7 @@
 import numpy as np
 from skimage import morphology
-# from preprocessing import generate_patches_syxc
-# from csbdeep.data import RawData
-# import matplotlib.pyplot as plt
+from scipy import ndimage
+
 
 def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
                        radius_pointer=0, disk_scribble=False,sample_back = False):
@@ -16,14 +15,14 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
     mask_sk = morphology.skeletonize(mask_image) * mask_image
     if radius_pointer > 0:
         selem = morphology.disk(radius_pointer)
-        mask_sk = morphology.dilation(mask_sk, selem=selem) * mask_image
+        mask_sk = morphology.dilation(mask_sk, footprint=selem) * mask_image
     if disk_scribble:
         selem = morphology.disk(3)
-        outline_arc = morphology.erosion(mask_image, selem=selem) - \
-                      morphology.erosion(morphology.erosion(mask_image, selem=selem), selem=morphology.disk(1))
+        outline_arc = morphology.erosion(mask_image, footprint=selem) - \
+                      morphology.erosion(morphology.erosion(mask_image, footprint=selem), footprint=morphology.disk(1))
         if radius_pointer > 0:
             selem = morphology.disk(radius_pointer)
-            outline_arc = morphology.dilation(outline_arc, selem=selem)
+            outline_arc = morphology.dilation(outline_arc, footprint=selem)
 
         mask_sk += outline_arc
         mask_sk[mask_sk > 0] = 1
@@ -33,7 +32,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
     labels_image_res = np.array(label_image)
 
     back_aux = np.array(mask_image)
-    back_aux = morphology.dilation(back_aux, selem=morphology.disk(4))
+    back_aux = morphology.dilation(back_aux, footprint=morphology.disk(4))
 
     fov_image_res = np.array(1-mask_image)*back_aux #background entre foreground
     fov_image_res = morphology.skeletonize(fov_image_res)
@@ -44,7 +43,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
     # plt.subplot(1, 2, 2)
 
     back_aux = morphology.skeletonize(1-back_aux)
-    fov_image_res += morphology.dilation(back_aux,selem=morphology.disk(4))
+    fov_image_res += morphology.dilation(back_aux,footprint=morphology.disk(4))
 
     # plt.imshow(fov_image_res)
     # plt.show()
@@ -85,7 +84,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
                 ## foreground
                 foreground += label_aux * mask_sk
 
-                back_aux = morphology.dilation(label_aux, selem=morphology.disk(4))
+                back_aux = morphology.dilation(label_aux, footprint=morphology.disk(4))
                 back_aux += bb_image
                 back_aux = back_aux * (1 - mask_image)
                 back_aux[back_aux > 0] = 1
@@ -93,7 +92,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
 
                 if radius_pointer > 0:
                     selem = morphology.disk(radius_pointer)
-                    back_aux = morphology.dilation(back_aux, selem=selem) * (1 - mask_image)
+                    back_aux = morphology.dilation(back_aux, footprint=selem) * (1 - mask_image)
 
                 background += back_aux * (1 - mask_image)  # double secure
 
@@ -106,7 +105,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
                 back_aux = morphology.skeletonize(bb_image*(1-mask_image)*fov_image_res) ## box with background
                 if radius_pointer > 0:
                     selem = morphology.disk(radius_pointer)
-                    back_aux = morphology.dilation(back_aux, selem=selem) * (1 - mask_image)
+                    back_aux = morphology.dilation(back_aux, footprint=selem) * (1 - mask_image)
                 background += back_aux * (1 - mask_image)  # double secure
                 # ix0_nonz, ix1_nonz = np.nonzero(back_aux)
                 # # if radius_pointer > 0:
@@ -173,121 +172,103 @@ def get_scribbles(train_masks, n_labels_total, fov_box=(32, 32),
         nlabels_total_list.append(nlabels_total_dic[i])
     return Y_out, nlabels_list, nlabels_total_list
 
-# def get_dataset(pd_scribbles,n_patches_per_image_train=30,n_patches_per_image_val=8,patch_size=(128, 128),
-#                 p_label = 0.6,val_perc = 0.3,verbose = True, border = False):
-#
-#     X_train = None
-#     X_val = None
-#     for i in range(len(pd_scribbles)):
-#
-#         ## read image and label
-#         npz_read = np.load(pd_scribbles['input_dir'][i] + pd_scribbles['input_file'][i])
-#         image = npz_read['image']
-#         label = npz_read['label']
-#         nuclei = np.zeros_like(label)
-#         nuclei[label > 0] = 1
-#
-#         ## read scribbles
-#         npz_read = np.load(pd_scribbles['input_dir'][i] + pd_scribbles['scribble_file'][i])
-#         scribble = npz_read['scribble']
-#
-#         raw_image_in = image + 0  # normalize(image,pmin=pmin,pmax=pmax,clip = False)
-#
-#         ## Sample validation mask
-#         patch_val_size = [int(image.shape[0] * val_perc),
-#                           int(image.shape[1] * val_perc)]
-#         all_back = True
-#         while all_back:
-#
-#             val_mask = np.zeros([raw_image_in.shape[0], raw_image_in.shape[1]])
-#             ix_x = np.random.randint(0, raw_image_in.shape[0] - patch_val_size[0])
-#             ix_y = np.random.randint(0, raw_image_in.shape[0] - patch_val_size[1])
-#
-#             val_mask[ix_x:ix_x + patch_val_size[0], ix_y:ix_y + patch_val_size[1]] = 1
-#
-#             if np.sum(val_mask * np.sum(scribble[...], axis=-1)) > 10:
-#                 all_back = False
-#
-#         ## Generate patches
-#         raw_data = RawData.from_arrays(raw_image_in[np.newaxis, ...], scribble[np.newaxis, ...])
-#
-#         ## for plot ##
-#         if verbose:
-#             aux = np.zeros([raw_image_in.shape[0], raw_image_in.shape[1], 3])
-#             if len(raw_image_in.shape)>2:
-#                 aux[..., 1] = np.sum(raw_image_in,axis=-1) * 0.8
-#             else:
-#                 aux[..., 1] = raw_image_in * 0.8
-#             aux[..., 0] = scribble[..., 0]
-#             aux[..., 2] = np.sum(scribble[..., 1:], axis=2)
-#         ###
-#
-#         for group in ['val', 'train']:
-#             if group == 'val':
-#                 fov_mask = np.array(val_mask)
-#                 n_patches_per_image = n_patches_per_image_val + 0
-#                 if verbose:
-#                     plt.figure(figsize=(10, 5))
-#                     plt.subplot(1, 2, 1)
-#                     plt.title('Validation FOV')
-#                     plt.imshow(fov_mask[..., np.newaxis] * aux)
-#
-#             else:
-#                 fov_mask = 1 - np.array(val_mask)
-#                 n_patches_per_image = n_patches_per_image_train + 0
-#                 if verbose:
-#                     plt.subplot(1, 2, 2)
-#                     plt.title('Train FOV')
-#                     plt.imshow(fov_mask[..., np.newaxis] * aux)
-#                     plt.show()
-#
-#             X_aux, Y_aux, axes = generate_patches_syxc(raw_data, patch_size,
-#                                                        int(n_patches_per_image * (1 - p_label)),
-#                                                        normalization=None, patch_filter=None,
-#                                                        fov_mask=fov_mask)
-#
-#             n_patches_add = int(n_patches_per_image - X_aux.shape[0])
-#
-#             if n_patches_add > 0:
-#                 X_labeled_aux, Y_labeled_aux, axes = generate_patches_syxc(raw_data, patch_size,
-#                                                                            n_patches_add,
-#                                                                            normalization=None,
-#                                                                            mask_filter_index=np.arange(
-#                                                                                scribble.shape[-1]),
-#                                                                            fov_mask=fov_mask)
-#                 if X_labeled_aux is not None:
-#                     X_aux = np.concatenate([X_aux, X_labeled_aux], axis=0)
-#                     Y_aux = np.concatenate([Y_aux, Y_labeled_aux], axis=0)
-#
-#             if group == 'val':
-#                 if X_val is None:
-#                     X_val = np.array(X_aux)
-#                     Y_val = np.array(Y_aux)
-#                 else:
-#                     X_val = np.concatenate([X_val, X_aux], axis=0)
-#                     Y_val = np.concatenate([Y_val, Y_aux], axis=0)
-#
-#             else:
-#                 if X_train is None:
-#                     X_train = np.array(X_aux)
-#                     Y_train = np.array(Y_aux)
-#                 else:
-#                     X_train = np.concatenate([X_train, X_aux], axis=0)
-#                     Y_train = np.concatenate([Y_train, Y_aux], axis=0)
-#
-#     print(Y_train.shape,Y_val.shape)
-#     if border:
-#         return X_train,Y_train,X_val,Y_val
-#     else:
-#         out_channels = int(Y_train.shape[-1]/3)
-#         Y_train_aux = np.zeros([Y_train.shape[0], Y_train.shape[1], Y_train.shape[2], out_channels * 2])
-#         Y_val_aux = np.zeros([Y_val.shape[0], Y_val.shape[1], Y_val.shape[2], out_channels * 2])
-#         # print(out_channels,Y_train.shape[2])
-#         for j in np.arange(out_channels):
-#             # print(j*2,j*out_channels)
-#             Y_train_aux[..., 2*j] = np.array(Y_train[..., out_channels*j])  # foreground
-#             Y_train_aux[..., 2*j+1] = Y_train[..., out_channels*j+1] + Y_train[..., out_channels*j+2]  # Border + background are background
-#
-#             Y_val_aux[..., 2*j] = np.array(Y_val[..., out_channels*j])  # foreground
-#             Y_val_aux[..., 2*j+1] = Y_val[..., out_channels*j+1] + Y_val[..., out_channels*j+2]  # Border + background are background
-#         return X_train,Y_train_aux,X_val,Y_val_aux
+
+
+# 2024-07-10
+
+
+def erosion_labels(label, radius_pointer=1):
+
+    selem = morphology.disk(radius_pointer)
+
+    mask = np.zeros_like(label)
+
+    for vlabel in np.unique(label):
+        if vlabel != 0:  
+            mask_label = np.zeros_like(label)
+            mask_label[label == vlabel] = 1
+            aux = morphology.dilation(mask_label, footprint=selem)
+            if np.unique(aux*label).shape[0] > 2: #overlaps with other label
+                erode_label = morphology.erosion(mask_label, footprint=selem)
+                mask[erode_label>0] = 1
+            else:
+                mask[mask_label>0] = 1
+                
+    ## Image Corners
+    # mask[:,0:radius_pointer] = label[:,0:radius_pointer]
+    # mask[:,-radius_pointer-1:] = label[:,-radius_pointer-1:]
+    # mask[0:radius_pointer,:] = label[0:radius_pointer,:]
+    # mask[-radius_pointer-1:,:] = label[-radius_pointer-1:,:]
+
+    return mask
+
+
+def get_scribble(label):
+
+    total_labels = np.unique(label)
+    nlabels_budget = 30
+    label_mask = erosion_labels(label, radius_pointer=1)
+
+    Y_gt_train_ch0_list = []
+    Y_gt_train_ch0_list.append(label_mask)
+    
+    Y_out_ch0_list, nscribbles_ch0_list, nlabels_ch0_list = get_scribbles(Y_gt_train_ch0_list,
+                                                                     nlabels_budget,
+                                                                     fov_box=(32,32),
+                                                                     radius_pointer=0,
+                                                                    #  disk_scribble = False,
+                                                                    #  sample_back = False)
+                                                                     disk_scribble = True,
+                                                                     sample_back = True)
+
+    
+    ## concaticating scribbles :
+    label_gt = Y_gt_train_ch0_list[0]
+    iscribble = Y_out_ch0_list[0] 
+
+    label_ch = np.array(label_gt)        
+    background = np.array(iscribble[...,1])*(1-label_ch) + 0 #make sure no foreground is set as background
+    scribble_task = np.array(iscribble[...,0])[...,np.newaxis] + 0
+            
+    scribble_task = np.concatenate([scribble_task,background[...,np.newaxis]],axis = -1)
+    scribble_task[scribble_task>0] = 1
+        
+    scribble = np.array(scribble_task)
+    print("scribble shape",  scribble.shape)
+
+    return scribble
+
+
+def get_fov_mask(image, scribble):
+
+    np.random.seed(44)
+
+    val_perc = 0.4
+
+    region_val_size = [int(image.shape[0] * val_perc/2),int(image.shape[1] * val_perc/2)] #validation region
+    mask_scribbles = np.sum(scribble,axis = -1)
+    mask_scribbles[mask_scribbles>0] = 1
+    mask_scribbles = ndimage.convolve(mask_scribbles, np.ones([5,5]), mode='constant', cval=0.0)
+
+    val_center = np.random.multinomial(1, mask_scribbles.flatten()/np.sum(mask_scribbles.flatten()), size=1).flatten()
+    ix_center = np.argmax(val_center)
+    ix_row = int(np.floor(ix_center/image.shape[1]))
+    ix_col = int(ix_center - ix_row * image.shape[1])
+    print(ix_center,ix_row,ix_col)
+
+    row_low = np.maximum(ix_row-region_val_size[0],0)
+    row_high = np.minimum(row_low+region_val_size[0], image.shape[0])
+    row_low = np.maximum(row_high - 2*region_val_size[0],0)
+    row_high = np.minimum(row_low+ 2*region_val_size[0], image.shape[0])
+
+    col_low = np.maximum(ix_col-region_val_size[1],0)
+    col_high = np.minimum(col_low+region_val_size[1], image.shape[1])
+    col_low = np.maximum(col_high - 2*region_val_size[1],0)
+    col_high = np.minimum(col_low+2*region_val_size[1], image.shape[1])
+    print(row_low,row_high,col_low,col_high)
+
+    validation_mask = np.zeros([image.shape[0], image.shape[1]])
+    validation_mask[row_low:row_high,
+                    col_low:col_high] = 1
+
+    return validation_mask 

@@ -15,7 +15,7 @@ def random_seed(seed=1):
     torch.manual_seed(seed)
 
 
-def model_params_save(filename, classifier_network, optimizer, save_optimizer = False):
+def model_params_save(filename, classifier_network, optimizer, save_optimizer=False):
     if save_optimizer:
         torch.save([classifier_network.state_dict(), optimizer.state_dict()], filename)
     else:
@@ -40,8 +40,8 @@ def mkdir(path):
 
 class early_stopping(object):
     def __init__(self, patience, counter, best_loss):
-        self.patience = patience #max number of nonimprovements until stop
-        self.counter = counter #number of consecutive nonimprovements
+        self.patience = patience # max number of nonimprovements until stop
+        self.counter = counter # number of consecutive nonimprovements
         self.best_loss = best_loss
 
     def evaluate(self, loss):

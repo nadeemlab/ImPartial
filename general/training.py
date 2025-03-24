@@ -1,376 +1,428 @@
 import sys
 import os
-import pickle
-import time
 import numpy as np
+import logging
+import pickle
+import mlflow 
+import pandas as pd
+from PIL import Image 
 
 import torch
-import torch.nn as nn
-from torch import optim
+import matplotlib.pyplot as plt
 
-sys.path.append("../")
-from general.utils import model_params_load, mkdir, to_np, TravellingMean
-from impartial.Impartial_functions import get_impartial_outputs
+from roifile import ImagejRoi
+from skimage import measure
 
-def epoch_recseg_loss(dataloader, model, optimizer, config, criterio, train_type=True):
-    #criterio has to output loss, seg_fore loss, seg_back loss and rec loss
+import skimage
+from scipy import ndimage
+from general.outlines import dilate_masks, masks_to_outlines
 
-    if train_type:
-        model.train()
-    else:
-        model.eval()
-        if config.MCdrop:
-            model.enable_dropout()
+from general.utils import model_params_save, to_np, early_stopping
+from general.inference import get_impartial_outputs, get_entropy
+from general.evaluation import get_performance
 
-    output = {}
-    output['loss'] = TravellingMean()
-    for key in config.weight_objectives.keys():
-        output[key] = TravellingMean()
-
-    output['grad'] = TravellingMean()
-
-    # tic_list = []
-    # tic_list.append(time.perf_counter())
-    # tic_bs_list = []
-    # tic_criterio_list = []
-    # tic_final_list = []
-
-    for batch, data in enumerate(dataloader):
-
-        x = data['input'].to(config.DEVICE) #input image with blind spots replaced randomly
-        mask = data['mask'].to(config.DEVICE)
-        scribble = data['scribble'].to(config.DEVICE)
-        target = data['target'].to(config.DEVICE) #input image with non blind spots
-
-        # tic_list.append(time.perf_counter())
-        # tic_bs_list.append(tic_list[-1] - tic_list[-2])
-        # print(' batch sampling : ', tic_list[-1] - tic_list[-2])
-
-        if train_type:
-            out = model(x)
-            losses = criterio(out, target, scribble, mask)
-        else:
-            with torch.no_grad():
-                out = model(x)
-                if config.MCdrop:
-                    out = torch.unsqueeze(out, 0)
-                    for it in range(2): #loss computed using 2 dropout predictions in total
-                        out_aux = model(x)
-                        out = torch.cat((out, torch.unsqueeze(out_aux, 0)), 0)
-
-                losses = criterio(out, target, scribble, mask)
+import logging
+logger = logging.getLogger(__name__)
 
 
-        # tic_list.append(time.perf_counter())
-        # tic_criterio_list.append(tic_list[-1] - tic_list[-2])
-        # print(' criterio : ', tic_list[-1] - tic_list[-2])
+class Trainer:
 
-        loss_batch = 0
-        for key in config.weight_objectives.keys():
-            loss_batch += losses[key] * config.weight_objectives[key]
-            output[key].update(to_np(losses[key]), mass=x.shape[0])
+    def __init__(self, device, classification_tasks, model, criterion, optimizer, output_dir, n_output, epochs, mcdrop_it=0):
+        self.epochs = epochs
+        self.device = device
+        self.criterion = criterion
+        self.optimizer = optimizer
+        self.model = model 
+        self.output_dir = output_dir 
+        self.classification_tasks = classification_tasks
 
-        output['loss'].update(to_np(loss_batch), mass=x.shape[0])
+        self.mcdrop_it = mcdrop_it
+        self.n_output = n_output 
 
-        if train_type:
-            optimizer.zero_grad()
-            loss_batch.backward()
-            if config.max_grad_clip > 0:
-                nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_grad_clip, norm_type=2)
-            # else:
-                # print('no clipping')
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
 
-            # total_norm = 0
-            # for p in model.parameters():
-                # param_norm = p.grad.data.norm(2)
-                # total_norm += param_norm.item() ** 2
-            # output['grad'].update((total_norm ** (1. / 2)), mass=1)
-
-            optimizer.step()
-
-        # tic_list.append(time.perf_counter())
-        # tic_final_list.append(tic_list[-1] - tic_list[-2])
-        # print(' losses etc : ', tic_list[-1] - tic_list[-2])
-
-    # print('Total time (batch, criterio, backward, total) : ')
-    # print(np.round(np.mean(np.array(tic_bs_list)),3),
-          # np.round(np.mean(np.array(tic_criterio_list)),3),
-          # np.round(np.mean(np.array(tic_final_list)), 3),np.round(tic_list[-1]-tic_list[0],1))
-                    # break
-
-    # print(total_loss)
-    for key in output.keys():
-        output[key] = output[key].mean
-    return output
-
-
-def recseg_checkpoint_ensemble_trainer(dataloader_train, dataloader_val, dataloader_eval,
-                                       model, optimizer, criterio, config):
-
-    from general.training import epoch_recseg_loss
-    from general.utils import early_stopping, model_params_save, model_params_load
-
-    ## Savings
-    history = {}
-    history['cycle'] = []
-    history['loss_mbatch_train'] = []
-    for key in config.weight_objectives.keys():
-        history[key+'_mbatch_train'] = []
-    history['grad_mbatch_train'] = []
-
-    for _ in ['val']:
-        history['loss_' + _] = []
-        for key in config.weight_objectives.keys():
-            history[key + '_' + _] = []
-
-    #tags that will be printed
-    tags_plot = ['loss']
-    for key in config.weight_objectives.keys():
-        tags_plot.append(key)
-
-
-    #number of cycles
-    nsaves = config.nsaves
-    #boolean: reset optimizer when starting a new cycle
-    reset_optim = config.reset_optim
-
-    ## Stoppers and saving lists
-    stopper_best_all = early_stopping(config.patience, 0, np.infty) #only to save global best model
-    stopper = early_stopping(config.patience*2, 0, np.infty) #first cycle has patience x 2
-
-    if config.val_stopper:
-        model_saves_list = config.val_model_saves_list #stores the epochs of each val
-    else:
-        model_saves_list = config.train_model_saves_list
-
-    epochs_saves_list = [0] #stores the epochs of each saving
-    loss_saves_list = [0] #stores the corresponding loss
-
-    patch_epoch_counter = 0 #counter of epochs iteration for the current patches
-    patch_sampler = 0 #counter of patches iterations
-
-    if (len(model_saves_list) < nsaves):
-        print('!! ERROR : not enough saving files where defined')
-        return
-
-    # tic_list = []
-    # tic_list.append(time.perf_counter())
-    # tic_bs_list = []
-    # tic_criterio_list = []
-    # tic_final_list = []
-
-    output_path = config.basedir + config.model_name
-
-    for epoch in range(config.EPOCHS): #config.epochs should be set super large is not supposed to be the stopping criteria
-
-        history['cycle'].append(patch_sampler)
-       
-        #Training:
-        start_train_time = time.time() #gs
-        output = epoch_recseg_loss(dataloader_train, model, optimizer, config, criterio, train_type=True)
-        end_train_time = time.time() #gs
+    def train(self, dataloader_train, dataloader_val, dataloader_eval, dataloader_infer):
+        print("Start training ... ")
         
-        for key in output.keys():
-            history[key + '_mbatch_train'].append(output[key])
-
-        # tic_list.append(time.perf_counter())
-        # print( 'epoch train : ',tic_list[-1] - tic_list[-2])
-
-        # Validation:
-        start_val_time = time.time()
-        output = epoch_recseg_loss(dataloader_val, model, optimizer, config, criterio, train_type=False)
-        end_val_time = time.time()
-
-        for key in output.keys():
-            if key != 'grad':
-                history[key + '_val'].append(output[key])
-
-
-        if config.save_intermediates and dataloader_eval and (epoch + 1) % 5 == 0:
-            eval(dataloader_eval, model, optimizer, config, epoch)
-
-        # tic_list.append(time.perf_counter())
-        # print('epoch val : ', tic_list[-1] - tic_list[-2])
-
-
-        if config.val_stopper:
-            save_best_all, _ = stopper_best_all.evaluate(history['loss_val'][-1])
-            save, stop = stopper.evaluate(history['loss_val'][-1])
-        else:
-            save_best_all, _ = stopper_best_all.evaluate(history['loss_mbatch_train'][-1])
-            save, stop = stopper.evaluate(history['loss_mbatch_train'][-1])
-
-        # tic_list.append(time.perf_counter())
-        # print( 'epoch stopper : ',tic_list[-1] - tic_list[-2])
-
-        if save_best_all: #global best val model
-            history['epoch_best_of_all'] = epoch
-            best_model_of_all = int(patch_sampler + 0)
-            # model_params_save(config.basedir + config.model_name + '/' + config.best_model, model, optimizer)  # save best model
-
-        if save:
-            # print(model_saves_list,patch_sampler)
-            # print(model_saves_list[patch_sampler])
-
-            _path = os.path.join(output_path, model_saves_list[patch_sampler])
-            model_params_save(_path, model, optimizer)  # save best model    # todo gs
-            epochs_saves_list[-1] = epoch
-            loss_saves_list[-1] = stopper.best_loss
-            print('saving best model, epoch: ', epoch, ' to : ', model_saves_list[patch_sampler])
-
-        # tic_list.append(time.perf_counter())
-        # print( 'epoch saves : ',tic_list[-1] - tic_list[-2])
-
-        string_print = 'epoch : ' + str(epoch) + ' cycle : ' + str(patch_sampler)
-        for key in tags_plot:
-            string_print = string_print + ' | ' + key + ' tr, val : ' + str(
-                np.round(history[key + '_mbatch_train'][-1], 3)) + ','
-            string_print = string_print + str(np.round(history[key + '_val'][-1], 3))
-        string_print = string_print + ' | stopper_cycle : ' + str(stopper.counter) + '; stopper_best :' + str(stopper_best_all.counter)
+        patience = 10
+        stopper = early_stopping(patience, 0, np.inf) #only to save global best model
+        best_model_path = os.path.join(self.output_dir, "model_best.pth")
         
-        string_print = string_print + ' | train_time_taken : ' + str(end_train_time - start_train_time) + ' | val_time_taken : ' + str(end_val_time - start_val_time) # gs 
-        
-        print(string_print)
-        # print(val_epochs_saves_list)
-        print('loss of validation checkpoints : ',loss_saves_list)
-        print()
+        losses_all = []
+        for epoch in range(1, self.epochs):
+            
+            for batch, data in enumerate(dataloader_train):
 
-        patch_epoch_counter += 1
-        if (stop & (patch_epoch_counter>=config.nepochs_sample_patches)) : #if patience criteria and we have trained for a minimum of epochs per cycle of patches
+                x = data['input'].to(self.device) #input image with blind spots replaced randomly
+                mask = data['mask'].to(self.device)
+                scribble = data['scribble'].to(self.device)
+                target = data['target'].to(self.device) #input image with non blind spots
 
-            if (patch_sampler+1 >= nsaves) :
-                break
-                # if (epoch > config.warmup_epochs):
-                #     break
-                #if still in warmup epochs we continue training and resample
-            # else:
+                # print(x.size(), mask.size(), scribble.size(), target.size())
 
-            patch_sampler += 1  # counter of patches iterations
-            patch_epoch_counter = 0  # counter of epochs iteration for the current patches
-
-            print('sampling ',str(config.npatches_epoch), ' new training patches...')
-            dataloader_train.dataset.sample_patches_data(npatches_total=config.npatches_epoch)
-            if config.reset_validation:
-                print('sampling ', str(config.npatches_epoch), ' new validation patches...')
-                dataloader_val.dataset.sample_patches_data(npatches_total=config.npatches_epoch)
-
-            #reset train stopper and increase train save, note that we save once per sample patches iteration
-            stopper.best_loss = np.infty
-            stopper.counter = 0
-            stopper.patience = config.patience
-
-            # val_model_saves_list.append('model_val_best_save' + str(patch_sampler) + '.pth')
-            epochs_saves_list.append(0)
-            loss_saves_list.append(0)
-
-            ## reset optimizer?
-            if reset_optim:
-                print('reset optimizer')
-                if config.optimizer == 'adam':
-                    optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE,
-                                           weight_decay=config.optim_weight_decay)
-                else:
-                    if config.optimizer == 'RMSprop':
-                        optimizer = optim.RMSprop(model.parameters(), lr=config.LEARNING_RATE,
-                                                  weight_decay=config.optim_weight_decay)
+                out = self.model(x)
+                losses = self.criterion.compute_loss(out, target, scribble, mask)
+                
+                loss_batch = 0
+                
+                # TODO: check weighted loss 
+                for key in self.criterion.config.weight_objectives.keys():
+                    loss_batch += losses[key] * self.criterion.config.weight_objectives[key]
+                    if torch.is_tensor(losses[key]):
+                        mlflow.log_metric(key, losses[key].item())
                     else:
-                        optimizer = optim.SGD(model.parameters(), lr=config.LEARNING_RATE)
+                        mlflow.log_metric(key, losses[key])
 
-        # tic_list.append(time.perf_counter())
-        # print('epoch end : ', tic_list[-1] - tic_list[-2])
+                self.optimizer.zero_grad()
 
-    history['val_epochs_saves_list'] = epochs_saves_list
-    history['val_loss_saves_list'] = loss_saves_list
+                loss_batch.backward()
 
-    best_model_of_all_path = os.path.join(output_path, model_saves_list[best_model_of_all])
-    best_model_path = os.path.join(output_path, config.best_model)
-
-    print('Training Ended, loading best model : ', best_model_of_all_path)
-    model_params_load(best_model_of_all_path, model, optimizer, config.DEVICE) # todo gs
-    model_params_save(best_model_path, model, optimizer)  # save best model         # todo gs
-
-    return history
+                logger.debug("Epoch: {} Batch: {} Loss: {}".format(epoch, batch, loss_batch.item()))
+                mlflow.log_metric("train_loss_b", f"{loss_batch.item()}")
+                losses_all.append(loss_batch.item())
+                self.optimizer.step()
 
 
+            logger.info("Train :::: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
+            mlflow.log_metric("train_loss", f"{np.mean(losses_all):6f}")
 
-def eval(dataloader_eval, model, optimizer, config, epoch, saveout=True, default_ensembles=True, model_ensemble_load_files=None):
+            loss_mean = self.validate(dataloader_val, epoch=epoch)
+            
+            is_save, _ = stopper.evaluate(loss_mean)
+            if is_save:
+                checkpoint_model_path = os.path.join(self.output_dir, 'checkpoint_{}'.format(epoch))
+                logger.info("Saving the current best model: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
+                model_params_save(best_model_path, self.model, self.optimizer)  # save best model
+                model_params_save(checkpoint_model_path, self.model, self.optimizer)  # save best model
+                mlflow.log_artifact(best_model_path, "model")
 
-    model_ensemble_load_files = model_ensemble_load_files or []
 
-    output_path = config.basedir + config.model_name
+            if epoch % 20 == 0:
+                # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=True, dilate=True)
+                # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=1, is_save=True, dilate=True)
+                # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=True, dilate=True)
+                self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=False, dilate=True)
+            # if epoch % 50 == 0:
+            #     self.infer(dataloader_infer, epoch=epoch)
 
-    if default_ensembles & (len(model_ensemble_load_files) < 1):
-        model_ensemble_load_files = []
-        for model_file in config.val_model_saves_list:
-            model_ensemble_load_files.append(os.path.join(output_path, model_file))    # todo gs
 
-    if len(model_ensemble_load_files) >= 1:
-        print('Evaluating average predictions of models : ')
-        print("model_ensemble_load_files: ", ' '.join(model_ensemble_load_files))
-    elif not default_ensembles:
-        print('Evaluation of currently loaded network')
+    def validate(self, dataloader_val, epoch=0):
+        losses_all = []
+        for batch, data in enumerate(dataloader_val):
+
+            x = data['input'].to(self.device) #input image with blind spots replaced randomly
+            mask = data['mask'].to(self.device)
+            scribble = data['scribble'].to(self.device)
+            target = data['target'].to(self.device) #input image with non blind spots
+
+            out = self.model(x)
+            losses = self.criterion.compute_loss(out, target, scribble, mask)
+
+            loss_batch = 0
+            # TODO: check weighted loss 
+            for key in self.criterion.config.weight_objectives.keys():
+                loss_batch += losses[key] * self.criterion.config.weight_objectives[key]
+
+            losses_all.append(loss_batch.item())
+
+        loss_mean = np.mean(losses_all)
+        logger.info("Val :::: Epoch: {} Loss: {}".format(epoch, loss_mean))
+        mlflow.log_metric("val_loss", f"{loss_mean:6f}")
+        
+        return loss_mean 
     
-    
-    # dataloader full images evaluation
-    batch_size = 1
 
-    # ---------- Evaluation --------------#
-    output_list = []
-    gt_list = []
-    idx = 0
-    print('Start evaluation in training ...')
-    for batch, data in enumerate(dataloader_eval):
-        print()
-        print('batch : ', batch)
-        Xinput = data['input'].to(config.DEVICE)
+    # infer == when there in no gt available
+    def infer(self, dataloader_infer, epoch=0):
+        
+        logger.info("Start infer :::: ")
+        print('Start inference in training ...')
+        for batch, data in enumerate(dataloader_infer):
+            logger.info("Infer: batch: {} / {}  mcdropout: {}".format(batch, len(dataloader_infer)), self.mcdrop_it)
+            Xinput = data['input'].to(self.device)
+            image_name = data['image_name'][0]
+            image_name = image_name.split('/')[-1]
 
-        ## save ground truth
-        if 'label' in data.keys():
-            Ylabel = data['label'].numpy()
-            gt_list.append(Ylabel)
+            predictions = self.inference(Xinput)
 
-        ## evaluate ensemble of checkpoints and save outputs
-        if len(model_ensemble_load_files) < 1:
-            model.eval()
+            mean = True
+            std = False
+            out = get_impartial_outputs(predictions, self.classification_tasks, mean, std)  # output has keys: class_segmentation, factors
+            out_seg = out['0']['class_segmentation'][0,0,:,:]
+
+            output_dir = os.path.join(self.output_dir, 'pred_no_gt')
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            self.save_log_outputs(output_dir, image_name, epoch, predictions, out, out_seg, mlflow_tag='pred_no_gt')
+            
+
+    # evaluate == when there in gt available
+    def evaluate(self, dataloader_eval, epoch=0, eval_freq=1, is_save=False, dilate=False):
+        
+        print('Start evaluation in training ...')
+        logger.info('Start evaluation in training ...')
+        metrics_rows_pd = []
+        for batch, data in enumerate(dataloader_eval):
+            logger.info("Eval: batch: {} / {}  mcdropout: {}".format(batch, len(dataloader_eval), self.mcdrop_it))
+            Xinput = data['input'].to(self.device)
+            Ylabel = data['label'].numpy()[0,0,:,:].astype('int')
+            image_name = data['image_name'][0]
+            image_name = image_name.split('/')[-1]
+
+            predictions = self.inference(Xinput) # TODO: Change
+            # predictions = self.inference_tiled(Xinput)
+            
+            mean = True
+            std = False
+            out = get_impartial_outputs(predictions, self.classification_tasks, mean, std)  # output has keys: class_segmentation, factors
+            out_seg = out['0']['class_segmentation'][0,0,:,:] 
+
+
+            output_dir = os.path.join(self.output_dir, 'pred_w_gt')
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            # TODO: Only save a few samples
+            if is_save and batch % eval_freq == 0:
+                self.save_log_outputs(output_dir, image_name, epoch, predictions, out, out_seg, mlflow_tag='pred_w_gt')
+                self.save_out_seg_npz(output_dir, image_name, epoch, out_seg, mlflow_tag='npz_pred')
+                self.save_label_gt(output_dir, image_name, epoch, Ylabel, mlflow_tag='label_gt')
+                
+            row = [image_name]
+            metrics = get_performance(Ylabel, out_seg, threshold=0.5, dilate=dilate)
+            for key in metrics.keys():
+                row.append(metrics[key])
+            metrics_rows_pd.append(row)
+
+        columns = ['image_name']
+        for key in metrics.keys():
+            columns.append(key)
+
+        model_output_pd_summary_path = os.path.join(self.output_dir, 'eval_{}.csv'.format(epoch))
+        model_mean_pd_summary_path = os.path.join(self.output_dir, 'eval_mean_{}.csv'.format(epoch))
+        pd_summary = pd.DataFrame(data=metrics_rows_pd, columns=columns)
+        pd_summary.to_csv(model_output_pd_summary_path, index=0) 
+
+        pd_summary_mean = pd_summary.mean()
+        pd_summary_mean.to_csv(model_mean_pd_summary_path) 
+        
+        mlflow.log_artifact(model_output_pd_summary_path, "evaluation")
+        mlflow.log_artifact(model_mean_pd_summary_path, "evaluation")
+
+
+    def save_out_seg_npz(self, output_dir, image_name, epoch, out_seg, mlflow_tag):
+        
+        npz_out_seg_path = os.path.join(output_dir, 'out_seg_{}_{}.npz'.format(image_name, epoch))
+        np.savez(npz_out_seg_path, out=out_seg)            
+
+        mlflow.log_artifact(npz_out_seg_path, mlflow_tag)
+        
+    def save_label_gt(self, output_dir, image_name, epoch, label_gt, mlflow_tag):
+        
+        png_lablel_gt_path = os.path.join(output_dir, 'label_{}_{}.png'.format(image_name, epoch))
+        out_mask = (label_gt > 0.5).astype(np.uint8) * 255
+        out_mask = Image.fromarray(out_mask)
+        out_mask.save(png_lablel_gt_path)
+
+        mlflow.log_artifact(png_lablel_gt_path, mlflow_tag)
+        
+
+    def save_log_outputs(self, output_dir, image_name, epoch, predictions, out, out_seg, mlflow_tag):
+        
+        png_components_path = os.path.join(output_dir, 'components_{}_{}.png'.format(image_name, epoch))
+        # npz_prediction_path = os.path.join(output_dir, 'pred_{}_{}.npz'.format(image_name, epoch))
+        npz_impartial_outs_path = os.path.join(output_dir, 'out_{}_{}.pickle'.format(image_name, epoch))
+        png_prediction_path = os.path.join(output_dir, '{}_{}.png'.format(image_name, epoch))
+
+        png_mask_path = os.path.join(output_dir, '{}_{}_mask.png'.format(image_name, epoch))
+        png_outlines_path = os.path.join(output_dir, '{}_{}_outlines.png'.format(image_name, epoch))
+        roi_zip_path = os.path.join(output_dir, '{}_{}_roi.zip'.format(image_name, epoch))
+
+        plot_impartial_outputs(out, png_components_path) # uncomment
+        # np.savez(npz_prediction_path, prediction=predictions)
+        
+        with open(npz_impartial_outs_path, 'wb') as handle:
+            pickle.dump(out, handle)
+
+        plot_segmentation(out_seg, png_prediction_path)
+
+        mlflow.log_artifact(png_prediction_path, mlflow_tag)
+        mlflow.log_artifact(png_components_path, mlflow_tag) # uncomment
+
+
+        # threshold & save 
+        threshold = 0.95
+        # threshold = 0.70
+        out_mask = (out_seg > threshold).astype(np.uint8) * 255
+        out_mask = Image.fromarray(out_mask)
+        out_mask.save(png_mask_path)
+        
+        labels_pred, _ = ndimage.label(out_mask)
+        labels_pred = skimage.morphology.remove_small_objects(labels_pred, min_size=5)
+        labels_pred = dilate_masks(labels_pred, n_iter=1)
+        mask_outlines = masks_to_outlines(labels_pred)
+
+        noutX, noutY = np.nonzero(mask_outlines)
+        mask_outlines_img = np.zeros((out_mask.height, out_mask.width, 3), dtype=np.uint8)
+        mask_outlines_img[noutX, noutY] = np.array([255, 0, 0])
+        mask_outlines_img = Image.fromarray(mask_outlines_img)
+        mask_outlines_img.save(png_outlines_path)
+
+        for contour in measure.find_contours((out_seg > threshold).astype(np.uint8), level=0.9999):
+            roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
+            roi.tofile(roi_zip_path)
+
+        mlflow.log_artifact(png_mask_path, mlflow_tag)
+        mlflow.log_artifact(png_outlines_path, mlflow_tag)
+        mlflow.log_artifact(roi_zip_path, mlflow_tag)
+        
+
+    # just the inference call w/ and wo/ mcdropout
+    def inference(self, Xinput):
+        self.model.eval()
+        if self.mcdrop_it == 0:
             with torch.no_grad():
-                predictions = (model(Xinput)).cpu().numpy()
-        else:
-            predictions = np.empty((0, batch_size, config.n_output, Xinput.shape[-2], Xinput.shape[-1]))
-            for model_save in model_ensemble_load_files:
-                if os.path.exists(model_save):
-                    print('in train: evaluation of model: ', model_save)
-                    model_params_load(model_save, model, optimizer, config.DEVICE)
-                    model.eval()
+                predictions = to_np(self.model(Xinput))
 
-                    if config.MCdrop:
-                        model.enable_dropout()
-                        print(' running mcdrop iterations: ', config.MCdrop_it)
-                        start_mcdropout_time = time.time()
-                        for it in range(config.MCdrop_it):
+        if self.mcdrop_it > 0:
+            predictions = np.empty((0, Xinput.shape[0], self.n_output, Xinput.shape[-2], Xinput.shape[-1]))
+            self.model.enable_dropout()
+            # print('Running MCDropout iterations: ', self.mcdrop_it)
+            for it in range(self.mcdrop_it):
+                with torch.no_grad():
+                    out = to_np(self.model(Xinput))
 
-                            with torch.no_grad():
-                                out = to_np(model(Xinput))
-                            
-                            predictions = np.vstack((predictions, out[np.newaxis,...]))
-                    else:
-                        with torch.no_grad():
-                            out = to_np(model(Xinput))
-                        predictions = np.vstack((predictions, out[np.newaxis, ...]))
+                predictions = np.vstack((predictions, out[np.newaxis,...]))
+            
+        # print("mcdropout test: ", predictions.shape)
+        return predictions
 
-        output = get_impartial_outputs(predictions, config)  # output has keys: class_segmentation, factors
 
-        if saveout:
-            save_output_dic = os.path.join(output_path, 'output_images', str(epoch))       # todo gs
-            file_output_save = 'eval_' + str(idx) + '.pickle'
-            mkdir(save_output_dic)
-            _path = os.path.join(save_output_dic, file_output_save)
-            print('Saving output : ', _path)           # todo gs
-            with open(_path, 'wb') as handle:
-                pickle.dump(output, handle)
+    def inference_tiled(self, Xinput, tile_size=256, stride=144):
+        self.model.eval()
 
-        idx += 1
-        # if idx == 5:
-        #     break
-        output_list.append(output)
+        height, width = 400, 400
 
-    return output_list, gt_list
+        pred_map = torch.zeros(size=(1, 12, 400, 400), dtype=torch.float32)
+        count_map = torch.zeros(size=(1, 12, 400, 400), dtype=torch.float32)
+
+        # print("pred_map.shape: ", pred_map.shape)
+        count = 0
+        for y in range(0, height - tile_size + 1, stride):
+            for x in range(0, width - tile_size + 1, stride):
+                # print("x, y :", x, y, count)
+                count += 1
+                tile = Xinput[:, :, y:y + tile_size, x:x + tile_size]
+                # print("tile.shape: ", tile.shape)
+                # print("pred_map[:, :, y:y + tile_size, x:x + tile_size]: ", pred_map[:, :, y:y + tile_size, x:x + tile_size].shape)
+
+                with torch.no_grad():
+                    pred_tile = to_np(self.model(tile))  # Add batch dimension
+                    # print("pred_tile.shape: ", pred_tile.shape)
+
+                pred_map[:, :, y:y + tile_size, x:x + tile_size] += pred_tile
+                count_map[:, :, y:y + tile_size, x:x + tile_size] += 1
+
+        # print("tile prediction: count", count)
+        # Avoid division by zero and normalize by count map
+        count_map[count_map == 0] = 1  # to avoid division by zero
+        predictions = pred_map / count_map
+
+        return predictions
+
+
+
+def plot_save_predictions(predictions, output_file):
+
+    plt.figure(figsize=(10,10))
+    n = predictions.shape[1]
+    
+    # for i in range(n):
+    #     plt.subplot(1,12,i+1)
+    #     plt.imshow(predictions[0,i,:,:])
+
+    # plt.savefig(output_file)
+    # plt.save(output_file)
+    for i  in range(0,3) :
+
+        plt.subplot(3,4,1+(i*4))
+        plt.imshow(predictions[0,0+(i*4),:,:])
+
+        plt.subplot(3,4,2+(i*4))
+        plt.imshow(predictions[0,1+(i*4),:,:])
+
+        plt.subplot(3,4,3+(i*4))
+        plt.imshow(predictions[0,2+(i*4),:,:])
+
+        plt.subplot(3,4,4+(i*4))
+        plt.imshow(predictions[0,3+(i*4),:,:])
+
+        plt.show()
+
+    plt.tight_layout()
+    plt.savefig(output_file)
+    plt.close()
+
+
+def plot_segmentation(prediction, output_file):
+    plt.figure(figsize=(10, 10))
+    plt.subplot(1,2,1)
+    plt.imshow(prediction)
+    plt.subplot(1,2,2)
+    plt.imshow(get_entropy(prediction))
+    plt.tight_layout()
+    plt.savefig(output_file)
+    plt.close()
+
+
+def plot_impartial_outputs(out, output_file):
+    plt.figure(figsize=(15,15))
+
+    out = out['0']
+    # print(out.keys())
+    # print(out['factors'].keys())
+
+    plt.subplot(4, 2, 1)
+    plt.imshow(out['class_segmentation'][0,0,:,:])
+    if 'class_segmentation_variance' in out:
+        plt.subplot(4, 2, 2)
+        plt.imshow(out['class_segmentation_variance'][0,0,:,:])
+    
+    output_factors = out['factors']
+    plt.subplot(4, 2, 3)
+    # print("output_factors['components']: ", output_factors['components'].shape)
+    plt.imshow(output_factors['components'][0,0,:,:])
+    
+    if 'components_variance' in output_factors:
+        plt.subplot(4, 2, 4)
+        # print("output_factors['components_variance']: ", output_factors['components_variance'].shape)
+        plt.imshow(output_factors['components_variance'][0,0,:,:])
+
+    if 'mean_ch0' in output_factors:
+        plt.subplot(4, 2, 5)
+        plt.imshow(output_factors['mean_ch0'][0,0,:,:])
+    if 'mean_variance_ch0' in output_factors:
+        plt.subplot(4, 2, 6)
+        plt.imshow(output_factors['mean_variance_ch0'][0,0,:,:])
+
+    if 'mean_ch1' in output_factors:
+        plt.subplot(4, 2, 7)
+        plt.imshow(output_factors['mean_ch1'][0,0,:,:])
+        
+    if 'mean_variance_ch1' in output_factors:
+        plt.subplot(4, 2, 8)
+        plt.imshow(output_factors['mean_variance_ch1'][0,0,:,:])
+
+
+    # keys = ['class_segmentation', 'class_segmentation_variance']
+    # keys += ['components', 'components_variance']
+    # keys += ['mean_ch_0', 'mean_variance_ch_0']
+    # keys += ['mean_ch_1', 'mean_variance_ch_1']
+    # # keys += ['logstd_ch_0', 'logstd_variance_ch_0']
+    # # keys += ['logstd_ch_1', 'logstd_variance_ch_1']
+    
+    plt.tight_layout()
+    plt.savefig(output_file)
+    plt.close()
