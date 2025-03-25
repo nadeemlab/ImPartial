@@ -10,14 +10,14 @@ import torch
 import torch.utils.data
 from torchvision import transforms
 
-from dataprocessing.datasets import ImageBlindSpotDataset, ImageSegDataset, ImageDataset, Normalize, ToTensor, RandomFlip, RandomRotate, RandomPermuteChannel
-from dataprocessing.reader import DataProcessor, prepare_data_train, prepare_data_test, prepare_data_infer, plot_sample, plot_patch_sample
-from general.training import Trainer
-from general.networks import UNet
-from general.losses import ImpartialLoss, LossConfig
-from general.config import ImConfigIni, config_to_dict
-from general.utils import model_params_load
-from general.utils_mlflow import init_mlflow
+from impartial.dataprocessing.datasets import ImageBlindSpotDataset, ImageSegDataset, ImageDataset, Normalize, ToTensor, RandomFlip, RandomRotate, RandomPermuteChannel
+from impartial.dataprocessing.reader import DataProcessor, prepare_data_train, prepare_data_test, prepare_data_infer, plot_sample, plot_patch_sample
+from impartial.general.training import Trainer
+from impartial.general.networks import UNet
+from impartial.general.losses import ImpartialLoss, LossConfig
+from impartial.general.config import ImConfigIni, config_to_dict
+from impartial.general.utils import model_params_load
+from impartial.general.utils_mlflow import init_mlflow
 
 import random
 random.seed(71)

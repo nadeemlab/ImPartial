@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import configparser
 
-from general.utils import save_json
+from impartial.general.utils import save_json
 
 class ImConfig:
     def __init__(self, conf):
