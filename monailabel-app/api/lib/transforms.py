@@ -1,16 +1,17 @@
 import copy
 import os 
 import logging
-from typing import Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+from typing import Tuple
+
+from monai.config import KeysCollection
+from monai.transforms import MapTransform, Randomizable, Transform
 
 from dataprocessing.dataloaders import compute_probability_map, random_crop, blind_spot_patch
 from dataprocessing.utils import compute_entropy
-from impartial.Impartial_classes import ImPartialConfig
-from monai.config import KeysCollection
-from monai.transforms import MapTransform, Randomizable, Transform
+from Impartial_classes import ImPartialConfig
 
 logger = logging.getLogger(__name__)
 

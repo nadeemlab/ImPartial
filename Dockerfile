@@ -10,3 +10,4 @@ COPY ./requirements.txt $APP_HOME/requirements.txt
 RUN pip install -r $APP_HOME/requirements.txt
 
 WORKDIR $APP_HOME/impartial
+

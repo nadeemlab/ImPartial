@@ -1,16 +1,19 @@
 import logging
 import os
+import sys
 from typing import Any, Dict, Optional, Union
-
-import lib.infers
-import lib.trainers
-from general.networks import UNet
 
 from monailabel.interfaces.config import TaskConfig
 from monailabel.interfaces.tasks.infer_v2 import InferTask
 from monailabel.interfaces.tasks.train import TrainTask
 
-from . import DAPI1CH, Config_CH1, Config_CH2, Config_CH3
+import lib.infers
+import lib.trainers
+
+from . import Config_CH1, Config_CH2, Config_CH3
+
+sys.path.append("../")
+from impartial.general.networks import UNet
 
 logger = logging.getLogger(__name__)
 

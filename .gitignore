@@ -20,3 +20,4 @@ monai-env/
 *.pyc
 logs/
 results/
+monailabel-app/api/model/

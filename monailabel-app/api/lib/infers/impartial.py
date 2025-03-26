@@ -3,11 +3,15 @@ import io
 import logging
 import os
 import json
+import sys
 from typing import Any, Callable, Dict, List, Sequence, Union
 
 import numpy as np
-from dataprocessing.utils import read_image, read_label, percentile_normalization
-from general.evaluation import get_performance
+
+from PIL import Image
+from roifile import ImagejRoi
+from skimage import measure
+
 from lib.transforms import AggregateComponentOutputs, ComputeEntropy, GetImpartialOutputs, DisplayOuputs, DisplayPredictions
 from monai.config import PathLike
 from monai.data import ImageReader
@@ -20,12 +24,15 @@ from monai.transforms import (
     ToNumpyd,
     ToTensord,
 )
-from PIL import Image
-from roifile import ImagejRoi
-from skimage import measure
 
 from monailabel.interfaces.tasks.infer_v2 import InferType
 from monailabel.tasks.infer.basic_infer import BasicInferTask
+
+from dataprocessing.utils import read_image, read_label, percentile_normalization
+
+
+sys.path.append("../")
+from impartial.general.evaluation import get_performance
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +140,7 @@ class ZIPFileWriter:
         output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.json")
         res = {"output": prob_map.tolist(), "entropy": data["entropy"].tolist(), "metrics": metrics}
 
-        # TODO: Delete later
+        # TODO: Delete laterx
         output_path2 = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}_test.json")
         roi_zip_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}_roi.zip")
 

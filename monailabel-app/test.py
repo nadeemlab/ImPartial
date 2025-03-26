@@ -1,12 +1,14 @@
 import os
 import json
 from pathlib import Path
-
+import sys 
 import requests
 from PIL import Image
 
 from dataprocessing.utils import rois_to_mask
-from general.evaluation import get_performance
+
+sys.path.append("../../")
+from impartial.general.evaluation import get_performance
 
 BASE_URL = "http://localhost:8000"
 MODEL_NAME = "full_labels"
