@@ -12,8 +12,7 @@ import lib.trainers
 
 from . import Config_CH1, Config_CH2, Config_CH3
 
-sys.path.append("../")
-from impartial.general.networks import UNet
+from general.networks import UNet
 
 logger = logging.getLogger(__name__)
 

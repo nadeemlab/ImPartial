@@ -19,14 +19,12 @@ from monai.transforms import EnsureChannelFirstd, RandFlipd, ScaleIntensityRange
 from monailabel.interfaces.datastore import Datastore
 from monailabel.tasks.train.basic_train import BasicTrainTask, Context
 
-from dataprocessing.dataloaders import sample_patches
-from dataprocessing.utils import read_image, rois_to_labels, validation_mask, percentile_normalization
+from Impartial_dataloaders import sample_patches
 from Impartial_functions import compute_impartial_losses
 from lib.transforms import BlindSpotPatch, GetImpartialOutputs, DisplayInputs
 
-
-sys.path.append('../../')
-from impartial.general.losses import reclosses, seglosses
+from general.losses import reclosses, seglosses
+from dataprocessing.utils import read_image, rois_to_labels, validation_mask, percentile_normalization
 
 logger = logging.getLogger(__name__)
 

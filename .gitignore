@@ -21,3 +21,4 @@ monai-env/
 logs/
 results/
 monailabel-app/api/model/
+*.egg-info/

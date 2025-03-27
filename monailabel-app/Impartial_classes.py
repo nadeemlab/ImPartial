@@ -1,19 +1,9 @@
 import argparse
-import os
 import numpy as np
-import torch
 
 class ImPartialConfig(argparse.Namespace):
 
     def __init__(self, config_dic=None, **kwargs):
-
-        self.basedir = 'models/'  # todo gs
-        self.model_name = 'vanilla_model'
-        self.best_model = 'weights_best.pth'
-        self.last_model = 'weights_last.pth'
-
-        self.seed = 42
-        self.GPU_ID = 0
 
         ### Checkpoint ensembles
         self.nsaves = 1 # number of checkpoints ensembles
@@ -84,13 +74,6 @@ class ImPartialConfig(argparse.Namespace):
 
         for k in kwargs:
             setattr(self, k, kwargs[k])
-
-        torch.manual_seed(self.seed)
-        if torch.cuda.is_available() and self.GPU_ID >= 0:
-            DEVICE = torch.device('cuda:%d' % (self.GPU_ID))
-        else:
-            DEVICE = torch.device('cpu')
-        self.DEVICE = DEVICE
 
         def get_output_size():
             output_size = 0

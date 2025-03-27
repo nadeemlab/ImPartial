@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 from sklearn.metrics import roc_auc_score
-from impartial.general.utils import to_np
+from general.utils import to_np
 
 
 class LossConfig():

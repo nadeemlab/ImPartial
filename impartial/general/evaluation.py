@@ -3,8 +3,8 @@ import pandas as pd
 import skimage
 from scipy import ndimage
 from sklearn.metrics import roc_auc_score, jaccard_score
-from impartial.general.outlines import dilate_masks
-from impartial.general.metrics_stardist import matching_dataset
+from general.outlines import dilate_masks
+from general.metrics_stardist import matching_dataset
 
 
 def safe_division(x, y, eps=1e-10):

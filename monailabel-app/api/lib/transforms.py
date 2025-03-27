@@ -9,9 +9,10 @@ from typing import Tuple
 from monai.config import KeysCollection
 from monai.transforms import MapTransform, Randomizable, Transform
 
-from dataprocessing.dataloaders import compute_probability_map, random_crop, blind_spot_patch
-from dataprocessing.utils import compute_entropy
+from Impartial_dataloaders import compute_probability_map, random_crop, blind_spot_patch
 from Impartial_classes import ImPartialConfig
+
+from dataprocessing.utils import compute_entropy
 
 logger = logging.getLogger(__name__)
 

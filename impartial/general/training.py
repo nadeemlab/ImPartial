@@ -17,9 +17,9 @@ import skimage
 from scipy import ndimage
 from impartial.general.outlines import dilate_masks, masks_to_outlines
 
-from impartial.general.utils import model_params_save, to_np, early_stopping
-from impartial.general.inference import get_impartial_outputs, get_entropy
-from impartial.general.evaluation import get_performance
+from general.utils import model_params_save, to_np, early_stopping
+from general.inference import get_impartial_outputs, get_entropy
+from general.evaluation import get_performance
 
 import logging
 logger = logging.getLogger(__name__)

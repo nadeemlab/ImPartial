@@ -28,11 +28,8 @@ from monai.transforms import (
 from monailabel.interfaces.tasks.infer_v2 import InferType
 from monailabel.tasks.infer.basic_infer import BasicInferTask
 
+from general.evaluation import get_performance
 from dataprocessing.utils import read_image, read_label, percentile_normalization
-
-
-sys.path.append("../")
-from impartial.general.evaluation import get_performance
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +132,7 @@ class ZIPFileWriter:
             label_gt = read_label(label_path, (data["image"].shape[1], data["image"].shape[2]))
             label_gt = label_gt.astype(int)
 
-            metrics = get_performance(label_gt=label_gt, y_pred=prob_map, threshold=0.5, iou_threshold=0.5)
+            # metrics = get_performance(label_gt=label_gt, y_pred=prob_map, threshold=0.5, iou_threshold=0.5)
 
         output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.json")
         res = {"output": prob_map.tolist(), "entropy": data["entropy"].tolist(), "metrics": metrics}
