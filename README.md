@@ -48,10 +48,13 @@ Active learning approach: MONAI-Label suports an active learning based approch f
 
 ## ImPartial Installation: 
 
+### ImPartial library
+pip install -e .
+
 ### MONAI Label
 
 Pre-requisites
-* Python 3
+* python >=3.10
 
 Install Python dependencies in a virtual environment using **pip**
 ```
@@ -61,7 +64,7 @@ pip install -U pip && pip install -r requirements.txt
 ```
 Run MONAI-Label app
 ```
-cd impartial
+cd monailabel-app
 monailabel start_server -a api -s <data-dir>
 ```
 
