@@ -4,6 +4,7 @@
     <img src="./images/impartial-logo.png" width="50%">
     <h1 align="center"><strong>Interactive instance segmentation using partial annotations</strong></h1>
     <p align="center">
+    <a href="https://monai.io/wg_human_ai_interaction.html">MONAI Human-AI Interaction Working Group</a> |
     <a href="https://github.com/nadeemlab/ImPartial/issues">Report Bug</a> |
     <a href="https://github.com/nadeemlab/ImPartial/issues">Request Feature</a>
   </p>
