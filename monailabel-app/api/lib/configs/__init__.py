@@ -48,7 +48,8 @@ class Config_CH3(ImPartialConfig):
             BATCH_SIZE=64,
             n_channels=3,
             classification_tasks={
-                '0': {'classes': 1, 'rec_channels': [0,1,2], 'ncomponents': [2, 2]}
+                # '0': {'classes': 1, 'rec_channels': [0,1,2], 'ncomponents': [2, 2]}
+                '0': {'classes': 1, 'rec_channels': [0,1,2], 'ncomponents': [3, 3]}
             }
         )
 

@@ -4,10 +4,11 @@ import logging
 import os
 import json
 import sys
-from typing import Any, Callable, Dict, List, Sequence, Union
-
+import skimage 
 import numpy as np
 
+from typing import Any, Callable, Dict, List, Sequence, Union
+from scipy import ndimage
 from PIL import Image
 from roifile import ImagejRoi
 from skimage import measure
@@ -30,6 +31,8 @@ from monailabel.tasks.infer.basic_infer import BasicInferTask
 
 from general.evaluation import get_performance
 from dataprocessing.utils import read_image, read_label, percentile_normalization
+from general.outlines import dilate_masks, masks_to_outlines
+
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +102,40 @@ class Impartial(BasicInferTask):
         return writer(data)
 
 
+def get_outlines(prob_map, threshold=0.9):
+        
+    # use prob_map to convert into outline
+            # threshold & save 
+ 
+    # threshold = 0.70
+    out_mask = (prob_map > threshold).astype(np.uint8) * 255
+    out_mask = Image.fromarray(out_mask)
+    # out_mask.save(png_mask_path)
+    
+    labels_pred, _ = ndimage.label(out_mask)
+    labels_pred = skimage.morphology.remove_small_objects(labels_pred, min_size=5)
+    labels_pred = dilate_masks(labels_pred, n_iter=1)
+    print("labels_pred: ", labels_pred.shape, labels_pred.min(), labels_pred.max())
+    mask_pred = (labels_pred > 0) * 1.0
+    print("mask_pred: ", mask_pred.shape, mask_pred.min(), mask_pred.max())
+    
+    # labels_pred_img = Image.fromarray(labels_pred)
+    # labels_pred_img.save("/home/ubuntu/git-2024-03-18/labels_pred_img.png")
+    
+    # mask_pred_img = Image.fromarray((mask_pred * 255).astype(np.uint8))
+    # mask_pred_img.save("/home/ubuntu/git-2024-03-18/mask_pred.png")
+    
+    # mask_outlines = masks_to_outlines(labels_pred)
+
+    # noutX, noutY = np.nonzero(mask_outlines)
+    # mask_outlines_img = np.zeros((out_mask.height, out_mask.width, 3), dtype=np.uint8)
+    # mask_outlines_img[noutX, noutY] = np.array([255, 0, 0])
+    # mask_outlines_img = Image.fromarray(mask_outlines_img)
+    # mask_outlines_img.save("/home/ubuntu/git-2024-03-18/test_outline.png")
+    
+    return mask_pred
+
+
 def pil_to_b64(i):
     buff = io.BytesIO()
     i.save(buff, format="PNG")
@@ -128,28 +165,30 @@ class ZIPFileWriter:
         print("Infers/impartial.py, label_path::", label_path)
         metrics = {}
 
-        if os.path.exists(label_path):
-            label_gt = read_label(label_path, (data["image"].shape[1], data["image"].shape[2]))
-            label_gt = label_gt.astype(int)
+        # if os.path.exists(label_path):
+        #     label_gt = read_label(label_path, (data["image"].shape[1], data["image"].shape[2]))
+        #     label_gt = label_gt.astype(int)
 
-            # metrics = get_performance(label_gt=label_gt, y_pred=prob_map, threshold=0.5, iou_threshold=0.5)
+        #     metrics = get_performance(label_gt=label_gt, y_pred=prob_map, threshold=0.5, iou_threshold=0.5)
 
         output_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}.json")
-        res = {"output": prob_map.tolist(), "entropy": data["entropy"].tolist(), "metrics": metrics}
+        dilated_mask = get_outlines(prob_map, threshold=0.95)
+        # res = {"output": prob_map.tolist(), "entropy": data["entropy"].tolist(), "metrics": metrics}
+        res = {"output": dilated_mask.tolist(), "entropy": data["entropy"].tolist(), "metrics": metrics}
 
-        # TODO: Delete laterx
-        output_path2 = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}_test.json")
-        roi_zip_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}_roi.zip")
+        # # TODO: Delete laterx
+        # output_path2 = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}_test.json")
+        # roi_zip_path = os.path.join(output_dir, f"{os.path.splitext(input_file)[0]}_roi.zip")
 
-        with open(output_path2, 'w') as fp:
-            json.dump(res, fp)
+        # with open(output_path2, 'w') as fp:
+        #     json.dump(res, fp)
         
-        threshold = 0.95
+        # threshold = 0.95
         
-        for contour in measure.find_contours((prob_map > threshold).astype(np.uint8), level=0.9999):
-            roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
-            roi.tofile(roi_zip_path)
-        # TODO: Delete later ^^
+        # for contour in measure.find_contours((prob_map > threshold).astype(np.uint8), level=0.9999):
+        #     roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
+        #     roi.tofile(roi_zip_path)
+        # # TODO: Delete later ^^
 
 
         with open(output_path, 'w') as fp:
