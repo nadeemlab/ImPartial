@@ -2,6 +2,7 @@ import logging
 import os
 from distutils.util import strtobool
 from typing import Dict
+import subprocess
 
 import lib.configs
 
@@ -17,8 +18,16 @@ from monailabel.utils.others.class_utils import get_class_names
 logger = logging.getLogger(__name__)
 
 
+def get_git_hash():
+    try:
+        git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
+        return git_hash
+    except Exception as e:
+        return f"Error: {e}"
+
 class Impartial(MONAILabelApp):
     def __init__(self, app_dir, studies, conf):
+        logger.info(f"Initializing Impartial MONAI App version: 2025-03-11 ", get_git_hash())
         self.model_dir = os.path.join(app_dir, "model")
 
         configs = {}
@@ -84,7 +93,7 @@ class Impartial(MONAILabelApp):
             c = task_config.infer()
             c = c if isinstance(c, dict) else {n: c}
             for k, v in c.items():
-                logger.info(f"+++ Adding Inferer:: {k} => {v}")
+                logger.info(f"++++ Adding Inferer:: {k} => {v}")
                 infers[k] = v
         return infers
 
@@ -98,7 +107,7 @@ class Impartial(MONAILabelApp):
             if not t:
                 continue
 
-            logger.info(f"+++ Adding Trainer:: {n} => {t}")
+            logger.info(f"++++ Adding Trainer:: {n} => {t}")
             trainers[n] = t
         return trainers
 
