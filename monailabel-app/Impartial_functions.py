@@ -228,7 +228,8 @@ def reconstruction_loss(input, output, out_seg, mask, task, criterion, config):
     """
     # channel to reconstruct for this class object
     # TODO: Get ncomponents from config
-    ncomponents = [2, 2]
+    ncomponents = config.classification_tasks["0"]["ncomponents"]
+    # ncomponents = [2, 2]
 
     # def get_mean(zeros=False):
     #     if zeros:
