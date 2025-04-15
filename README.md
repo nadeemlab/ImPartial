@@ -14,6 +14,8 @@ Interactive segmentation is a crucial area of research in medical image analysis
 
 *With **MONAI-Label integration**, **cloud (Amazon Web Services) deployment**, and a user-friendly **ImageJ/Fiji plugin/interface**, **ImPartial** can be run iteratively on a new user-uploaded dataset in an active learning human-in-the-loop framework with a no-code execution. A new **multi-user support scheme** is deployed as well to allow users to sign-up/authenticate and simultaneously use our cloud resources with capabilities to end/restore user sessions and develop/share new models with the wider community as needed (hopefully resulting in an ImPartial-driven marketplace in the future where users can share their models with the wider community while being properly credited for their hard work).*
 
+**This repo can be used as a reference implementation to integrate new interactive deep learning segmentation algorithms with MONAI Label. For basic usage of different MONAI Label APIs, follow the notebook [here](.//monailabel-app/impartial_monai_demo.ipynb).**
+
 ## Pipeline
 
 ![unet_arch](./images/impartial_pipeline_v3.png)
