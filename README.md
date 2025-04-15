@@ -118,7 +118,7 @@ then restart **Fiji** and open `ImPartial` from the `Plugins` menu bar.
 A detailed guide for the Fiji plugin can be found [here](imagej-plugin/README.md). 
 
 ## Issues
-Please report all issues on the public forum.
+Please report all issues [here](https://github.com/nadeemlab/ImPartial/issues).
 
 
 ## License
