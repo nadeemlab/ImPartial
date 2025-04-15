@@ -27,7 +27,8 @@ def get_git_hash():
 
 class Impartial(MONAILabelApp):
     def __init__(self, app_dir, studies, conf):
-        logger.info(f"Initializing Impartial MONAI App version: 2025-03-11 ", get_git_hash())
+        # logger.info("Initializing Impartial MONAI App version: 2025-03-14 - ", get_git_hash())
+        logger.info("Initializing Impartial MONAI App version: 2025-03-14")
         self.model_dir = os.path.join(app_dir, "model")
 
         configs = {}

@@ -48,7 +48,9 @@ User can request our cloud deployed MONAI server to readily annotate and segment
 - Click “ADD” to upload your images.
 - Impartial supports .png and .tiff file formats 
 - Multichannel images upto 3 channels 
-- Example dataset: [VECTRA_2CH](data/Vectra_WC_2CH_tiff)
+- Example dataset: 
+    - [VECTRA_2CH](https://zenodo.org/records/15220501/files/vectra_2ch_tiff.zip) 
+    - images are in .tiff and labels (ROIs) are in .zip format
 
 ### Creating Labels 
 -	Use the ‘selection brush tool’ from the Fiji toolbar
@@ -65,7 +67,7 @@ User can request our cloud deployed MONAI server to readily annotate and segment
 
 ### Upload pre-trained model 
 - User can upload a pre-trained model for inference and/or fine-tuning. 
-- Example [vectra_2ch.pt]()
+- Example [vectra_2ch.pt](https://zenodo.org/records/15220298/files/impartial_vectra2ch.pt)
 
 
 ### Infer

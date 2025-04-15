@@ -48,16 +48,19 @@ Active learning approach: MONAI-Label suports an active learning based approch f
 *This workflow diagram illustrates the interactive and iterative nature of the ImPartial pipeline, allowing users to actively contribute to the segmentation model's improvement through annotation and fine-tuning. The combination of user input and deep learning enables more accurate and adaptive whole cell image segmentation. `(1.) Setup:` The workflow begins with the user interacting with the ImPartial plugin through the Fiji app to connect to an ImPartial endpoint or a local server which runs MONAI label as its core backend service. User uploads images to the tool which are stored on our cloud storage system, such as Amazon S3, and a backend MONAI datastore. `(2.) Scribbles:` For each uploaded image, the user utilizes Fiji's draw tool feature to manually mark cell boundaries for a small number of cells. This annotation process allows the user to provide initial guidance to the segmentation algorithm. `(3.) Submit Scribbles:` Once the cell boundaries are marked, the user submits the annotations (scribbles) to the system. `(3.1)` These scribbles are linked and stored alongside original images. `(3.2.)` Training configuration: The user can configure the machine learning training job by tuning hyper-parameters such as the number of epochs, learning rate, and other relevant parameters. `(4.) Initiate Training Job:` With the training parameters set, the user initiates an asynchronous training job which will utilize the annotated data alongside image denoising to train a segmentation model. The progress of the training can be monitored in real-time via the plugin. `(4.1) Model Update:` During training, multiple image segmentation metrics are logged and the newly trained, better performing model is stored. `(4.2) Model Inference:` Since, the ImPartial workflow is asynchronous, model inference can be run any time during and after the training to obtain predictions for cell segmentation on new, unlabeled data.   `(5.) Visualization of Results:` The user can visualize the results of the segmentation model. This includes viewing the provided images, scribbles, model predictions, and entropy (uncertainty) maps simultaneously on a single canvas. This visualization aids in understanding the model's performance and identifying areas of high uncertainty in the segmentation. `(6.) Iterative Refinement:` Finally, users can add additional scribbles or annotations based on the visualization results. With the new annotations, the training is re-initiated triggering fine-tuning of the existing model with the new data.*
 
 
-## Quick Start - No Code Execution
-For a fast, no-code way to get started using the pre-compiled binaries, check out the [**Quick Start Guide**](QUICK_START.md).
+## Quickstart - No Code Execution
+For a fast, no-code way to get started using the pre-compiled binaries, check out the [**Quickstart Guide**](QUICK_START.md).
 
 
 ## ImPartial Installation: 
 
 ### ImPartial library
+```
+git clone https://github.com/nadeemlab/ImPartial.git
 pip install -e .
+```
 
-### MONAI Label
+### MONAI-Label
 
 Pre-requisites
 * python >=3.10
@@ -77,7 +80,7 @@ monailabel start_server -a api -s <data-dir>
 and navigate to http://localhost:8000 to access the [Swagger UI](https://github.com/swagger-api/swagger-ui)
 for interactive API exploration.
 
-## MONAI-Label in Docker
+#### MONAI-Label in Docker
 
 Build the docker image
 ```shell
@@ -91,7 +94,7 @@ docker run -d --name impartial -p 8000:8000 monailabel/impartial monailabel star
 
 and navigate to http://localhost:8000
 
-## ImageJ/Fiji Plugin
+### ImageJ/Fiji Plugin
 
 Pre-requisites
 * [Fiji](https://imagej.net/software/fiji/downloads) (version >= 2.3.0)
