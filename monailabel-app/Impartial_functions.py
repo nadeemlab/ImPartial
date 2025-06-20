@@ -227,22 +227,9 @@ def reconstruction_loss(input, output, out_seg, mask, task, criterion, config):
     Compute reconstruction loss.
     """
     # channel to reconstruct for this class object
-    # TODO: Get ncomponents from config
     ncomponents = config.classification_tasks["0"]["ncomponents"]
-    # ncomponents = [2, 2]
+    print("reconstruction_loss ncomponents: ", ncomponents)
 
-    # def get_mean(zeros=False):
-    #     if zeros:
-    #         device = out_seg.get_device() if out_seg.get_device() >= 0 else torch.device("cpu")
-    #         ts = torch.zeros([out_seg.shape[0], out_seg.shape[1]]).to(device)
-    #     else:
-    #         ts = torch.sum(output * out_seg, [2, 3]) / torch.sum(out_seg, [2, 3]) # batch x (nfore*nclasses + nback)
-    #     return torch.sum(torch.unsqueeze(torch.unsqueeze(ts, -1), -1) * out_seg, 1)
-
-    # mean_x = get_mean(not config.mean)
-    # std_x = get_mean(not config.std)
-
-    # print("output.shape, out_seg.shape: ", output.shape, out_seg.shape)
     # print("config.mean: ", config.mean, config.std)
     loss = 0
     rec_channels = task['rec_channels']  # list with channels to reconstruct

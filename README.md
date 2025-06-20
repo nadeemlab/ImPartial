@@ -14,6 +14,8 @@ Interactive segmentation is a crucial area of research in medical image analysis
 
 *With **MONAI-Label integration**, **cloud (Amazon Web Services) deployment**, and a user-friendly **ImageJ/Fiji plugin/interface**, **ImPartial** can be run iteratively on a new user-uploaded dataset in an active learning human-in-the-loop framework with a no-code execution. A new **multi-user support scheme** is deployed as well to allow users to sign-up/authenticate and simultaneously use our cloud resources with capabilities to end/restore user sessions and develop/share new models with the wider community as needed (hopefully resulting in an ImPartial-driven marketplace in the future where users can share their models with the wider community while being properly credited for their hard work).*
 
+**This repo can be used as a reference implementation to integrate new interactive deep learning segmentation algorithms with MONAI Label. For basic usage of different MONAI Label APIs, follow the notebook [here](.//monailabel-app/impartial_monai_demo.ipynb).**
+
 ## Pipeline
 
 ![unet_arch](./images/impartial_pipeline_v3.png)
@@ -21,7 +23,7 @@ Interactive segmentation is a crucial area of research in medical image analysis
 latter statistics are averaged across the entire patch to enforce component consistency. Both the component statistics and component mixture are used to compute the mixture loss for the patch. Simultaneously, a scribble containing a small number of ground truth segmentations for the patch is used to compute the scribble loss. Both losses propagate gradients back to the U-Net architecture on the backward pass. Additional scribbles can be added to fine-tune the model trained in the previous iteration. Uncertainty maps are computed and shown to guide the user to provide additional scribblles in high uncertainty regions.*
 
 
-## Iterative Pipeline
+## Iterative Analysis
 ![vectra_iterative](./images/vectra_iterative_v3.png)
 
 *Iterative analysis on our public [VECTRA 2-channel images](./data). In the first iteration 20% scribbles were provided on image (0, 1, 3, 4, 5, 6, 7, 9). Based on the entropy visualization, an additional 20% scribbles were provided on images (1, 3, 9) as shown. The model was fine-tuned from iteration 1 using the original and additional scribbles. Note that no scribbles were provided for images (2, 8) during this iterative process. Here, we show the improvement through entropy-aware / guided human-in-the-loop approach. We also show the F1-score improvement across all images. The last three columns show the results from the state-of-the-art [Cellpose](https://www.nature.com/articles/s41592-022-01663-4), [Mesmer](https://www.nature.com/articles/s41587-021-01094-0), and [Cellotype](https://www.nature.com/articles/s41592-024-02513-1) pre-trained models.*
@@ -116,7 +118,7 @@ then restart **Fiji** and open `ImPartial` from the `Plugins` menu bar.
 A detailed guide for the Fiji plugin can be found [here](imagej-plugin/README.md). 
 
 ## Issues
-Please report all issues on the public forum.
+Please report all issues [here](https://github.com/nadeemlab/ImPartial/issues).
 
 
 ## License
