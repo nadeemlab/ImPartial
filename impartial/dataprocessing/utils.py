@@ -7,8 +7,11 @@ import cv2 as cv
 import numpy as np
 from PIL import Image
 import tifffile as tiff
-
+import xml.etree.ElementTree as ET
+from skimage.draw import polygon
 from scipy import ndimage
+
+import openslide
 from skimage import morphology, measure
 
 
@@ -39,9 +42,63 @@ def read_image(path):
 
     idx = np.argmin(image.shape)
     image = np.moveaxis(image, idx, -1)
+    image = image.astype(np.float32)
 
     return image
 
+def read_image_wsi(path, location, size):
+
+    print("reading WSI image: ", path, location, size)
+    extension = path.split(".")[-1].lower()
+
+    if extension in ["svs", "scn"] and location != None and size != None:
+        slide = openslide.OpenSlide(path)
+        x, y = location
+        w, h = size
+        region = slide.read_region((x, y), level=0, size=(w, h)).convert("RGB")
+        img = np.array(region)
+        if len(img.shape) == 2:
+            img = img[np.newaxis, ...]
+
+        idx = np.argmin(img.shape)
+        img = np.moveaxis(img, idx, -1)
+        img = img.astype(np.float32)
+        # print("SAVING FILE: ----------->>>>>>> ")
+        # with open('/tmp/tmp123.npy', 'wb') as f:
+        #     np.save(f, img)
+
+        # TODO: Fix it for multi-channel
+        img = img[:,:,0:2]
+        print("openslide: ", img.shape, img.dtype)
+
+    img = percentile_normalization(img, pmin=1, pmax=98, clip=False)
+    return img
+    
+def read_qpath_xml(path, image_shape):
+    tree = ET.parse(path)
+    root = tree.getroot()
+
+    mask = np.zeros(image_shape, dtype=np.uint8)
+
+    # Step 3: Process each Annotation separately
+    for annotation in root.findall(".//Annotation"):
+        x_points = []
+        y_points = []
+
+        for coord in annotation.findall(".//Coordinate"):
+            x = float(coord.attrib["X"])
+            y = float(coord.attrib["Y"])
+            x_points.append(x)
+            y_points.append(y)
+
+        x_points = np.array(x_points)
+        y_points = np.array(y_points)
+
+        # Draw this polygon
+        rr, cc = polygon(y_points, x_points, shape=image_shape)
+        mask[rr, cc] = 1  # You can use different label values if you want (e.g., 1, 2, 3)
+        label, _ = ndimage.label(mask)
+        return label
 
 def read_label(path, image_shape):
     extension = path.split(".")[-1].lower()
@@ -54,6 +111,9 @@ def read_label(path, image_shape):
         label = np.zeros((image_shape[0], image_shape[1])).astype(np.int32)
         convert_roi_to_label(label, roi)
 
+    if extension == 'xml':
+        label = read_qpath_xml(path, image_shape)
+        
     label = (label).astype(np.float32)
 
     return label
@@ -79,6 +139,7 @@ def convert_roi_to_label(label, rois):
         # cv.drawContours(label, [contour], -1, (i), 1)
         cv.fillPoly(label, pts=[contour], color=i)
 
+
 def rois_to_mask(zip_path, size, sample_rate=1):
     rois = roifile.roiread(zip_path)
     mask = np.zeros(size).astype(np.uint8)
@@ -103,15 +164,21 @@ def rois_to_mask(zip_path, size, sample_rate=1):
 
 
 def rois_to_labels(zip_path, size, sample_rate=1.0):
-    rois = roifile.roiread(zip_path)
+    # rois = roifile.roiread(zip_path)
 
-    roi_samples = random.sample(rois, int(len(rois) * sample_rate))
-    roi_contours = [get_contour(roi) for roi in roi_samples]
+    # roi_samples = random.sample(rois, int(len(rois) * sample_rate))
+    # roi_contours = [get_contour(roi) for roi in roi_samples]
 
-    label_mask = np.zeros(size).astype(np.uint8)
-    for c in roi_contours:
-        cv.fillPoly(label_mask, pts=[c], color=1)
+    # label_mask = np.zeros(size).astype(np.uint8)
+    # for c in roi_contours:
+    #     cv.fillPoly(label_mask, pts=[c], color=1)
+
+    label_mask = read_label(zip_path, size)
+    
     label_mask[label_mask > 0] = 1
+    roi_contours = measure.find_contours(label_mask)
+    roi_contours = [r.astype(np.int32) for r in roi_contours]
+    
 
     return np.stack((
         generate_foreground_scribble(roi_contours, size),
