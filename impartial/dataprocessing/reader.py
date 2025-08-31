@@ -1,59 +1,13 @@
-import os
 import glob
-import roifile
-import cv2
-import tifffile as tiff
+import os
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
 
-from skimage import morphology
 from scipy import ndimage
-from csbdeep.utils import normalize
-from roifile import ImagejRoi
-from PIL import Image
+from skimage import morphology
 
-
-def read_label(path, image_shape):
-    extension = path.split(".")[-1].lower()
-
-    if extension == "tiff" or extension == "tif":
-        label = np.array(tiff.imread(path))
-
-    if extension == "zip" or extension == "ZIP":
-        label = readRoiFile(path, image_shape)
-
-    if extension == "PNG" or extension == "png":
-        mask = np.array(Image.open(path)) ## mask
-        label, _ = ndimage.label(mask)
-
-    label = (label).astype(np.float32)
-
-    return label
-
-
-def save_label(label, label_path):
-    label = label.astype(np.uint32)
-    print(label.dtype, label.shape, label.min(), label.max())
-    tiff.imwrite(label_path, label)
-
-
-def save_label_zip(label, label_path):
-    label = label.astype(np.uint32)
-    print(label.dtype, label.shape, label.min(), label.max())
-    # TODO: Add code to convert to zip
-
-
-def percentile_normalization(image, pmin=1, pmax=98, clip = False):
-    # Normalize the image using percentiles
-    lo, hi = np.percentile(image, (pmin, pmax))
-    image_norm_percentile = (image - lo) / (hi - lo)
-    
-    if clip:
-        image_norm_percentile[image_norm_percentile>1] = 1
-        image_norm_percentile[image_norm_percentile<0] = 0
-        
-    return image_norm_percentile
+from dataprocessing.utils import read_image, read_label,percentile_normalization
 
 
 def plot(image):
@@ -72,65 +26,7 @@ def plot(image):
 def plotLabel(label, title):
     plt.title(title)
     plt.imshow(label)
-
     plt.show()
-
-
-def read_image(path):
-    extension = os.path.splitext(path)[-1][1:].lower()
-
-    if extension == "png":                              ####check and add conditions -->conveting 3 channel png to 2ch
-        image = np.array(Image.open(path))
-        # image = np.zeros((image_org.shape[0], image_org.shape[1], 2)) #### change comment line 60-62 for 1 channel and tiff or 3 channel image
-        # image[:,:,0] = image_org[:,:,0]
-        # image[:,:,1] = image_org[:,:,2]
-    elif extension in ("tiff", "tif"):
-        image = tiff.imread(path)
-    else:
-        raise RuntimeError(f"File type '{extension}' not supported from path '{path}'")
-
-    if len(image.shape) == 2:
-        image = image[np.newaxis, ...]
-
-    idx = np.argmin(image.shape)
-    image = np.moveaxis(image, idx, -1)
-
-    return image
-
-
-def get_contour(roi):
-    new_coord = []
-    if roi.integer_coordinates is not None:
-        coord = roi.integer_coordinates
-        for i in range(len(coord)):
-            new_coord.append([coord[i, 0] + roi.left, coord[i, 1] + roi.top])
-        # coord[:, 0] += roi.left
-        # coord[:, 1] += roi.top
-        return np.asarray(new_coord).astype(np.int32)
-
-    elif roi.multi_coordinates is not None:
-        coord = ImagejRoi.path2coords(roi.multi_coordinates)[0]
-    else:
-        raise RuntimeError("ROI type not supported")
-
-    return np.asarray(coord).astype(np.int32)
-
-
-def readRoiFile(roi_path, image_shape):
-    rois = roifile.roiread(roi_path)
-
-    label = np.zeros((image_shape[0], image_shape[1]))
-    # print("label shape", label.shape)
-    # print("label dtype: ", label.dtype)
-    # .astype(np.int32)
-    # print("len(rois): ", len(rois))
-    # convert_roi_to_label(label, roi)
-    for i in range(0, len(rois)):
-        contour = get_contour(rois[i])
-        cv2.fillPoly(label, pts=[contour], color=i)
-
-    label = (label).astype(np.float32)
-    return label
 
 
 def erosion_labels(label, radius_pointer=1):
@@ -303,7 +199,6 @@ def get_scribble(label, scribble_rate=1.0):
                                                                      sample_back = False) # True GS check
 
     Y_out_ch0_list = [Y_out_ch0_list]
-
     
     ## concaticating scribbles :
     label_gt = Y_gt_train_ch0_list[0]
@@ -325,7 +220,6 @@ def get_scribble(label, scribble_rate=1.0):
 def get_fov_mask(image, scribble):
 
     # np.random.seed(44)
-
     val_perc = 0.4
 
     region_val_size = [int(image.shape[0] * val_perc/2),int(image.shape[1] * val_perc/2)] #validation region
@@ -362,7 +256,6 @@ def prepare_data_train(path, scribble_rate=1.0):
     sample = {}
     sample['name'] = image_path
     img =  read_image(image_path)
-    img = img.astype(np.float32)
     sample['image'] = percentile_normalization(img, pmin=1, pmax=98, clip = False)
 
     sample['label'] = read_label(roi_path, sample['image'].shape)
@@ -385,7 +278,6 @@ def prepare_data_test(path):
     sample = {}
     sample['name'] = image_path
     img =  read_image(image_path)
-    img = img.astype(np.float32)
     sample['image'] = percentile_normalization(img, pmin=1, pmax=98, clip = False)
     sample['label'] = read_label(roi_path, sample['image'].shape)
     return sample
@@ -396,11 +288,8 @@ def prepare_data_infer(image_path):
     sample = {}
     sample['name'] = image_path
     img =  read_image(image_path)
-    img = img.astype(np.float32)
     sample['image'] = percentile_normalization(img, pmin=1, pmax=98, clip = False)
-
     return sample
-
 
 
 def save_model(model, path):
@@ -409,7 +298,6 @@ def save_model(model, path):
 def load_model(path):
     model = torch.load(path)
     model.eval()
-
 
 class DataProcessor():
     def __init__(self, data_dir, extension_image='tif', extension_label='zip'):

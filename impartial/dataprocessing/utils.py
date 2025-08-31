@@ -74,6 +74,7 @@ def read_image_wsi(path, location, size):
     img = percentile_normalization(img, pmin=1, pmax=98, clip=False)
     return img
     
+
 def read_qpath_xml(path, image_shape):
     tree = ET.parse(path)
     root = tree.getroot()
@@ -100,6 +101,7 @@ def read_qpath_xml(path, image_shape):
         label, _ = ndimage.label(mask)
         return label
 
+
 def read_label(path, image_shape):
     extension = path.split(".")[-1].lower()
 
@@ -111,12 +113,33 @@ def read_label(path, image_shape):
         label = np.zeros((image_shape[0], image_shape[1])).astype(np.int32)
         convert_roi_to_label(label, roi)
 
+    if extension == "PNG" or extension == "png":
+        mask = np.array(Image.open(path)) ## mask
+        label, _ = ndimage.label(mask)
+
     if extension == 'xml':
         label = read_qpath_xml(path, image_shape)
         
     label = (label).astype(np.float32)
 
     return label
+
+def save_label(label, label_path):
+    label = label.astype(np.uint32)
+    print(label.dtype, label.shape, label.min(), label.max())
+    tiff.imwrite(label_path, label)
+
+
+def save_label_zip(label, label_path):
+    label = label.astype(np.uint32)
+    print(label.dtype, label.shape, label.min(), label.max())
+    
+
+def save_mask_to_zip(mask, roi_zip_path):
+    mask = mask.astype(np.uint8)
+    for contour in measure.find_contours(mask, level=0.9999):
+        roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
+        roi.tofile(roi_zip_path)
 
 
 def convert_roi_to_label(label, rois):

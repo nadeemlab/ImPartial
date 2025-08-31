@@ -17,7 +17,7 @@ import skimage
 from scipy import ndimage
 from impartial.general.outlines import dilate_masks, masks_to_outlines
 
-from general.utils import model_params_save, to_np, early_stopping
+from general.utils import model_params_save, to_np, early_stopping, save_mask_to_zip
 from general.inference import get_impartial_outputs, get_entropy
 from general.evaluation import get_performance
 
@@ -251,12 +251,11 @@ class Trainer:
         mlflow.log_artifact(png_prediction_path, mlflow_tag)
         mlflow.log_artifact(png_components_path, mlflow_tag) # uncomment
 
-
         # threshold & save 
         threshold = 0.95
         # threshold = 0.70
-        out_mask = (out_seg > threshold).astype(np.uint8) * 255
-        out_mask = Image.fromarray(out_mask)
+        out_mask = (out_seg > threshold).astype(np.uint8)
+        out_mask = Image.fromarray(out_mask * 255)
         out_mask.save(png_mask_path)
         
         labels_pred, _ = ndimage.label(out_mask)
@@ -270,9 +269,7 @@ class Trainer:
         mask_outlines_img = Image.fromarray(mask_outlines_img)
         mask_outlines_img.save(png_outlines_path)
 
-        for contour in measure.find_contours((out_seg > threshold).astype(np.uint8), level=0.9999):
-            roi = ImagejRoi.frompoints(np.round(contour)[:, ::-1])
-            roi.tofile(roi_zip_path)
+        save_mask_to_zip(out_mask, roi_zip_path)
 
         mlflow.log_artifact(png_mask_path, mlflow_tag)
         mlflow.log_artifact(png_outlines_path, mlflow_tag)
