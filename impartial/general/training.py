@@ -15,11 +15,13 @@ from skimage import measure
 
 import skimage
 from scipy import ndimage
-from impartial.general.outlines import dilate_masks, masks_to_outlines
 
-from general.utils import model_params_save, to_np, early_stopping, save_mask_to_zip
-from general.inference import get_impartial_outputs, get_entropy
-from general.evaluation import get_performance
+from impartial.dataprocessing.utils import save_mask_to_zip
+
+from impartial.general.outlines import dilate_masks, masks_to_outlines
+from impartial.general.utils import model_params_save, to_np, early_stopping
+from impartial.general.inference import get_impartial_outputs, get_entropy
+from impartial.general.evaluation import get_performance, post_process_predictions, get_performance_labels
 
 import logging
 logger = logging.getLogger(__name__)
@@ -27,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 class Trainer:
 
-    def __init__(self, device, classification_tasks, model, criterion, optimizer, output_dir, n_output, epochs, mcdrop_it=0):
+    def __init__(self, device, classification_tasks, model, criterion, optimizer, output_dir, n_output, epochs, mcdrop_it=0, eval_freq=10, eval_sample_freq=20):
         self.epochs = epochs
         self.device = device
         self.criterion = criterion
@@ -37,6 +39,8 @@ class Trainer:
         self.classification_tasks = classification_tasks
 
         self.mcdrop_it = mcdrop_it
+        self.eval_freq = eval_freq
+        self.eval_sample_freq = eval_sample_freq
         self.n_output = n_output 
 
         if not os.path.exists(self.output_dir):
@@ -84,13 +88,15 @@ class Trainer:
                 self.optimizer.step()
 
 
-            logger.info("Train :::: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
+            # logger.info("Train :::: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
+            print("Train :::: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
             mlflow.log_metric("train_loss", f"{np.mean(losses_all):6f}")
 
             loss_mean = self.validate(dataloader_val, epoch=epoch)
             
-            is_save, _ = stopper.evaluate(loss_mean)
-            if is_save:
+            is_save_model, _ = stopper.evaluate(loss_mean)
+            is_save_model = False  # save every epoch
+            if is_save_model:
                 checkpoint_model_path = os.path.join(self.output_dir, 'checkpoint_{}'.format(epoch))
                 logger.info("Saving the current best model: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
                 model_params_save(best_model_path, self.model, self.optimizer)  # save best model
@@ -98,11 +104,9 @@ class Trainer:
                 mlflow.log_artifact(best_model_path, "model")
 
 
-            if epoch % 20 == 0:
-                # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=True, dilate=True)
-                # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=1, is_save=True, dilate=True)
-                # self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=True, dilate=True)
-                self.evaluate(dataloader_eval, epoch=epoch, eval_freq=50, is_save=False, dilate=True)
+            if epoch % self.eval_freq == 0:
+                self.evaluate(dataloader_eval, epoch=epoch, is_save=True, dilate=True)
+            
             # if epoch % 50 == 0:
             #     self.infer(dataloader_infer, epoch=epoch)
 
@@ -155,11 +159,16 @@ class Trainer:
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
 
-            self.save_log_outputs(output_dir, image_name, epoch, predictions, out, out_seg, mlflow_tag='pred_no_gt')
+            save_log_outputs(output_dir, image_name, epoch, predictions, out, out_seg, mlflow_tag='pred_no_gt')
             
 
     # evaluate == when there in gt available
-    def evaluate(self, dataloader_eval, epoch=0, eval_freq=1, is_save=False, dilate=False):
+    def evaluate(self, dataloader_eval, epoch=0, is_save=False, dilate=False):
+        
+        # Create output directory
+        output_dir = os.path.join(self.output_dir, 'pred_w_gt')
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
         
         print('Start evaluation in training ...')
         logger.info('Start evaluation in training ...')
@@ -171,112 +180,54 @@ class Trainer:
             image_name = data['image_name'][0]
             image_name = image_name.split('/')[-1]
 
-            predictions = self.inference(Xinput) # TODO: Change
+            predictions = self.inference(Xinput)
             # predictions = self.inference_tiled(Xinput)
             
             mean = True
             std = False
             out = get_impartial_outputs(predictions, self.classification_tasks, mean, std)  # output has keys: class_segmentation, factors
             out_seg = out['0']['class_segmentation'][0,0,:,:] 
-
-
-            output_dir = os.path.join(self.output_dir, 'pred_w_gt')
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-
-            # TODO: Only save a few samples
-            if is_save and batch % eval_freq == 0:
-                self.save_log_outputs(output_dir, image_name, epoch, predictions, out, out_seg, mlflow_tag='pred_w_gt')
-                self.save_out_seg_npz(output_dir, image_name, epoch, out_seg, mlflow_tag='npz_pred')
-                self.save_label_gt(output_dir, image_name, epoch, Ylabel, mlflow_tag='label_gt')
+            
+            out_label = post_process_predictions(out_seg)
                 
+            # Calculate metrics --------------------------------------------------------
             row = [image_name]
-            metrics = get_performance(Ylabel, out_seg, threshold=0.5, dilate=dilate)
+            metrics = get_performance_labels(Ylabel, out_label)
+            # metrics = get_performance(Ylabel, out_seg, threshold=0.5, dilate=dilate)
             for key in metrics.keys():
                 row.append(metrics[key])
             metrics_rows_pd.append(row)
+            
 
+            # Save outputs -------------------------------------------------------------
+            if is_save and batch % self.eval_sample_freq == 0:
+                save_log_outputs(output_dir, image_name, epoch, predictions, out, out_seg, out_label, mlflow_tag='pred_w_gt')
+                # save_out_seg_npz(output_dir, image_name, epoch, out_seg, mlflow_tag='npz_pred')
+                save_label_gt(output_dir, image_name, epoch, Ylabel, mlflow_tag='label_gt')
+
+
+        # Aggregate metrics
         columns = ['image_name']
         for key in metrics.keys():
             columns.append(key)
 
         model_output_pd_summary_path = os.path.join(self.output_dir, 'eval_{}.csv'.format(epoch))
         model_mean_pd_summary_path = os.path.join(self.output_dir, 'eval_mean_{}.csv'.format(epoch))
+
         pd_summary = pd.DataFrame(data=metrics_rows_pd, columns=columns)
         pd_summary.to_csv(model_output_pd_summary_path, index=0) 
 
-        pd_summary_mean = pd_summary.mean()
+        pd_summary_mean_row = pd_summary.drop(columns=['image_name']).mean(numeric_only=True)
+        pd_summary_mean = pd.DataFrame([pd_summary_mean_row])
+        pd_summary_mean.reset_index(drop=True, inplace=True)
+
         pd_summary_mean.to_csv(model_mean_pd_summary_path) 
         
         mlflow.log_artifact(model_output_pd_summary_path, "evaluation")
         mlflow.log_artifact(model_mean_pd_summary_path, "evaluation")
 
 
-    def save_out_seg_npz(self, output_dir, image_name, epoch, out_seg, mlflow_tag):
-        
-        npz_out_seg_path = os.path.join(output_dir, 'out_seg_{}_{}.npz'.format(image_name, epoch))
-        np.savez(npz_out_seg_path, out=out_seg)            
-
-        mlflow.log_artifact(npz_out_seg_path, mlflow_tag)
-        
-    def save_label_gt(self, output_dir, image_name, epoch, label_gt, mlflow_tag):
-        
-        png_lablel_gt_path = os.path.join(output_dir, 'label_{}_{}.png'.format(image_name, epoch))
-        out_mask = (label_gt > 0.5).astype(np.uint8) * 255
-        out_mask = Image.fromarray(out_mask)
-        out_mask.save(png_lablel_gt_path)
-
-        mlflow.log_artifact(png_lablel_gt_path, mlflow_tag)
-        
-
-    def save_log_outputs(self, output_dir, image_name, epoch, predictions, out, out_seg, mlflow_tag):
-        
-        png_components_path = os.path.join(output_dir, 'components_{}_{}.png'.format(image_name, epoch))
-        # npz_prediction_path = os.path.join(output_dir, 'pred_{}_{}.npz'.format(image_name, epoch))
-        npz_impartial_outs_path = os.path.join(output_dir, 'out_{}_{}.pickle'.format(image_name, epoch))
-        png_prediction_path = os.path.join(output_dir, '{}_{}.png'.format(image_name, epoch))
-
-        png_mask_path = os.path.join(output_dir, '{}_{}_mask.png'.format(image_name, epoch))
-        png_outlines_path = os.path.join(output_dir, '{}_{}_outlines.png'.format(image_name, epoch))
-        roi_zip_path = os.path.join(output_dir, '{}_{}_roi.zip'.format(image_name, epoch))
-
-        plot_impartial_outputs(out, png_components_path) # uncomment
-        # np.savez(npz_prediction_path, prediction=predictions)
-        
-        with open(npz_impartial_outs_path, 'wb') as handle:
-            pickle.dump(out, handle)
-
-        plot_segmentation(out_seg, png_prediction_path)
-
-        mlflow.log_artifact(png_prediction_path, mlflow_tag)
-        mlflow.log_artifact(png_components_path, mlflow_tag) # uncomment
-
-        # threshold & save 
-        threshold = 0.95
-        # threshold = 0.70
-        out_mask = (out_seg > threshold).astype(np.uint8)
-        out_mask = Image.fromarray(out_mask * 255)
-        out_mask.save(png_mask_path)
-        
-        labels_pred, _ = ndimage.label(out_mask)
-        labels_pred = skimage.morphology.remove_small_objects(labels_pred, min_size=5)
-        labels_pred = dilate_masks(labels_pred, n_iter=1)
-        mask_outlines = masks_to_outlines(labels_pred)
-
-        noutX, noutY = np.nonzero(mask_outlines)
-        mask_outlines_img = np.zeros((out_mask.height, out_mask.width, 3), dtype=np.uint8)
-        mask_outlines_img[noutX, noutY] = np.array([255, 0, 0])
-        mask_outlines_img = Image.fromarray(mask_outlines_img)
-        mask_outlines_img.save(png_outlines_path)
-
-        save_mask_to_zip(out_mask, roi_zip_path)
-
-        mlflow.log_artifact(png_mask_path, mlflow_tag)
-        mlflow.log_artifact(png_outlines_path, mlflow_tag)
-        mlflow.log_artifact(roi_zip_path, mlflow_tag)
-        
-
-    # just the inference call w/ and wo/ mcdropout
+    # inference call w/ and wo/ mcdropout
     def inference(self, Xinput):
         self.model.eval()
         if self.mcdrop_it == 0:
@@ -330,37 +281,74 @@ class Trainer:
         return predictions
 
 
-
-def plot_save_predictions(predictions, output_file):
-
-    plt.figure(figsize=(10,10))
-    n = predictions.shape[1]
+def save_out_seg_npz(output_dir, image_name, epoch, out_seg, mlflow_tag):
     
-    # for i in range(n):
-    #     plt.subplot(1,12,i+1)
-    #     plt.imshow(predictions[0,i,:,:])
+    npz_out_seg_path = os.path.join(output_dir, 'out_seg_{}_{}.npz'.format(image_name, epoch))
+    np.savez(npz_out_seg_path, out=out_seg)            
 
-    # plt.savefig(output_file)
-    # plt.save(output_file)
-    for i  in range(0,3) :
+    mlflow.log_artifact(npz_out_seg_path, mlflow_tag)
+    
+def save_label_gt(output_dir, image_name, epoch, label_gt, mlflow_tag):
+    
+    png_lablel_gt_path = os.path.join(output_dir, 'label_{}_{}.png'.format(image_name, epoch))
+    out_mask = (label_gt > 0.5).astype(np.uint8) * 255
+    out_mask = Image.fromarray(out_mask)
+    out_mask.save(png_lablel_gt_path)
 
-        plt.subplot(3,4,1+(i*4))
-        plt.imshow(predictions[0,0+(i*4),:,:])
+    mlflow.log_artifact(png_lablel_gt_path, mlflow_tag)
+    
 
-        plt.subplot(3,4,2+(i*4))
-        plt.imshow(predictions[0,1+(i*4),:,:])
+def save_final_outputs(output_dir, image_name, epoch, out, mlflow_tag):
+    
+    png_final_outputs_path = os.path.join(output_dir, 'final_{}_{}.png'.format(image_name, epoch))
 
-        plt.subplot(3,4,3+(i*4))
-        plt.imshow(predictions[0,2+(i*4),:,:])
+    Image.fromarray(out).save(png_final_outputs_path)
+    mlflow.log_artifact(png_final_outputs_path, mlflow_tag)
 
-        plt.subplot(3,4,4+(i*4))
-        plt.imshow(predictions[0,3+(i*4),:,:])
 
-        plt.show()
+def save_log_outputs(output_dir, image_name, epoch, predictions, out, out_seg, out_label, mlflow_tag):
+    
+    # save raw predictions
+    save_out_seg_npz(output_dir, image_name, epoch, out_seg, mlflow_tag)
+    npz_prediction_path = os.path.join(output_dir, 'pred_{}_{}.npz'.format(image_name, epoch))
+    np.savez(npz_prediction_path, prediction=predictions)
+    
+    # save all outputs
+    npz_impartial_outs_path = os.path.join(output_dir, 'out_{}_{}.pickle'.format(image_name, epoch))
+    with open(npz_impartial_outs_path, 'wb') as handle:
+        pickle.dump(out, handle)
+    
+    # plot segmentation and entropy
+    png_prediction_path = os.path.join(output_dir, '{}_{}.png'.format(image_name, epoch))
+    plot_segmentation(out_seg, png_prediction_path)
+    mlflow.log_artifact(png_prediction_path, mlflow_tag)
+    
+    # plot impartial outputs
+    png_components_path = os.path.join(output_dir, 'components_{}_{}.png'.format(image_name, epoch))
+    plot_impartial_outputs(out, png_components_path)
+    mlflow.log_artifact(png_components_path, mlflow_tag)
 
-    plt.tight_layout()
-    plt.savefig(output_file)
-    plt.close()
+    # save mask
+    png_mask_path = os.path.join(output_dir, '{}_{}_mask.png'.format(image_name, epoch))
+    out_mask = (out_label > 0).astype(np.uint8)
+    out_mask = Image.fromarray(out_mask * 255)
+    out_mask.save(png_mask_path)
+    mlflow.log_artifact(png_mask_path, mlflow_tag)
+    
+    # save outlines
+    png_outlines_path = os.path.join(output_dir, '{}_{}_outlines.png'.format(image_name, epoch))
+    mask_outlines = masks_to_outlines(out_label)
+    noutX, noutY = np.nonzero(mask_outlines)
+    mask_outlines_img = np.zeros((out_mask.height, out_mask.width, 3), dtype=np.uint8)
+    mask_outlines_img[noutX, noutY] = np.array([255, 0, 0])
+    mask_outlines_img = Image.fromarray(mask_outlines_img)
+    mask_outlines_img.save(png_outlines_path)
+    mlflow.log_artifact(png_outlines_path, mlflow_tag)
+    
+    # save_mask_to_zip(out_mask, roi_zip_path)
+    # roi_zip_path = os.path.join(output_dir, '{}_{}_roi.zip'.format(image_name, epoch))
+    # if os.path.exists(roi_zip_path):
+    #     mlflow.log_artifact(roi_zip_path, mlflow_tag)
 
 
 def plot_segmentation(prediction, output_file):

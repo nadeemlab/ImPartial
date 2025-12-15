@@ -208,15 +208,8 @@ class ImageDataset(Dataset):
 
 class RandomFlip(object):
     def __call__(self, data):
-        # Random Left or Right Flip
-
-        # for key, value in data:
-        #     data[key] = 2 * (value / 255) - 1
-        #
-        # return data
         input, target, scribble, mask = data['input'], data['target'], data['scribble'], data['mask']
 
-        # print(input.shape)
         if np.random.rand() > 0.5:
             input = np.fliplr(input)
             scribble = np.fliplr(scribble)
@@ -234,12 +227,6 @@ class RandomFlip(object):
 
 class RandomRotate(object):
     def __call__(self, data):
-        # Random Left or Right Flip
-
-        # for key, value in data:
-        #     data[key] = 2 * (value / 255) - 1
-        #
-        # return data
         input, target, scribble, mask = data['input'], data['target'], data['scribble'], data['mask']
 
         k = np.random.randint(0, 4)
@@ -275,17 +262,14 @@ class ToTensor(object):
         # Swap color axis because numpy image: H x W x C
         #                         torch image: C x H x W
 
-        # for key, value in data:
-        #     data[key] = torch.from_numpy(value.transpose((2, 0, 1)))
-        #
-        # return data
         output = {}
+        keys = list(data.keys())
         if self.dim_data == 3:
-            for key in data.keys():
+            for key in keys:
                 output[key] = torch.from_numpy(data[key].transpose((2, 0, 1)).astype(np.float32))
 
         if self.dim_data == 4:
-            for key in data.keys():
+            for key in keys:
                 output[key] = torch.from_numpy(data[key].transpose((0, 3, 1, 2)).astype(np.float32))
         return output
 

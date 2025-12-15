@@ -65,10 +65,8 @@ mlflow.log_params(config_dict)
 print("initialize logging ... ")
 logger = logging.getLogger(__name__)
 
+os.makedirs(args.output_dir, exist_ok=True)
 output_dir = args.output_dir
-if not os.path.exists(output_dir):
-    print("Creating output dir ...")
-    os.makedirs(output_dir)
 
 log_file_name = os.path.join(output_dir, args.log_file_name)
 logging.basicConfig(filename=log_file_name, encoding='utf-8', level=logging.DEBUG)
@@ -79,7 +77,7 @@ if torch.cuda.is_available():
 else:
     device = torch.device('cpu')
 
-
+ 
 # 0. Configs:
 mean = True
 std = False
@@ -328,7 +326,10 @@ trainer = Trainer(device=device,
                   output_dir=output_dir,
                   n_output=n_output,
                   epochs=int(config_train.epochs),
-                  mcdrop_it=int(config_train.mcdrop_it))
+                  mcdrop_it=int(config_train.mcdrop_it),
+                  eval_freq=int(config_train.eval_freq),
+                  eval_sample_freq=int(config_train.eval_sample_freq)
+                )
 
 if args.mode == "train":
     trainer.train(

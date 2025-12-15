@@ -7,7 +7,7 @@ import torch
 from scipy import ndimage
 from skimage import morphology
 
-from dataprocessing.utils import read_image, read_label,percentile_normalization
+from impartial.dataprocessing.utils import read_image, read_label, percentile_normalization
 
 
 def plot(image):
@@ -45,6 +45,22 @@ def erosion_labels(label, radius_pointer=1):
                 mask[erode_label>0] = vlabel
             else:
                 mask[mask_label>0] = vlabel
+                
+    return mask
+
+
+def dilation_labels(label, radius_pointer=1):
+
+    selem = morphology.disk(radius_pointer)
+
+    mask = np.zeros_like(label)
+
+    for vlabel in np.unique(label):
+        if vlabel != 0:  
+            mask_label = np.zeros_like(label)
+            mask_label[label == vlabel] = 1
+            dilate_label = morphology.dilation(mask_label, footprint=selem)
+            mask[dilate_label>0] = vlabel
                 
     return mask
 
@@ -251,6 +267,7 @@ def get_fov_mask(image, scribble):
     return validation_mask 
 
 
+
 def prepare_data_train(path, scribble_rate=1.0):
     image_path, roi_path = path
     sample = {}
@@ -274,6 +291,7 @@ def prepare_data_train(path, scribble_rate=1.0):
 
 
 def prepare_data_test(path):
+    # print(path)
     image_path, roi_path = path
     sample = {}
     sample['name'] = image_path
@@ -290,6 +308,105 @@ def prepare_data_infer(image_path):
     img =  read_image(image_path)
     sample['image'] = percentile_normalization(img, pmin=1, pmax=98, clip = False)
     return sample
+
+
+def prepare_data_eroded(path):
+    # print(path)
+    image_path, roi_path = path
+    sample = {}
+    sample['name'] = image_path
+    img =  read_image(image_path)
+    sample['image'] = percentile_normalization(img, pmin=1, pmax=98, clip = False)
+
+    label_orig = read_label(roi_path, sample['image'].shape)
+    eroded_mask = erosion_labels(label_orig, radius_pointer=1)
+    eroded_mask = eroded_mask.copy()
+    eroded_label, _ = ndimage.label(eroded_mask)
+    pixel_r_theta = pixel_r_theta_centers(eroded_label)
+
+    sample['label'] = eroded_label
+    sample['pixel_r_theta'] = pixel_r_theta
+    return sample
+
+
+def prepare_data_eroded_patches(path):
+    """
+    Processes a 512x512 image and label, performs erosion on the label, 
+    and splits both the image and label into 2x2=4 patches of size 256x256.
+    Returns a dict of 4 samples, each named with _patch_id suffix.
+    """
+    image_path, roi_path = path
+    img_orig = read_image(image_path)
+    label_orig = read_label(roi_path, img_orig.shape)
+
+    
+    # Erode the label
+    eroded_mask = erosion_labels(label_orig, radius_pointer=1)
+    eroded_mask = eroded_mask.copy()
+    eroded_label, _ = ndimage.label(eroded_mask)
+
+    # Normalize the image
+    img_norm = percentile_normalization(img_orig, pmin=1, pmax=98, clip=False)
+
+    patch_samples = []
+
+    # Patch coordinates for 2x2 grid to generate four 256x256 patches
+    patch_id = 0
+    for r in range(2):
+        for c in range(2):
+            row_start = r*256
+            row_end = row_start+256
+            col_start = c*256
+            col_end = col_start+256
+
+            patch_img = img_norm[row_start:row_end, col_start:col_end]
+            patch_label = eroded_label[row_start:row_end, col_start:col_end]
+            patch_name = f"{image_path}_{patch_id}"
+            
+            patch_pixel_r_theta = pixel_r_theta_centers(patch_label)
+
+            patch = {
+                "name": patch_name,
+                "image": patch_img,
+                "label": ndimage.label(patch_label > 0)[0],
+                "pixel_r_theta": patch_pixel_r_theta
+            }
+            patch_samples.append(patch)
+
+            patch_id += 1
+
+    return patch_samples
+
+
+def pixel_r_theta_centers(label_image):
+    pixel_r_theta = np.zeros((label_image.shape[0], label_image.shape[1], 2), dtype=float)
+    
+    unique_labels = np.unique(label_image)
+    
+    for label in unique_labels:
+        if label == 0:  # Skip background
+            continue
+
+        mask = (label_image == label)
+        
+        if not np.any(mask):
+            continue
+        
+        label_coords = np.column_stack(np.where(mask))
+        
+        centroid = label_coords.mean(axis=0)
+        
+        vectors = centroid - label_coords
+        dists = np.linalg.norm(vectors, axis=1)
+        max_dist = np.max(dists)
+        if max_dist > 0:
+            dists = dists / max_dist
+        angles = np.arctan2(vectors[:, 0], vectors[:, 1])
+        
+        pixel_r_theta[mask, 0] = dists
+        pixel_r_theta[mask, 1] = angles
+    
+    return pixel_r_theta
 
 
 def save_model(model, path):

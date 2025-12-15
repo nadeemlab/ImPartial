@@ -13,13 +13,13 @@ import glob
 import skimage
 from scipy import ndimage
 
-from general.outlines import dilate_masks
-from general.metrics_stardist import matching_dataset
+from impartial.general.outlines import dilate_masks
+from impartial.general.metrics_stardist import matching_dataset
 
-from general.training import plot_impartial_outputs 
-from dataprocessing.reader import read_image, read_label
-from general.inference import get_entropy
-from general.evaluation import get_performance_labels
+from impartial.general.training import plot_impartial_outputs 
+from impartial.dataprocessing.reader import read_image, read_label
+from impartial.general.inference import get_entropy
+from impartial.general.evaluation import get_performance_labels
 
 def post_process(out, th=0.8, iter=2):
     mask_pred = (out > th).astype(int)

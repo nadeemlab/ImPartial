@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 from skimage.draw import polygon
 from scipy import ndimage
 
-import openslide
+# import openslide
 from skimage import morphology, measure
 
 

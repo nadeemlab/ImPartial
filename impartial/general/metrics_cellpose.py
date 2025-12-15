@@ -133,18 +133,35 @@ def boundary_scores(masks_true, masks_pred, scales):
 
 
 def aggregated_jaccard_index(masks_true, masks_pred):
-    """ 
-    AJI = intersection of all matched masks / union of all masks 
-    
+    """
+    AJI = intersection of all matched masks / union of all masks
+
     Args:
-        masks_true (list of np.ndarrays (int) or np.ndarray (int)): 
+        masks_true (list of np.ndarrays (int) or np.ndarray (int)):
             where 0=NO masks; 1,2... are mask labels
-        masks_pred (list of np.ndarrays (int) or np.ndarray (int)): 
+            - If single array: one label image (2D array) where each pixel has a label
+            - If list: multiple label images to evaluate
+        masks_pred (list of np.ndarrays (int) or np.ndarray (int)):
             np.ndarray (int) where 0=NO masks; 1,2... are mask labels
+            - If single array: one predicted label image (2D array)
+            - If list: multiple predicted label images (must match length of masks_true)
 
     Returns:
-        aji (float): aggregated jaccard index for each set of masks
+        aji (float or np.ndarray): 
+            - If single arrays provided: returns a single float
+            - If lists provided: returns array of AJI values, one per image pair
     """
+    # Handle single arrays by converting to lists (similar to average_precision)
+    not_list = False
+    if not isinstance(masks_true, list):
+        masks_true = [masks_true]
+        masks_pred = [masks_pred]
+        not_list = True
+    
+    if len(masks_true) != len(masks_pred):
+        raise ValueError(
+            "aggregated_jaccard_index requires len(masks_true)==len(masks_pred)")
+    
     aji = np.zeros(len(masks_true))
     for n in range(len(masks_true)):
         iout, preds = mask_ious(masks_true[n], masks_pred[n])
@@ -153,8 +170,11 @@ def aggregated_jaccard_index(masks_true, masks_pred):
         union = np.logical_or(masks_true[n] > 0, masks_pred[n] > 0).sum()
         overlap = overlap[inds[preds > 0] + 1, preds[preds > 0].astype(int)]
         aji[n] = overlap.sum() / union
+    
+    # Return scalar if single arrays were provided, otherwise return array
+    if not_list:
+        return aji[0]
     return aji
-
 
 def average_precision(masks_true, masks_pred, threshold=[0.5, 0.75, 0.9]):
     """ 
