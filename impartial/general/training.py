@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 import numpy as np
 import logging
 import pickle
@@ -56,6 +57,7 @@ class Trainer:
         losses_all = []
         for epoch in range(1, self.epochs):
             
+            start_time = time.time()
             for batch, data in enumerate(dataloader_train):
 
                 x = data['input'].to(self.device) #input image with blind spots replaced randomly
@@ -69,28 +71,27 @@ class Trainer:
                 losses = self.criterion.compute_loss(out, target, scribble, mask)
                 
                 loss_batch = 0
-                
-                # TODO: check weighted loss 
                 for key in self.criterion.config.weight_objectives.keys():
                     loss_batch += losses[key] * self.criterion.config.weight_objectives[key]
-                    if torch.is_tensor(losses[key]):
-                        mlflow.log_metric(key, losses[key].item())
-                    else:
-                        mlflow.log_metric(key, losses[key])
+                    # if torch.is_tensor(losses[key]):
+                    #     mlflow.log_metric(key, losses[key].item())
+                    # else:
+                    #     mlflow.log_metric(key, losses[key])
 
                 self.optimizer.zero_grad()
 
                 loss_batch.backward()
 
                 logger.debug("Epoch: {} Batch: {} Loss: {}".format(epoch, batch, loss_batch.item()))
-                mlflow.log_metric("train_loss_b", f"{loss_batch.item()}")
+                # mlflow.log_metric("train_loss_b", f"{loss_batch.item()}")
                 losses_all.append(loss_batch.item())
                 self.optimizer.step()
 
-
             # logger.info("Train :::: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
-            print("Train :::: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
+            time_taken = time.time() - start_time
+            print("Train :::: Epoch: {} Loss: {} Time: {:.2f} seconds".format(epoch, np.mean(losses_all), time_taken))
             mlflow.log_metric("train_loss", f"{np.mean(losses_all):6f}")
+            mlflow.log_metric("train_time", time_taken)
 
             loss_mean = self.validate(dataloader_val, epoch=epoch)
             
@@ -113,6 +114,7 @@ class Trainer:
 
     def validate(self, dataloader_val, epoch=0):
         losses_all = []
+        start_time = time.time()
         for batch, data in enumerate(dataloader_val):
 
             x = data['input'].to(self.device) #input image with blind spots replaced randomly
@@ -130,10 +132,11 @@ class Trainer:
 
             losses_all.append(loss_batch.item())
 
+        time_taken = time.time() - start_time
         loss_mean = np.mean(losses_all)
-        logger.info("Val :::: Epoch: {} Loss: {}".format(epoch, loss_mean))
+        print("Val :::: Epoch: {} Loss: {} Time: {:.2f} seconds".format(epoch, loss_mean, time_taken))
         mlflow.log_metric("val_loss", f"{loss_mean:6f}")
-        
+        mlflow.log_metric("val_time", time_taken)
         return loss_mean 
     
 
@@ -173,6 +176,7 @@ class Trainer:
         print('Start evaluation in training ...')
         logger.info('Start evaluation in training ...')
         metrics_rows_pd = []
+        start_time = time.time()
         for batch, data in enumerate(dataloader_eval):
             logger.info("Eval: batch: {} / {}  mcdropout: {}".format(batch, len(dataloader_eval), self.mcdrop_it))
             Xinput = data['input'].to(self.device)
@@ -227,6 +231,12 @@ class Trainer:
         mlflow.log_artifact(model_mean_pd_summary_path, "evaluation")
 
 
+        time_taken = time.time() - start_time
+        print("Eval :::: Time: {:.2f} seconds".format(time_taken))
+        mlflow.log_metric("eval_time", time_taken)
+        
+        
+    
     # inference call w/ and wo/ mcdropout
     def inference(self, Xinput):
         self.model.eval()

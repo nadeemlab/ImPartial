@@ -1,6 +1,7 @@
 import numpy as np
 import copy
 import torch
+import random
 from skimage.util.shape import view_as_windows
 
 from torch.utils.data import Dataset
@@ -35,7 +36,6 @@ class ImageBlindSpotDataset(Dataset):
     def sample_patches_data(self, npatches_total=np.inf):
 
         self.data_list = []
-        npatches = 0
         for idx in range(0, len(self.data)):
 
             X = self.data[idx]['image']
@@ -54,16 +54,11 @@ class ImageBlindSpotDataset(Dataset):
             probability_map[probability_map == 0] = (1 - self.p_scribble_crop) / np.sum(probability_map == 0)
 
             # crop patch
-            Xcrop, Scrop = self.random_crop(X, S, fov_mask * probability_map)
+            # Xcrop, Scrop = self.random_crop(X, S, fov_mask * probability_map)
+            Xcrop, Scrop = self.random_crop(X, S, probability_map) # No fov_mask
 
-            for i in range(Xcrop.shape[0]):
-                self.data_list.append([Xcrop[i,...], Scrop[i,...]])
-
-            npatches += self.npatch_image
-            # print("npatches: ", idx, npatches, len(self.data_list))
-
-            if npatches > npatches_total:
-                break
+            # Vectorized: extend data_list with all patches at once
+            self.data_list.extend([[x, s] for x, s in zip(Xcrop, Scrop)])
 
     def __len__(self):
 
@@ -72,8 +67,9 @@ class ImageBlindSpotDataset(Dataset):
     def __getitem__(self, idx):
 
         Xcrop, Scrop = self.data_list[idx]
-        if self.ratio < 1:
-            Xout, mask = self.generate_mask(copy.deepcopy(Xcrop))
+        if random.random() < 0.9: # TODO: re-check this
+            # Xout, mask = self.generate_mask(copy.deepcopy(Xcrop))
+            Xout, mask = self.generate_mask(Xcrop)
         else:
             Xout = Xcrop
             mask = np.zeros_like(Xout)
@@ -91,10 +87,9 @@ class ImageBlindSpotDataset(Dataset):
         size_window = self.size_window
         size_data = input.shape
         num_sample = int(size_data[0] * size_data[1] * (1 - self.ratio))
-        # num_sample = int(size_data[1] * size_data[2] * (1 - ratio))
 
         mask = np.ones(size_data)
-        output = np.array(input)
+        output = input.copy()
 
         for ich in range(size_data[2]):
             idy_msk = np.random.randint(0, size_data[0], num_sample)
@@ -210,13 +205,13 @@ class RandomFlip(object):
     def __call__(self, data):
         input, target, scribble, mask = data['input'], data['target'], data['scribble'], data['mask']
 
-        if np.random.rand() > 0.5:
+        if np.random.rand() > 0.4:
             input = np.fliplr(input)
             scribble = np.fliplr(scribble)
             mask = np.fliplr(mask)
             target = np.fliplr(target)
 
-        if np.random.rand() > 0.5:
+        if np.random.rand() > 0.4:
             input = np.flipud(input)
             scribble = np.flipud(scribble)
             mask = np.flipud(mask)
@@ -241,13 +236,21 @@ class RandomRotate(object):
 class RandomPermuteChannel(object):
     def __call__(self, data):
 
-        permuted_channels = np.random.permutation(data['input'].shape[-1])
         input, target, scribble, mask = data['input'], data['target'], data['scribble'], data['mask']
+        n_channels = input.shape[-1]
 
-        # Reorder the channels
+        # Random channel permutation
+        permuted_channels = np.random.permutation(n_channels)
         input = input[..., permuted_channels]
         target = target[..., permuted_channels]
-        mask = target[..., permuted_channels]
+        mask = mask[..., permuted_channels]
+
+        if np.random.rand() < 0.0:
+            # Randomly choose which channel to drop
+            channel_to_drop = np.random.randint(0, n_channels)
+            input[..., channel_to_drop] = 0.0
+            target[..., channel_to_drop] = 0.0
+            mask[..., channel_to_drop] = 0.0
 
         return {'input': input, 'target': target, 'scribble': scribble, 'mask': mask}
 

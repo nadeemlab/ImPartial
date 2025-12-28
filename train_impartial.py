@@ -5,6 +5,7 @@ import mlflow
 import configparser 
 import multiprocessing 
 import numpy as np 
+import random
 
 import torch
 import torch.utils.data
@@ -19,10 +20,38 @@ from impartial.general.config import ImConfigIni, config_to_dict
 from impartial.general.utils import model_params_load
 from impartial.general.utils_mlflow import init_mlflow
 
-import random
-random.seed(71)
-torch.manual_seed(51)
-np.random.seed(13)
+
+def get_output_size(classification_tasks):
+    output_size = 0
+    for task in classification_tasks.values():
+        ncomponents = np.sum(np.array(task['ncomponents']))
+        output_size += ncomponents #components of the task
+
+        nrec = len(task['rec_channels'])
+        output_size += ncomponents * nrec
+
+    return output_size
+
+def plot_patches_sample(train_dataset, output_dir):
+
+    count_p = 0
+    for idx, patch_sample in enumerate(train_dataset):
+        count_p += 1
+        output_file_path_dir = os.path.join(output_dir, 'patch_samples')
+        if not os.path.exists(output_file_path_dir):
+            os.makedirs(output_file_path_dir)
+
+        output_file_path = os.path.join(output_file_path_dir, 'ps_{}.png'.format(idx))
+        print(output_file_path)
+        plot_patch_sample(patch_sample, output_file_path)    
+        mlflow.log_artifact(output_file_path, "patches")    
+
+        if count_p == 20:
+            break
+
+# random.seed(71)
+# torch.manual_seed(51)
+# np.random.seed(13)
 
 parser = argparse.ArgumentParser(description='Impartial Pipeline')
 parser.add_argument('--experiment_name', required=True, help='experiment name')
@@ -86,26 +115,12 @@ ncomponents = [int(x) for x in config.data.ncomponents.split(',')]
 classification_tasks = {'0': {'classes': 1, 'rec_channels': rec_channels, 'ncomponents': ncomponents}}
 print(classification_tasks)
 
-# classification_tasks = {'0': {'classes': 1, 'rec_channels': [0,1,2], 'ncomponents': [2,2]}}  # list containing classes 'object types'
-# classification_tasks = {'0': {'classes': 1, 'rec_channels': [0,1], 'ncomponents': [2,2]}}  # list containing classes 'object types'
-# classification_tasks = {'0': {'classes': 1, 'rec_channels': [0], 'ncomponents': [2,2]}}  # list containing classes 'object types'
-weight_tasks = None # per segmentation class reconstruction weight
 weight_objectives = {'seg_fore': float(config.loss.seg_fore), 
                      'seg_back': float(config.loss.seg_back), 
                      'rec': float(config.loss.rec), 
                      'rec': float(config.loss.rec)}
 
 print(weight_objectives)
-# weight_objectives = {'seg_fore': 0.45, 'seg_back': 0.45, 'rec': 0.1, 'reg': 0.0}
-# weight_objectives = {'seg_fore': 0.4, 'seg_back': 0.4, 'rec': 0.2, 'reg': 0.0}
-
-### Checkpoint ensembles
-nsaves = 1 # number of checkpoints ensembles
-val_model_saves_list = []
-train_model_saves_list = []
-reset_optim = True
-reset_validation = False
-save_intermediates = False
 
 for key in classification_tasks.keys():
     nrec = len(classification_tasks[key]['rec_channels'])
@@ -116,6 +131,7 @@ for key in classification_tasks.keys():
     if 'weight_rec_channels' not in classification_tasks[key].keys():
         classification_tasks[key]['weight_rec_channels'] = [1/nrec for _ in range(nrec)]
 
+weight_tasks = None # per segmentation class reconstruction weight
 if weight_tasks is None:
     weight_tasks = {}
     for key in classification_tasks.keys():
@@ -125,7 +141,7 @@ mlflow.log_params(classification_tasks)
 
 #transform 
 augmentations = True
-normstd = False #normalization
+normstd = False # normalization
 
 # 1. Data processor 
 # train: image + gt 
@@ -134,6 +150,13 @@ normstd = False #normalization
 dataProcessor = DataProcessor(config_data.dataset_dir, extension_image=config_data.extension_image, extension_label=config_data.extension_label)
 train_paths, test_paths, infer_paths = dataProcessor.get_file_list()
 print("train_paths: ", len(train_paths))
+
+random.shuffle(train_paths)
+n_val = int(len(train_paths) * 0.15)
+val_paths = train_paths[:n_val]
+train_paths = train_paths[n_val:]
+print("train_paths: ", len(train_paths))
+print("val_paths: ", len(val_paths))
 
 # Fix it: in eval model we should directly jump to eval
 if args.mode == "eval":
@@ -154,7 +177,11 @@ print("infer_paths: ", len(infer_paths))
 
 with multiprocessing.Pool() as pool:
     train_data = pool.starmap(prepare_data_train, [((image_path, roi_path), args.scribble_rate) for (image_path, roi_path) in train_paths])
-    train_data = [d for d in train_data if d is not None]
+    train_data = [d for d in train_data if d is not None]\
+
+with multiprocessing.Pool() as pool:
+    val_data = pool.starmap(prepare_data_train, [((image_path, roi_path), args.scribble_rate) for (image_path, roi_path) in val_paths])
+    val_data = [d for d in val_data if d is not None]
 
 print("Train samples: save a few for visualization")
 # only save a small sample
@@ -162,16 +189,19 @@ for sample in train_data[:20]:
     image_path = sample['name']
     output_file_path = os.path.join(output_dir, image_path.split('/')[-1] + '.png')
     plot_sample(sample, output_file_path)
-    mlflow.log_artifact(output_file_path, "samples")
-    train_data.append(sample)
+    mlflow.log_artifact(output_file_path, "samples/train")
+    
+print("Val samples: save a few for visualization")
+for sample in val_data[:2]:
+    image_path = sample['name']
+    output_file_path = os.path.join(output_dir, image_path.split('/')[-1] + '.png')
+    plot_sample(sample, output_file_path)
+    mlflow.log_artifact(output_file_path, "samples/val")
 
-
+print("Test samples")
 test_data = []
 for image_path, roi_path in test_paths: 
     sample = prepare_data_test((image_path, roi_path))
-    # output_file_path = os.path.join(output_dir, image_path.split('/')[-1] + '.png')
-    # plot_sample(sample, output_file_path)
-    # mlflow.log_artifact(output_file_path, "samples")
     test_data.append(sample)
 
 
@@ -181,13 +211,18 @@ for image_path in infer_paths:
     infer_data.append(sample)
 
 
+mlflow.log_param("num_train_paths", len(train_paths))
+mlflow.log_param("num_test_paths", len(test_paths))
+mlflow.log_param("num_infer_paths", len(infer_paths))
+
 transforms_list = []
 if normstd:
     transforms_list.append(Normalize(mean=0.5, std=0.5))
 if augmentations:
     transforms_list.append(RandomFlip())
     transforms_list.append(RandomRotate())
-    # transforms_list.append(RandomPermuteChannel())
+    transforms_list.append(RandomPermuteChannel())
+    
 transforms_list.append(ToTensor(dim_data=3))
 transform_train = transforms.Compose(transforms_list)
 
@@ -195,10 +230,12 @@ patch_size = int(config_train.patch_size)
 npatch_image_train = int(config_train.num_patches_per_image)
 npatch_image_val = int(0.2*npatch_image_train)
 
-train_dataset = ImageBlindSpotDataset(train_data, transform=transform_train, npatch_image=npatch_image_train, patch_size=(patch_size, patch_size))
+dataset_train = ImageBlindSpotDataset(train_data, transform=transform_train, npatch_image=npatch_image_train, patch_size=(patch_size, patch_size))
 print("Train: Create Patches ...")
-train_dataset.sample_patches_data()
-print("train_dataset.data_list: ", len(train_dataset.data_list))
+dataset_train.sample_patches_data()
+print("train_dataset.data_list: ", len(dataset_train.data_list))
+
+
 
 transforms_list = []
 if normstd:
@@ -206,75 +243,43 @@ if normstd:
 transforms_list.append(ToTensor())
 transform_val = transforms.Compose(transforms_list)
 
-val_dataset = ImageBlindSpotDataset(train_data, transform=transform_val, validation=True, npatch_image=npatch_image_val, patch_size=(patch_size, patch_size))
+val_dataset = ImageBlindSpotDataset(train_data, transform=transform_val, npatch_image=npatch_image_val, patch_size=(patch_size, patch_size))
 print("Val: Create Patches ...")
 val_dataset.sample_patches_data()
 print("val_dataset.data_list: ", len(val_dataset.data_list))
 
 # Full image inference
-dataset_eval_train = ImageSegDataset(train_data, transform=transform_val) # with labels
 dataset_eval_test = ImageSegDataset(test_data, transform=transform_val) # with labels
 dataset_infer = ImageDataset(test_data, transform=transform_val) # without labels 
  
-print("train_dataset: ", len(train_dataset))
+print("train_dataset: ", len(dataset_train))
 print("val_dataset: ", len(val_dataset))
+
+mlflow.log_param("train_dataset", len(dataset_train))
+mlflow.log_param("val_dataset", len(val_dataset))
+
 
 # 1.1 Create dataloaders from dataset 
 # create transforms, dataloader 
 
-dataloader_train = torch.utils.data.DataLoader(train_dataset, batch_size=int(config_train.batch_size), shuffle=True, num_workers=int(config_train.num_workers))
+dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=int(config_train.batch_size), shuffle=True, num_workers=int(config_train.num_workers))
 dataloader_val = torch.utils.data.DataLoader(val_dataset, batch_size=int(config_train.batch_size), shuffle=False, num_workers=int(config_train.num_workers))
 
-dataloader_eval_train = torch.utils.data.DataLoader(dataset_eval_train, batch_size=1, shuffle=False, num_workers=20) 
-dataloader_eval_test = torch.utils.data.DataLoader(dataset_eval_test, batch_size=1, shuffle=False, num_workers=20) 
-dataloader_infer = torch.utils.data.DataLoader(dataset_infer, batch_size=1, shuffle=False, num_workers=20) 
+dataloader_eval_test = torch.utils.data.DataLoader(dataset_eval_test, batch_size=1, shuffle=False, num_workers=4) 
+dataloader_infer = torch.utils.data.DataLoader(dataset_infer, batch_size=1, shuffle=False, num_workers=4) 
 
-"""
-# Code to plot patches
-count_p = 0
-for idx, patch_sample in enumerate(train_dataset):
-    count_p += 1
-    output_file_path_dir = os.path.join(output_dir, 'patch_samples')
-    if not os.path.exists(output_file_path_dir):
-        os.makedirs(output_file_path_dir)
 
-    output_file_path = os.path.join(output_file_path_dir, 'ps_{}.png'.format(idx))
-    print(output_file_path)
-    plot_patch_sample(patch_sample, output_file_path)    
-    mlflow.log_artifact(output_file_path, "patches")    
-
-    if count_p == 50:
-        break
-"""
+print("Plotting patches sample ...")
+plot_patches_sample(dataset_train, output_dir)
 
 # 2. model, optimizer, loss function
-# change
 n_channels = int(config_data.n_channels)
 n_output = int(config_data.n_output)
-
-# n_output = 16
-# n_output = 12 
-# n_channels = 2
-# n_output = 8
-# n_channels = 1
-
-def get_output_size(classification_tasks):
-    output_size = 0
-    for task in classification_tasks.values():
-        ncomponents = np.sum(np.array(task['ncomponents']))
-        output_size += ncomponents #components of the task
-
-        nrec = len(task['rec_channels'])
-        output_size += ncomponents * nrec
-
-    return output_size
-
 n_output = get_output_size(classification_tasks)
-
 
 drop_encoder_decoder = False
 drop_last_conv = False
-p_drop = 0.4 #0.5
+p_drop = 0.5
 ## Check this again
 ## https://github.com/nadeemlab/ImPartial/blob/main/impartial/Impartial_classes.py#L138 
 
@@ -295,8 +300,6 @@ model = UNet(
 
 
 model = model.to(device)
-# model = torch.nn.DataParallel(model).cuda()
-
 
 optimizer = torch.optim.Adam(model.parameters(), 
                              lr=float(config_train.lr), 
@@ -349,58 +352,4 @@ if args.mode == "eval":
         dilate=True
         ) 
 
-
 mlflow.end_run()
-
-
-"""
-Steps for ensemble using dropout:
-Training:
-- During training make sure dropout is enabled so that the model has dropout layer 
-https://github.com/nadeemlab/ImPartial/blob/main/general/networks.py#L159 
-
-Inference:
-https://github.com/nadeemlab/ImPartial/blame/main/general/training.py#L107
-https://github.com/nadeemlab/ImPartial/blob/main/general/training.py#L345 
-
-- get mean & variance from ensemble
-https://github.com/nadeemlab/ImPartial/blob/main/impartial/Impartial_functions.py#L329 
-
-
-"""
-
-"""
-
-# Evaluate only
-# Tissuenet
-CUDA_VISIBLE_DEVICES=2 python train_impartial.py --experiment_name impartial-eval --run_name tissuenet_ensemble_0.2_eval_outlines --output_dir experiments/impartial_tissuenet_all_outlines/ensemble_evaluate_0.2 --log_file_name log_evaluate_tissuenet_all_ensemble.log --scribble_rate=0.2 --config config/tissuenet_all.ini --mode eval --resume experiments/impartial_tissuenet_all_outlines/ensemble_budget_0.2_scribble_modelsave/model_best.pth
-CUDA_VISIBLE_DEVICES=2 python train_impartial.py --experiment_name impartial-eval --run_name tissuenet_ensemble_0.2_eval_outlines_entropy --output_dir experiments/impartial_tissuenet_all_outlines/ensemble_evaluate_0.2_entropy --log_file_name log_evaluate_tissuenet_all_ensemble_entropy.log --scribble_rate=0.2 --config config/tissuenet_all.ini --mode eval --resume experiments/impartial_tissuenet_all_outlines/ensemble_budget_0.2_scribble_modelsave/model_best.pth
-
-# Train
-# Tissuenet 
-CUDA_VISIBLE_DEVICES=1 python train_impartial.py --experiment_name impartial-tissuenet_all --run_name tissuenet_no_ensemble_budget_1.0_scribble_modelsave --output_dir experiments/impartial_tissuenet_all/ensemble_budget_1.0_scribble/ --log_file_name log_train_1.0.log --scribble_rate=1.0 --config config/tissuenet_all.ini &> experiments/impartial_tissuenet_all/run_1.0_buget.txt &
-
-# Tissuenet 
-# patches per image = 10
-CUDA_VISIBLE_DEVICES=1 python train_impartial.py --experiment_name impartial-tissuenet_all --run_name tissuenet_no_ensemble_budget_1.0_scribble_10_patches --output_dir experiments/impartial_tissuenet_all/ensemble_budget_1.0_scribble_10_patches/ --log_file_name log_train_patches_10_1.0.log --scribble_rate=1.0 --config config/tissuenet_all.ini &> experiments/impartial_tissuenet_all_patches_10/run_1.0_buget.txt &
-
-
-
-Important: best result:
-CUDA_VISIBLE_DEVICES=2 python train_impartial.py --experiment_name impartial-eval --run_name tissuenet_ensemble_0.2_eval_outlines_entropy --output_dir experiments/impartial_tissuenet_all_outlines/ensemble_evaluate_0.2_entropy --log_file_name log_evaluate_tissuenet_all_ensemble_entropy.log --scribble_rate=0.2 --config config/tissuenet_all.ini --mode eval --resume experiments/impartial_tissuenet_all_outlines/ensemble_budget_0.2_scribble_modelsave/model_best.pth
-CUDA_VISIBLE_DEVICES=2 python train_impartial.py --experiment_name impartial-eval --run_name tissuenet_ensemble_0.2_eval_outlines_entropy_2 --output_dir experiments/impartial_tissuenet_all_outlines/ensemble_evaluate_0.2_entropy_2 --log_file_name log_evaluate_tissuenet_all_ensemble_entropy_2.log --scribble_rate=0.2 --config config/tissuenet_all.ini --mode eval --resume experiments/impartial_tissuenet_all_outlines/ensemble_budget_0.2_scribble_modelsave/model_best.pth
-
-
-
-
-CUDA_VISIBLE_DEVICES=1 python train_impartial.py --experiment_name impartial-tissuenet_orig --run_name tissuenet_budget_0.2_0.2_scribble_mcdrop3_patch20 --output_dir experiments/impartial_tissuenet_orig/ensemble_budget_0.2_0.2_scribble/ --log_file_name log_train_0.2_0.2.log --scribble_rate=0.2 --config config/tissuenet_orig_0.2.ini &> experiments/impartial_tissuenet_orig/ensemble_budget_0.2_0.2_scribble/run_0.2_0.2_buget.txt &
-CUDA_VISIBLE_DEVICES=0 python train_impartial.py --experiment_name impartial-tissuenet_orig --run_name tissuenet_budget_0.1_0.1_scribble_mcdrop3_patch20 --output_dir experiments/impartial_tissuenet_orig/ensemble_budget_0.1_0.1_scribble/ --log_file_name log_train_0.1_0.1.log --scribble_rate=0.1 --config config/tissuenet_orig_0.1.ini &> experiments/impartial_tissuenet_orig/ensemble_budget_0.1_0.1_scribble/run_0.1_0.1_buget.txt &
-
-
-
-CUDA_VISIBLE_DEVICES=2 python train_impartial.py --experiment_name impartial-eval-paper --run_name tissuenet_0.1_eval --output_dir experiments/impartial_tissuenet_eval_paper/evaluate_0.1 --log_file_name log_evaluate_tissuenet_all_0.1.log --scribble_rate=0.1 --config config/tissuenet_all.ini --mode eval --resume experiments/impartial_tissuenet_all/ensemble_budget_0.1_scribble/best.pth
-
-
-
-CUDA_VISIBLE_DEVICES=0 python train_impartial.py --experiment_name impartial-cpdmi --run_name cpdmi_budget_0.5_scribble_mcdrop3_patch_200 --output_dir experiments/cpdmi/ensemble_budget_0.5_scribble_200/  --log_file_name log_train_0.5_200.log  --scribble_rate=0.5 --config config/cpdmi_200_patches..ini
-"""

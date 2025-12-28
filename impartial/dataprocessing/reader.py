@@ -73,7 +73,7 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
 
     nlabels = np.unique(label_image[label_image > 0]).shape[0]
     max_labels = np.minimum(max_labels, nlabels)
-    print("get_scribbles_mask: nlabels: {}, max_labels: {}".format(nlabels, max_labels))
+    print("get_scribbles_mask: nlabels: {}, max_labels: {}".format(nlabels, max_labels), flush=True)
 
     ### Set the instance scribble mask mask_sk
     mask_sk = morphology.skeletonize(mask_image) * mask_image
@@ -114,6 +114,8 @@ def get_scribbles_mask(label_image, fov_box=(32, 32), max_labels=4,
 
     foreground = np.zeros_like(labels_image_res)
     background = np.zeros_like(labels_image_res)
+
+    # mask_sk = morphology.erosion(mask_image, footprint=morphology.disk(1)) # use filled mask
 
     while nbudget > 0:
 
@@ -195,7 +197,7 @@ def get_scribble(label, scribble_rate=1.0):
 
     unique_labels = np.unique(label).shape[0]
     nlabels_budget = int(scribble_rate * unique_labels)
-    print("unique_labels: {} nlabels_budget: {}".format(unique_labels, nlabels_budget))
+    print("unique_labels: {} nlabels_budget: {}".format(unique_labels, nlabels_budget), flush=True)
 
     if nlabels_budget < 2:
         return None
