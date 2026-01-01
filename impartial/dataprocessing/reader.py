@@ -287,7 +287,6 @@ def prepare_data_train(path, scribble_rate=1.0):
     sample['scribble'] = get_scribble(sample['label'], scribble_rate=scribble_rate)
     if sample['scribble'] is None:
         return None
-    sample['fov_mask'] = get_fov_mask(sample['image'], sample['scribble'])
 
     return sample
 
@@ -477,10 +476,6 @@ def plot_sample(sample, output_file_path=None):
     plt.title('background')
     plt.imshow(sample['scribble'][:,:,1])
 
-    plt.subplot(3,3,9)
-    plt.title('fov_mask')
-    plt.imshow(sample['fov_mask'])
-
     if output_file_path:
         plt.savefig(output_file_path)
 
@@ -494,41 +489,47 @@ def plot_patch_sample(patch_sample, output_file_path=None):
     # print("patch_sample['scribble'] shape: ", patch_sample['scribble'].shape)
     # print("patch_sample['scribble'] shape: ", patch_sample['input'].shape)
 
-    plt.figure(figsize=(10,5))
-    plt.subplot(4,2,1)
-    plt.title("input ch1")
-    plt.imshow(patch_sample['input'][0,:,:])
-
-    plt.subplot(4,2,2)
-    plt.title("input ch2")
-    plt.imshow(patch_sample['input'][1,:,:])
-
-    plt.subplot(4,2,3)
-    plt.title("target ch1")
-    plt.imshow(patch_sample['target'][0,:,:])
-
-    plt.subplot(4,2,4)
-    plt.title("target ch2")
-    plt.imshow(patch_sample['target'][1,:,:])
-
-    plt.subplot(4,2,5)
-    plt.title("mask ch1")
-    plt.imshow(patch_sample['mask'][0,:,:])
-
-    plt.subplot(4,2,6)
-    plt.title("mask ch2")
-    plt.imshow(patch_sample['mask'][1,:,:])
-
-    plt.subplot(4,2,7)
-    plt.title('foreground')
-    plt.imshow(patch_sample['scribble'][0,:,:])
-
-    plt.subplot(4,2,8)
-    plt.title('background')
-    plt.imshow(patch_sample['scribble'][1,:,:])
+    fig, axes = plt.subplots(4, 2, figsize=(6, 10))
+    fig.subplots_adjust(wspace=0.05, hspace=0.1, left=0.05, right=0.95, top=0.95, bottom=0.05)
+    
+    # Row 1: Input channels
+    axes[0, 0].imshow(patch_sample['input'][0, :, :], aspect='auto')
+    axes[0, 0].set_title("input ch1", fontsize=12, pad=5)
+    axes[0, 0].axis('off')
+    
+    axes[0, 1].imshow(patch_sample['input'][1, :, :], aspect='auto')
+    axes[0, 1].set_title("input ch2", fontsize=12, pad=5)
+    axes[0, 1].axis('off')
+    
+    # Row 2: Target channels
+    axes[1, 0].imshow(patch_sample['target'][0, :, :], aspect='auto')
+    axes[1, 0].set_title("target ch1", fontsize=12, pad=5)
+    axes[1, 0].axis('off')
+    
+    axes[1, 1].imshow(patch_sample['target'][1, :, :], aspect='auto')
+    axes[1, 1].set_title("target ch2", fontsize=12, pad=5)
+    axes[1, 1].axis('off')
+    
+    # Row 3: Mask channels
+    axes[2, 0].imshow(patch_sample['mask'][0, :, :], aspect='auto')
+    axes[2, 0].set_title("mask ch1", fontsize=12, pad=5)
+    axes[2, 0].axis('off')
+    
+    axes[2, 1].imshow(patch_sample['mask'][1, :, :], aspect='auto')
+    axes[2, 1].set_title("mask ch2", fontsize=12, pad=5)
+    axes[2, 1].axis('off')
+    
+    # Row 4: Scribble (foreground/background)
+    axes[3, 0].imshow(patch_sample['scribble'][0, :, :], aspect='auto')
+    axes[3, 0].set_title('foreground', fontsize=12, pad=5)
+    axes[3, 0].axis('off')
+    
+    axes[3, 1].imshow(patch_sample['scribble'][1, :, :], aspect='auto')
+    axes[3, 1].set_title('background', fontsize=12, pad=5)
+    axes[3, 1].axis('off')
 
     if output_file_path:
-        plt.savefig(output_file_path)
+        plt.savefig(output_file_path, bbox_inches='tight', pad_inches=0.1, dpi=150)
 
     plt.close()
 
