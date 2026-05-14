@@ -10,7 +10,7 @@
   </p>
 </p>
 
-Interactive segmentation is a crucial area of research in medical image analysis aiming to boost efficiency of costly annotations by incorporating human feedback. Two use cases where this is especially important are: (1) newer biological imaging modalities that do not have large amounts of expert-generated ground truth data and (2) refining and correcting under-/over-segmentation issues from state-of-the-art (SOTA) deep learning algorithms. In this paper, we present a new interactive deep learning segmentation algorithm, **ImPartial**, that incorporates human feedback during the training phase to create optimal models for images with small/thin repeatable objects (cells, neurons, vessels, etc). Specifically, ImPartial augments the segmentation objective via self-supervised multi-channel quantized imputation. This approach leverages the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and thus, introduces a self-supervised classification objective that better aligns with the overall segmentation goal. We demonstrate the effectiveness of our approach in (1) efficiently generating high-quality annotations from scratch for cells/vessels in multiplexed images with variable number of channels and (2) correction/refinement of results from SOTA automated algorithms. To make the results from our pipeline more reproducible and easy to benchmark, we also release new benchmark datasets and an opensource pipeline with a user-friendly ImageJ/FIJI interface and MONAI Label API server that can be run locally, on HPC or cloud.  
+Accurate cell segmentation in pathology images typically requires dense pixel-wise annotations, which are costly and time-consuming to obtain. This challenge is especially important for emerging biological imaging modalities and multiplexed datasets with variable channel configurations, where expert-labeled data are scarce. In this work, we introduce **ImPartial**, a deep learning framework designed to achieve state-of-the-art segmentation performance in low-annotation regimes using sparse scribbles and limited supervision. **ImPartial** augments the segmentation objective via self-supervised multi-channel quantized imputation. This approach leverages the observation that perfect pixel-wise reconstruction or denoising of the image is not needed for accurate segmentation, and thus, introduces a self-supervised classification objective that better aligns with the overall segmentation goal. We demonstrate that ImPartial achieves performance at par with fully supervised models while requiring substantially fewer annotations. Extensive experiments on benchmark multiplexed cellular imaging and single-plex clinical brightfield immunohistochemistry datasets show consistent improvements over strong baselines with only partial annotations. To make the results from our pipeline more reproducible and easy to benchmark, we also release new benchmark datasets and an opensource pipeline with a user-friendly ImageJ/FIJI interface and MONAI Label API server that can be run locally, on HPC or cloud.  
 
 *With **MONAI-Label integration**, **cloud (Amazon Web Services) deployment**, and a user-friendly **ImageJ/Fiji plugin/interface**, **ImPartial** can be run iteratively on a new user-uploaded dataset in an active learning human-in-the-loop framework with a no-code execution. A new **multi-user support scheme** is deployed as well to allow users to sign-up/authenticate and simultaneously use our cloud resources with capabilities to end/restore user sessions and develop/share new models with the wider community as needed (hopefully resulting in an ImPartial-driven marketplace in the future where users can share their models with the wider community while being properly credited for their hard work).*
 
@@ -126,3 +126,15 @@ Please report all issues [here](https://github.com/nadeemlab/ImPartial/issues).
 
 ## Funding
 This work is funded by the 7-year NIH/NCI R37 MERIT Award ([R37CA295658](https://reporter.nih.gov/search/5dgSOlHosEKepkZEAS5_kQ/project-details/11018883#description)).
+
+## Reference
+If you find our work useful in your research or if you use parts of this code or the dataset, please cite the following paper:
+```
+@article{shrivastava2026impartial,
+  title={ImPartial: Multi-channel Whole-Cell Segmentation using Partial Annotations},
+  author={Shrivastava, Gunjan and Nadeem, Saad},
+  journal={International Conference on Medical Image Computing and Computer-Assisted Intervention (MICCAI)},
+  year={2026}
+}
+
+```
