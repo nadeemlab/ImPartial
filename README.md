@@ -32,7 +32,7 @@ latter statistics are averaged across the entire patch to enforce component cons
 
 ## Results on the IHC Dataset
 ![IHC_results](./images/ihc_results.png)
-Qualitative results the publicly available DeepLIIF dataset, which consists of co-registered images of IHC, hematoxylin, and multiplex immunofluorescence (mpIF) channels (DAPI, Lap2, and Ki67) acquired from lung and bladder tissue sections.
+Qualitative results on the publicly available [DeepLIIF dataset](https://zenodo.org/records/4751737#.YKRTS0NKhH4), which consists of co-registered images of IHC, hematoxylin, and multiplex immunofluorescence (mpIF) channels (DAPI, Lap2, and Ki67) acquired from lung and bladder tissue sections.
 
 
 ## Iterative Analysis
