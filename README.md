@@ -5,7 +5,7 @@
     <h1 align="center"><strong>Interactive instance segmentation using partial annotations</strong></h1>
     <p align="center">
     <a href="https://arxiv.org/abs/2605.24128">ImPartial MICCAI'26</a> |
-    <a href="https://monai.io/wg_human_ai_interaction.html">MONAI Human-AI Interaction Working Group</a> |
+    <a href="https://project-monai.github.io/wg_human_ai_interaction.html">MONAI Human-AI Interaction Working Group</a> |
     <a href="https://github.com/nadeemlab/ImPartial/issues">Report Bug</a> |
     <a href="https://github.com/nadeemlab/ImPartial/issues">Request Feature</a>
   </p>
