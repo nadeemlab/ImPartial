@@ -76,7 +76,7 @@ class ImageBlindSpotDataset(Dataset):
 
         Xcrop = self.X_list[idx]
         Scrop = self.S_list[idx]
-        if np.random.rand() < 1.0: # TODO: re-check this
+        if np.random.rand() < 0.85: # TODO: re-check this
             # Xout, mask = self.generate_mask(copy.deepcopy(Xcrop))
             Xout, mask = self.generate_mask(Xcrop)
         else:
@@ -156,7 +156,8 @@ class ImageBlindSpotDataset(Dataset):
         ps = (new_h, new_w, S.shape[2])
         S_patches = view_as_windows(S, ps)
 
-        return X_patches[min_h, min_w, 0, ...], S_patches[min_h, min_w, 0, ...]
+        # return X_patches[min_h, min_w, 0, ...], S_patches[min_h, min_w, 0, ...]
+        return X_patches[min_h, min_w, 0, ...].copy(), S_patches[min_h, min_w, 0, ...].copy()
 
 
 class ImageSegDataset(Dataset):
@@ -217,13 +218,13 @@ class RandomFlip(object):
     def __call__(self, data):
         input, target, scribble, mask = data['input'], data['target'], data['scribble'], data['mask']
 
-        if np.random.rand() > 0.66:
+        if np.random.rand() > 0.6:
             input = np.fliplr(input)
             scribble = np.fliplr(scribble)
             mask = np.fliplr(mask)
             target = np.fliplr(target)
 
-        elif np.random.rand() > 0.33:
+        elif np.random.rand() > 0.3:
             input = np.flipud(input)
             scribble = np.flipud(scribble)
             mask = np.flipud(mask)
@@ -236,7 +237,7 @@ class RandomRotate(object):
     def __call__(self, data):
         input, target, scribble, mask = data['input'], data['target'], data['scribble'], data['mask']
 
-        if np.random.rand() > 0.3:
+        if np.random.rand() > 0.25:
             k = np.random.randint(1, 4)
             if k == 3:
                 k = -1
@@ -256,8 +257,8 @@ class Resize(object):
 
     def __call__(self, img, scribble):
         img = resize(img, self.size, order=1, preserve_range=True, anti_aliasing=True)
-        scribble = resize(scribble, self.size, order=0, preserve_range=True, anti_aliasing=False)
-        scribble = np.round(scribble) 
+        scribble = resize(scribble, self.size, order=1, preserve_range=True, anti_aliasing=True)
+        scribble = (scribble > 0.4).astype(scribble.dtype)
         return img, scribble
 
 class ResizeInfer(object):
@@ -282,7 +283,7 @@ class RandomPermuteChannel(object):
         n_channels = input.shape[-1]
 
         # Random channel permutation
-        if np.random.rand() < 0.5:
+        if np.random.rand() > 0.4:
             permuted_channels = np.random.permutation(n_channels)
             input = input[..., permuted_channels]
             target = target[..., permuted_channels]

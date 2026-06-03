@@ -47,8 +47,6 @@ class Trainer:
         patience = 10
         stopper = early_stopping(patience, 0, np.inf) #only to save global best model
         best_model_path = os.path.join(self.output_dir, "model_best.pth")
-        
-        
         for epoch in range(1, self.epochs):
             
             start_time = time.time()
@@ -92,29 +90,28 @@ class Trainer:
             loss_mean = self.validate(dataloader_val, epoch=epoch)
             
             # # Step the learning rate scheduler
-            # if self.scheduler is not None:
+            if self.scheduler is not None:
+                self.scheduler.step()
             #     # ReduceLROnPlateau requires the metric (validation loss) as argument
             #     if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
-            #         self.scheduler.step(loss_mean)
+            #        self.scheduler.step(loss_mean)
             #     else:
-            #         self.scheduler.step()
-                
-            #     # Get current learning rate
-            #     current_lr = self.optimizer.param_groups[0]['lr']
-            #     mlflow.log_metric("learning_rate", current_lr)
+            #         
+
+            # Get current learning rate
+            current_lr = self.optimizer.param_groups[0]['lr']
+            mlflow.log_metric("learning_rate", current_lr)
             
-            is_save_model, _ = stopper.evaluate(loss_mean)
-            is_save_model = False  # save every epoch
-            if is_save_model:
+
+            if epoch % self.eval_freq == 0:
+                self.evaluate(dataloader_eval, epoch=epoch, is_save=True, dilate=True)
+
                 checkpoint_model_path = os.path.join(self.output_dir, 'checkpoint_{}'.format(epoch))
                 logger.info("Saving the current best model: Epoch: {} Loss: {}".format(epoch, np.mean(losses_all)))
                 model_params_save(best_model_path, self.model, self.optimizer)  # save best model
                 model_params_save(checkpoint_model_path, self.model, self.optimizer)  # save best model
-                mlflow.log_artifact(best_model_path, "model")
+                # mlflow.log_artifact(best_model_path, "model")
 
-
-            if epoch % self.eval_freq == 0:
-                self.evaluate(dataloader_eval, epoch=epoch, is_save=True, dilate=True)
             
             if epoch % 10 == 0:
                 time_resample_start = time.time()
@@ -130,7 +127,7 @@ class Trainer:
     def validate(self, dataloader_val, epoch=0):
         losses_all = []
         start_time = time.time()
-        self.model.eval()
+        # self.model.eval()
         for batch, data in enumerate(dataloader_val):
 
             x = data['input'].to(self.device) #input image with blind spots replaced randomly
@@ -184,7 +181,7 @@ class Trainer:
 
     # evaluate == when there in gt available
     @torch.no_grad()
-    def evaluate(self, dataloader_eval, epoch=0, is_save=False, dilate=False):
+    def evaluate(self, dataloader_eval, epoch=0, is_save=False, dilate=False, threshold=0.8, n_iter=2):
         
         # Create output directory
         output_dir = os.path.join(self.output_dir, 'pred_w_gt')
@@ -210,7 +207,7 @@ class Trainer:
             out = get_impartial_outputs(predictions, self.classification_tasks, mean, std)  # output has keys: class_segmentation, factors
             out_seg = out['0']['class_segmentation'][0,0,:,:] 
             
-            out_label = post_process_predictions(out_seg)
+            out_label = post_process_predictions(out_seg, th=threshold, n_iter=n_iter)
                 
             # Calculate metrics --------------------------------------------------------
             row = [image_name]
@@ -225,6 +222,7 @@ class Trainer:
             if is_save and batch % self.eval_sample_freq == 0:
                 save_log_outputs(output_dir, image_name, epoch, predictions, out, out_seg, out_label, mlflow_tag='pred_w_gt')
                 # save_out_seg_npz(output_dir, image_name, epoch, out_seg, mlflow_tag='npz_pred')
+
                 save_label_gt(output_dir, image_name, epoch, Ylabel, mlflow_tag='label_gt')
 
 
@@ -307,6 +305,40 @@ class Trainer:
         predictions = pred_map / count_map
 
         return predictions
+
+
+    # evaluate == when there in gt available
+    @torch.no_grad()
+    def infer_only(self, dataloader_infer, epoch=0, is_save=False, dilate=False, threshold=0.8, n_iter=2):
+        
+        # Create output directory
+        output_dir = os.path.join(self.output_dir, 'pred_w_gt')
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        
+        print('Start Infer Only in training ...')
+        logger.info('Start Infer Only in training ...')
+        start_time = time.time()
+        for batch, data in enumerate(dataloader_infer):
+            logger.info("Eval: batch: {} / {}  mcdropout: {}".format(batch, len(dataloader_infer), self.mcdrop_it))
+            Xinput = data['input'].to(self.device)
+            image_name = data['image_name'][0]
+            image_name = image_name.split('/')[-1]
+
+            predictions = self.inference(Xinput)
+            
+            mean = True
+            std = False
+            out = get_impartial_outputs(predictions, self.classification_tasks, mean, std)  # output has keys: class_segmentation, factors
+            out_seg = out['0']['class_segmentation'][0,0,:,:] 
+            
+            out_label = post_process_predictions(out_seg, th=threshold, n_iter=n_iter)
+            save_log_outputs(output_dir, image_name, epoch, predictions, out, out_seg, out_label, mlflow_tag='pred_w_gt')
+
+        time_taken = time.time() - start_time
+        print("Infer Only :::: Time: {:.2f} seconds".format(time_taken))
+        mlflow.log_metric("infer_only_time", time_taken)
+        
 
 
 def save_out_seg_npz(output_dir, image_name, epoch, out_seg, mlflow_tag):
