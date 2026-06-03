@@ -20,4 +20,3 @@ RUN pip install -r $APP_HOME/requirements.txt
 RUN pip install $APP_HOME
 
 WORKDIR $APP_HOME/monailabel-app
-

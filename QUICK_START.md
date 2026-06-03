@@ -44,6 +44,7 @@ User can request our cloud deployed MONAI server to readily annotate and segment
 
     ![session](./images/screenshots/session.png)
 
+
 ### Dataset images 
 - Click “ADD” to upload your images.
 - Impartial supports .png and .tiff file formats 
